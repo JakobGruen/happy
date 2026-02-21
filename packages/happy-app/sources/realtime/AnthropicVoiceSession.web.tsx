@@ -11,7 +11,9 @@ export const AnthropicVoiceSession: React.FC = () => {
     const hasRegistered = useRef(false);
 
     useEffect(() => {
-        const apiKey = storage.getState().localSettings.anthropicVoiceApiKey;
+        const apiKey = storage.getState().localSettings.anthropicVoiceApiKey
+            || process.env.EXPO_PUBLIC_ANTHROPIC_VOICE_API_KEY
+            || null;
         if (!apiKey) {
             console.warn('No Anthropic voice API key configured — voice features disabled');
             return;
