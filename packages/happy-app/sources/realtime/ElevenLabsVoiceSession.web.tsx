@@ -10,10 +10,10 @@ import type { VoiceSession, VoiceSessionConfig } from './types';
 let conversationInstance: ReturnType<typeof useConversation> | null = null;
 
 // Global voice session implementation
-class RealtimeVoiceSessionImpl implements VoiceSession {
+class ElevenLabsVoiceSessionImpl implements VoiceSession {
 
     async startSession(config: VoiceSessionConfig): Promise<void> {
-        console.log('[RealtimeVoiceSessionImpl] conversationInstance:', conversationInstance);
+        console.log('[ElevenLabsVoiceSessionImpl] conversationInstance:', conversationInstance);
         if (!conversationInstance) {
             console.warn('Realtime voice session not initialized - conversationInstance is null');
             return;
@@ -94,7 +94,7 @@ class RealtimeVoiceSessionImpl implements VoiceSession {
     }
 }
 
-export const RealtimeVoiceSession: React.FC = () => {
+export const ElevenLabsVoiceSession: React.FC = () => {
     const conversation = useConversation({
         clientTools: realtimeClientTools,
         onConnect: () => {
@@ -142,16 +142,16 @@ export const RealtimeVoiceSession: React.FC = () => {
 
     useEffect(() => {
         // Store the conversation instance globally
-        console.log('[RealtimeVoiceSession] Setting conversationInstance:', conversation);
+        console.log('[ElevenLabsVoiceSession] Setting conversationInstance:', conversation);
         conversationInstance = conversation;
 
         // Register the voice session once
         if (!hasRegistered.current) {
             try {
-                console.log('[RealtimeVoiceSession] Registering voice session');
-                registerVoiceSession(new RealtimeVoiceSessionImpl());
+                console.log('[ElevenLabsVoiceSession] Registering voice session');
+                registerVoiceSession(new ElevenLabsVoiceSessionImpl());
                 hasRegistered.current = true;
-                console.log('[RealtimeVoiceSession] Voice session registered successfully');
+                console.log('[ElevenLabsVoiceSession] Voice session registered successfully');
             } catch (error) {
                 console.error('Failed to register voice session:', error);
             }

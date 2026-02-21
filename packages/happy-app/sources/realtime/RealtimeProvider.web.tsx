@@ -1,5 +1,5 @@
 import React from 'react';
-import { RealtimeVoiceSession } from './RealtimeVoiceSession';
+import { ElevenLabsVoiceSession } from './ElevenLabsVoiceSession';
 import { AnthropicVoiceSession } from './AnthropicVoiceSession';
 import { useSetting } from '@/sync/storage';
 
@@ -9,7 +9,7 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
     return (
         <>
             {voiceBackend === 'elevenlabs' ? (
-                <RealtimeVoiceSession />
+                <ElevenLabsVoiceSession />
             ) : (
                 <AnthropicVoiceSession />
             )}

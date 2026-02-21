@@ -10,7 +10,7 @@ import type { VoiceSession, VoiceSessionConfig } from './types';
 let conversationInstance: ReturnType<typeof useConversation> | null = null;
 
 // Global voice session implementation
-class RealtimeVoiceSessionImpl implements VoiceSession {
+class ElevenLabsVoiceSessionImpl implements VoiceSession {
     
     async startSession(config: VoiceSessionConfig): Promise<void> {
         if (!conversationInstance) {
@@ -89,7 +89,7 @@ class RealtimeVoiceSessionImpl implements VoiceSession {
     }
 }
 
-export const RealtimeVoiceSession: React.FC = () => {
+export const ElevenLabsVoiceSession: React.FC = () => {
     const conversation = useConversation({
         clientTools: realtimeClientTools,
         onConnect: (data) => {
@@ -142,7 +142,7 @@ export const RealtimeVoiceSession: React.FC = () => {
         // Register the voice session once
         if (!hasRegistered.current) {
             try {
-                registerVoiceSession(new RealtimeVoiceSessionImpl());
+                registerVoiceSession(new ElevenLabsVoiceSessionImpl());
                 hasRegistered.current = true;
             } catch (error) {
                 console.error('Failed to register voice session:', error);

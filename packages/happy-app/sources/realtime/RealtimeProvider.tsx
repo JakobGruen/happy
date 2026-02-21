@@ -1,6 +1,6 @@
 import React from 'react';
 import { ElevenLabsProvider } from '@elevenlabs/react-native';
-import { RealtimeVoiceSession } from './RealtimeVoiceSession';
+import { ElevenLabsVoiceSession } from './ElevenLabsVoiceSession';
 import { AnthropicVoiceSession } from './AnthropicVoiceSession';
 import { useSetting } from '@/sync/storage';
 
@@ -11,7 +11,7 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
         <>
             {voiceBackend === 'elevenlabs' ? (
                 <ElevenLabsProvider>
-                    <RealtimeVoiceSession />
+                    <ElevenLabsVoiceSession />
                 </ElevenLabsProvider>
             ) : (
                 <AnthropicVoiceSession />
