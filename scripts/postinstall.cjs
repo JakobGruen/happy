@@ -1,5 +1,12 @@
 const { execSync } = require('child_process');
 
+// Always apply patches (including during Docker builds)
+try {
+  execSync('npx patch-package', { stdio: 'inherit' });
+} catch (e) {
+  console.log('[postinstall] patch-package failed, continuing...');
+}
+
 if (process.env.SKIP_HAPPY_WIRE_BUILD === '1') {
   console.log('[postinstall] SKIP_HAPPY_WIRE_BUILD=1, skipping @slopus/happy-wire build');
   process.exit(0);

@@ -1,0 +1,38 @@
+diff --git a/node_modules/pglite-prisma-adapter/dist/index.cjs b/node_modules/pglite-prisma-adapter/dist/index.cjs
+index 1e37125..0d9450c 100644
+--- a/node_modules/pglite-prisma-adapter/dist/index.cjs
++++ b/node_modules/pglite-prisma-adapter/dist/index.cjs
+@@ -298,12 +298,12 @@ function toJson(json) {
+ }
+ const parsePgBytes = (x) => {
+ 	const hexString = x.slice(2);
+-	return Uint8Array.from({ length: hexString.length / 2 }, (_, idx) => Number.parseInt(hexString.substring(idx * 2, (idx + 1) * 2), 16));
++	return Array.from({ length: hexString.length / 2 }, (_, idx) => Number.parseInt(hexString.substring(idx * 2, (idx + 1) * 2), 16));
+ };
+ function normalizeByteaArray(x) {
+ 	return (0, postgres_array.parse)(x).map((x$1) => {
+ 		const hexString = x$1.slice(2);
+-		return Uint8Array.from({ length: hexString.length / 2 }, (_, idx) => Number.parseInt(hexString.substring(idx * 2, (idx + 1) * 2), 16));
++		return Array.from({ length: hexString.length / 2 }, (_, idx) => Number.parseInt(hexString.substring(idx * 2, (idx + 1) * 2), 16));
+ 	});
+ }
+ /**
+diff --git a/node_modules/pglite-prisma-adapter/dist/index.mjs b/node_modules/pglite-prisma-adapter/dist/index.mjs
+index b2e810c..93391e1 100644
+--- a/node_modules/pglite-prisma-adapter/dist/index.mjs
++++ b/node_modules/pglite-prisma-adapter/dist/index.mjs
+@@ -271,12 +271,12 @@ function toJson(json) {
+ }
+ const parsePgBytes = (x) => {
+ 	const hexString = x.slice(2);
+-	return Uint8Array.from({ length: hexString.length / 2 }, (_, idx) => Number.parseInt(hexString.substring(idx * 2, (idx + 1) * 2), 16));
++	return Array.from({ length: hexString.length / 2 }, (_, idx) => Number.parseInt(hexString.substring(idx * 2, (idx + 1) * 2), 16));
+ };
+ function normalizeByteaArray(x) {
+ 	return parse(x).map((x$1) => {
+ 		const hexString = x$1.slice(2);
+-		return Uint8Array.from({ length: hexString.length / 2 }, (_, idx) => Number.parseInt(hexString.substring(idx * 2, (idx + 1) * 2), 16));
++		return Array.from({ length: hexString.length / 2 }, (_, idx) => Number.parseInt(hexString.substring(idx * 2, (idx + 1) * 2), 16));
+ 	});
+ }
+ /**
