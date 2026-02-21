@@ -207,6 +207,7 @@ export const ru: TranslationStructure = {
         sessionNotFound: 'Сессия не найдена',
         voiceSessionFailed: 'Не удалось запустить голосовую сессию',
         voiceServiceUnavailable: 'Голосовой сервис временно недоступен',
+        voiceNotConfigured: 'Голосовой помощник не настроен. Пожалуйста, установите API-ключ в настройках.',
         oauthInitializationFailed: 'Не удалось инициализировать процесс OAuth',
         tokenStorageFailed: 'Не удалось сохранить токены аутентификации',
         oauthStateMismatch: 'Ошибка проверки безопасности. Попробуйте снова',
@@ -566,7 +567,21 @@ export const ru: TranslationStructure = {
     },
 
     settingsVoice: {
-        // Voice settings screen
+        // Voice backend settings
+        backendTitle: 'Голосовой движок',
+        backendDescription: 'ElevenLabs использует облачный разговорный ИИ. Anthropic использует распознавание речи на устройстве с Claude.',
+        voiceBackend: 'Голосовой движок',
+        voiceBackendSubtitle: 'Нажмите для переключения между провайдерами',
+        // Anthropic pipeline settings
+        anthropicTitle: 'API-ключ Anthropic',
+        anthropicDescription: 'Ваш API-ключ хранится только на этом устройстве и не синхронизируется.',
+        apiKey: 'API-ключ',
+        apiKeyConfigured: 'API-ключ установлен',
+        apiKeyNotConfigured: 'API-ключ не настроен',
+        apiKeySetAction: 'Установить',
+        apiKeyTitle: 'API-ключ Anthropic',
+        apiKeyMessage: 'Введите ваш API-ключ Anthropic для голосового конвейера',
+        // Language settings
         languageTitle: 'Язык',
         languageDescription: 'Выберите предпочтительный язык для взаимодействия с голосовым помощником. Эта настройка синхронизируется на всех ваших устройствах.',
         preferredLanguage: 'Предпочтительный язык',

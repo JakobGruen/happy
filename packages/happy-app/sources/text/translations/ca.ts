@@ -225,6 +225,7 @@ export const ca: TranslationStructure = {
         sessionNotFound: 'Sessió no trobada',
         voiceSessionFailed: 'Ha fallat l\'inici de la sessió de veu',
         voiceServiceUnavailable: 'El servei de veu no està disponible temporalment',
+        voiceNotConfigured: 'La veu no està configurada. Configura una clau API a Configuració.',
         oauthInitializationFailed: 'Ha fallat la inicialització del flux OAuth',
         tokenStorageFailed: 'Ha fallat l\'emmagatzematge dels tokens d\'autenticació',
         oauthStateMismatch: 'Ha fallat la validació de seguretat. Si us plau, torna-ho a provar',
@@ -556,7 +557,21 @@ export const ca: TranslationStructure = {
     },
 
     settingsVoice: {
-        // Voice settings screen
+        // Voice backend settings
+        backendTitle: 'Motor de veu',
+        backendDescription: 'ElevenLabs utilitza IA conversacional al núvol. Anthropic utilitza reconeixement de veu al dispositiu amb Claude.',
+        voiceBackend: 'Motor de veu',
+        voiceBackendSubtitle: 'Toca per canviar entre proveïdors',
+        // Anthropic pipeline settings
+        anthropicTitle: 'Clau API d\'Anthropic',
+        anthropicDescription: 'La teva clau API s\'emmagatzema només en aquest dispositiu i no es sincronitza.',
+        apiKey: 'Clau API',
+        apiKeyConfigured: 'Clau API configurada',
+        apiKeyNotConfigured: 'No hi ha clau API configurada',
+        apiKeySetAction: 'Establir',
+        apiKeyTitle: 'Clau API d\'Anthropic',
+        apiKeyMessage: 'Introdueix la teva clau API d\'Anthropic per al pipeline de veu',
+        // Language settings
         languageTitle: 'Idioma',
         languageDescription: 'Tria el teu idioma preferit per a les interaccions amb l\'assistent de veu. Aquesta configuració es sincronitza a tots els teus dispositius.',
         preferredLanguage: 'Idioma preferit',

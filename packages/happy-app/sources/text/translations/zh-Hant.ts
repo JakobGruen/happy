@@ -226,6 +226,7 @@ export const zhHant: TranslationStructure = {
         sessionNotFound: '工作階段未找到',
         voiceSessionFailed: '啟動語音工作階段失敗',
         voiceServiceUnavailable: '語音服務暫時無法使用',
+        voiceNotConfigured: '語音未設定。請在設定中設定 API 金鑰。',
         oauthInitializationFailed: '初始化 OAuth 流程失敗',
         tokenStorageFailed: '儲存驗證權杖失敗',
         oauthStateMismatch: '安全驗證失敗。請重試',
@@ -557,7 +558,21 @@ export const zhHant: TranslationStructure = {
     },
 
     settingsVoice: {
-        // Voice settings screen
+        // Voice backend settings
+        backendTitle: '語音引擎',
+        backendDescription: 'ElevenLabs 使用雲端對話 AI。Anthropic 使用裝置端語音辨識配合 Claude。',
+        voiceBackend: '語音引擎',
+        voiceBackendSubtitle: '點擊切換語音提供商',
+        // Anthropic pipeline settings
+        anthropicTitle: 'Anthropic API 金鑰',
+        anthropicDescription: '您的 API 金鑰僅儲存在此裝置上，不會同步。',
+        apiKey: 'API 金鑰',
+        apiKeyConfigured: 'API 金鑰已設定',
+        apiKeyNotConfigured: '未設定 API 金鑰',
+        apiKeySetAction: '設定',
+        apiKeyTitle: 'Anthropic API 金鑰',
+        apiKeyMessage: '請輸入用於語音管道的 Anthropic API 金鑰',
+        // Language settings
         languageTitle: '語言',
         languageDescription: '選擇您希望語音助理互動使用的語言。此設定將在您的所有裝置間同步。',
         preferredLanguage: '偏好語言',

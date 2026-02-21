@@ -254,6 +254,7 @@ export const it: TranslationStructure = {
         sessionNotFound: 'Sessione non trovata',
         voiceSessionFailed: 'Avvio della sessione vocale non riuscito',
         voiceServiceUnavailable: 'Il servizio vocale non è temporaneamente disponibile',
+        voiceNotConfigured: 'La voce non è configurata. Configura una chiave API nelle Impostazioni.',
         oauthInitializationFailed: 'Impossibile inizializzare il flusso OAuth',
         tokenStorageFailed: 'Impossibile salvare i token di autenticazione',
         oauthStateMismatch: 'Convalida di sicurezza non riuscita. Riprova',
@@ -585,7 +586,21 @@ export const it: TranslationStructure = {
     },
 
     settingsVoice: {
-        // Voice settings screen
+        // Voice backend settings
+        backendTitle: 'Motore vocale',
+        backendDescription: 'ElevenLabs utilizza IA conversazionale in cloud. Anthropic utilizza il riconoscimento vocale sul dispositivo con Claude.',
+        voiceBackend: 'Motore vocale',
+        voiceBackendSubtitle: 'Tocca per cambiare provider',
+        // Anthropic pipeline settings
+        anthropicTitle: 'Chiave API Anthropic',
+        anthropicDescription: 'La tua chiave API è memorizzata solo su questo dispositivo e non viene sincronizzata.',
+        apiKey: 'Chiave API',
+        apiKeyConfigured: 'Chiave API configurata',
+        apiKeyNotConfigured: 'Nessuna chiave API configurata',
+        apiKeySetAction: 'Imposta',
+        apiKeyTitle: 'Chiave API Anthropic',
+        apiKeyMessage: 'Inserisci la tua chiave API Anthropic per la pipeline vocale',
+        // Language settings
         languageTitle: 'Lingua',
         languageDescription: 'Scegli la tua lingua preferita per le interazioni dell\'assistente vocale. Questa impostazione si sincronizza su tutti i tuoi dispositivi.',
         preferredLanguage: 'Lingua preferita',

@@ -33,6 +33,7 @@ export default {
             },
             infoPlist: {
                 NSMicrophoneUsageDescription: "Allow $(PRODUCT_NAME) to access your microphone for voice conversations with AI.",
+                NSSpeechRecognitionUsageDescription: "Allow $(PRODUCT_NAME) to use speech recognition for voice commands.",
                 NSLocalNetworkUsageDescription: "Allow $(PRODUCT_NAME) to find and connect to local devices on your network.",
                 NSBonjourServices: ["_http._tcp", "_https._tcp"]
             },
@@ -92,6 +93,7 @@ export default {
             "expo-web-browser",
             "react-native-vision-camera",
             "@more-tech/react-native-libsodium",
+            "expo-speech-recognition",
             "react-native-audio-api",
             "@livekit/react-native-expo-plugin",
             "@config-plugins/react-native-webrtc",

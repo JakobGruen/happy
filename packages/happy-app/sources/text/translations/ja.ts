@@ -257,6 +257,7 @@ export const ja: TranslationStructure = {
         sessionNotFound: 'セッションが見つかりません',
         voiceSessionFailed: '音声セッションの開始に失敗しました',
         voiceServiceUnavailable: '音声サービスは一時的に利用できません',
+        voiceNotConfigured: '音声が設定されていません。設定でAPI キーを設定してください。',
         oauthInitializationFailed: 'OAuth フローの初期化に失敗しました',
         tokenStorageFailed: '認証トークンの保存に失敗しました',
         oauthStateMismatch: 'セキュリティ検証に失敗しました。再試行してください',
@@ -588,7 +589,21 @@ export const ja: TranslationStructure = {
     },
 
     settingsVoice: {
-        // Voice settings screen
+        // Voice backend settings
+        backendTitle: '音声バックエンド',
+        backendDescription: 'ElevenLabsはクラウドの会話AIを使用します。Anthropicはデバイス上の音声認識とClaudeを使用します。',
+        voiceBackend: '音声バックエンド',
+        voiceBackendSubtitle: 'タップしてプロバイダーを切り替え',
+        // Anthropic pipeline settings
+        anthropicTitle: 'Anthropic APIキー',
+        anthropicDescription: 'APIキーはこのデバイスにのみ保存され、同期されません。',
+        apiKey: 'APIキー',
+        apiKeyConfigured: 'APIキーが設定済み',
+        apiKeyNotConfigured: 'APIキーが未設定',
+        apiKeySetAction: '設定',
+        apiKeyTitle: 'Anthropic APIキー',
+        apiKeyMessage: '音声パイプライン用のAnthropic APIキーを入力してください',
+        // Language settings
         languageTitle: '言語',
         languageDescription: '音声アシスタントの操作に使用する言語を選択します。この設定はすべてのデバイスで同期されます。',
         preferredLanguage: '優先言語',

@@ -1,12 +1,22 @@
 import React from 'react';
-import { ElevenLabsProvider } from "@elevenlabs/react-native";
+import { ElevenLabsProvider } from '@elevenlabs/react-native';
 import { RealtimeVoiceSession } from './RealtimeVoiceSession';
+import { AnthropicVoiceSession } from './AnthropicVoiceSession';
+import { useSetting } from '@/sync/storage';
 
 export const RealtimeProvider = ({ children }: { children: React.ReactNode }) => {
+    const voiceBackend = useSetting('voiceBackend');
+
     return (
-        <ElevenLabsProvider>
-            <RealtimeVoiceSession />
+        <>
+            {voiceBackend === 'elevenlabs' ? (
+                <ElevenLabsProvider>
+                    <RealtimeVoiceSession />
+                </ElevenLabsProvider>
+            ) : (
+                <AnthropicVoiceSession />
+            )}
             {children}
-        </ElevenLabsProvider>
+        </>
     );
 };

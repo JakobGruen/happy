@@ -227,6 +227,7 @@ export const zhHans: TranslationStructure = {
         sessionNotFound: '会话未找到',
         voiceSessionFailed: '启动语音会话失败',
         voiceServiceUnavailable: '语音服务暂时不可用',
+        voiceNotConfigured: '语音未配置。请在设置中设置 API 密钥。',
         oauthInitializationFailed: '初始化 OAuth 流程失败',
         tokenStorageFailed: '存储认证令牌失败',
         oauthStateMismatch: '安全验证失败。请重试',
@@ -558,7 +559,21 @@ export const zhHans: TranslationStructure = {
     },
 
     settingsVoice: {
-        // Voice settings screen
+        // Voice backend settings
+        backendTitle: '语音引擎',
+        backendDescription: 'ElevenLabs 使用云端对话 AI。Anthropic 使用设备端语音识别配合 Claude。',
+        voiceBackend: '语音引擎',
+        voiceBackendSubtitle: '点击切换语音提供商',
+        // Anthropic pipeline settings
+        anthropicTitle: 'Anthropic API 密钥',
+        anthropicDescription: '您的 API 密钥仅存储在此设备上，不会同步。',
+        apiKey: 'API 密钥',
+        apiKeyConfigured: 'API 密钥已设置',
+        apiKeyNotConfigured: '未配置 API 密钥',
+        apiKeySetAction: '设置',
+        apiKeyTitle: 'Anthropic API 密钥',
+        apiKeyMessage: '请输入用于语音管道的 Anthropic API 密钥',
+        // Language settings
         languageTitle: '语言',
         languageDescription: '选择您希望语音助手交互使用的语言。此设置将在您的所有设备间同步。',
         preferredLanguage: '首选语言',

@@ -28,4 +28,15 @@ export const VOICE_CONFIG = {
     
     /** Enable debug logging for voice context updates */
     ENABLE_DEBUG_LOGGING: true,
+
+    // --- Pipeline config ---
+
+    /** Claude model for voice pipeline */
+    PIPELINE_MODEL: 'claude-haiku-4-5-20251001',
+
+    /** Max conversation history messages kept in pipeline */
+    PIPELINE_MAX_HISTORY: 30,
+
+    /** Max tokens for voice pipeline Claude responses (keeps spoken output short) */
+    PIPELINE_MAX_TOKENS: 250,
 } as const;

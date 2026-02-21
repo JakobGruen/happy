@@ -224,6 +224,7 @@ export const en = {
         sessionNotFound: 'Session not found',
         voiceSessionFailed: 'Failed to start voice session',
         voiceServiceUnavailable: 'Voice service is temporarily unavailable',
+        voiceNotConfigured: 'Voice is not configured. Please set up a voice API key in Settings.',
         oauthInitializationFailed: 'Failed to initialize OAuth flow',
         tokenStorageFailed: 'Failed to store authentication tokens',
         oauthStateMismatch: 'Security validation failed. Please try again',
@@ -555,7 +556,21 @@ export const en = {
     },
 
     settingsVoice: {
-        // Voice settings screen
+        // Voice backend settings
+        backendTitle: 'Voice Backend',
+        backendDescription: 'ElevenLabs uses a hosted conversational AI. Anthropic uses on-device speech recognition with Claude.',
+        voiceBackend: 'Voice Backend',
+        voiceBackendSubtitle: 'Tap to switch between voice providers',
+        // Anthropic pipeline settings
+        anthropicTitle: 'Anthropic API Key',
+        anthropicDescription: 'Your API key is stored only on this device and never synced.',
+        apiKey: 'API Key',
+        apiKeyConfigured: 'API key is set',
+        apiKeyNotConfigured: 'No API key configured',
+        apiKeySetAction: 'Set',
+        apiKeyTitle: 'Anthropic API Key',
+        apiKeyMessage: 'Enter your Anthropic API key for the voice pipeline',
+        // Language settings
         languageTitle: 'Language',
         languageDescription: 'Choose your preferred language for voice assistant interactions. This setting syncs across all your devices.',
         preferredLanguage: 'Preferred Language',

@@ -15,17 +15,38 @@ let currentSessionId: string | null = null;
 export async function startRealtimeSession(sessionId: string, initialContext?: string) {
     if (!voiceSession) {
         console.warn('No voice session registered');
+        Modal.alert(t('common.error'), t('errors.voiceNotConfigured'));
         return;
     }
 
     // Request microphone permission before starting voice session
-    // Critical for iOS/Android - first session will fail without this
     const permissionResult = await requestMicrophonePermission();
     if (!permissionResult.granted) {
         showMicrophonePermissionDeniedAlert(permissionResult.canAskAgain);
         return;
     }
 
+    const voiceBackend = storage.getState().settings.voiceBackend;
+
+    if (voiceBackend === 'anthropic') {
+        // Anthropic pipeline: simple pass-through, no auth/paywall
+        try {
+            currentSessionId = sessionId;
+            voiceSessionStarted = true;
+            await voiceSession.startSession({
+                sessionId,
+                initialContext,
+            });
+        } catch (error) {
+            console.error('Failed to start realtime session:', error);
+            currentSessionId = null;
+            voiceSessionStarted = false;
+            Modal.alert(t('common.error'), t('errors.voiceServiceUnavailable'));
+        }
+        return;
+    }
+
+    // ElevenLabs flow: experiments check → token → paywall
     const experimentsEnabled = storage.getState().settings.experiments;
     const agentId = __DEV__ ? config.elevenLabsAgentIdDev : config.elevenLabsAgentIdProd;
     

@@ -11,6 +11,8 @@ export const LocalSettingsSchema = z.object({
     commandPaletteEnabled: z.boolean().describe('Enable CMD+K command palette (web only)'),
     themePreference: z.enum(['light', 'dark', 'adaptive']).describe('Theme preference: light, dark, or adaptive (follows system)'),
     markdownCopyV2: z.boolean().describe('Replace native paragraph selection with long-press modal for full markdown copy'),
+    // Anthropic voice pipeline API key (device-local, never synced)
+    anthropicVoiceApiKey: z.string().nullable().describe('Anthropic API key for voice pipeline (stored on-device only)'),
     // CLI version acknowledgments - keyed by machineId
     acknowledgedCliVersions: z.record(z.string(), z.string()).describe('Acknowledged CLI versions per machine'),
 });
@@ -34,6 +36,7 @@ export const localSettingsDefaults: LocalSettings = {
     commandPaletteEnabled: false,
     themePreference: 'adaptive',
     markdownCopyV2: false,
+    anthropicVoiceApiKey: null,
     acknowledgedCliVersions: {},
 };
 Object.freeze(localSettingsDefaults);
