@@ -274,7 +274,19 @@ export type RawAgentContent = z.infer<typeof rawAgentContentSchema>;
 
 const rawAgentRecordSchema = z.discriminatedUnion('type', [z.object({
     type: z.literal('output'),
-    data: z.intersection(z.discriminatedUnion('type', [
+    data: z.preprocess(
+        // Remap unknown output data types (e.g. rate_limit_event) to 'system' so the discriminated union doesn't reject them.
+        // The normalizer already returns null for unhandled types, so they're silently skipped.
+        (val) => {
+            if (val && typeof val === 'object' && 'type' in val) {
+                const t = (val as Record<string, unknown>).type;
+                if (typeof t === 'string' && !['system', 'result', 'summary', 'assistant', 'user'].includes(t)) {
+                    return { ...(val as Record<string, unknown>), type: 'system' };
+                }
+            }
+            return val;
+        },
+        z.intersection(z.discriminatedUnion('type', [
         z.object({ type: z.literal('system') }),
         z.object({ type: z.literal('result') }),
         z.object({ type: z.literal('summary'), summary: z.string() }),
@@ -286,7 +298,7 @@ const rawAgentRecordSchema = z.discriminatedUnion('type', [z.object({
         isMeta: z.boolean().nullish(),
         uuid: z.string().nullish(),
         parentUuid: z.string().nullish(),
-    }).passthrough()),  // ROBUST: Accept CLI metadata fields (userType, cwd, sessionId, version, gitBranch, slug, requestId, timestamp)
+    }).passthrough())),  // ROBUST: Accept CLI metadata fields (userType, cwd, sessionId, version, gitBranch, slug, requestId, timestamp)
 }), z.object({
     type: z.literal('event'),
     id: z.string(),
