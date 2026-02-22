@@ -209,13 +209,14 @@ export class VoicePipeline implements VoiceSession {
      * Speak a greeting immediately on session activation.
      * If the user speaks before it finishes, interrupt() cancels it.
      */
-    speakGreeting(): void {
+    speakGreeting(onReady?: () => void): void {
         this.setState('speaking');
         Speech.speak('Hi, Happy here', {
             onDone: () => {
                 if (this.state === 'speaking') {
                     this.setState('idle');
                 }
+                onReady?.();
             },
         });
     }

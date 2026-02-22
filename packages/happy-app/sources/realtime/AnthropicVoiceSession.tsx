@@ -21,7 +21,6 @@ const TERMINAL_ERRORS = new Set([
     'not-allowed',
     'service-not-allowed',
     'language-not-supported',
-    'aborted',
 ]);
 
 export const AnthropicVoiceSession: React.FC = () => {
@@ -164,10 +163,11 @@ export const AnthropicVoiceSession: React.FC = () => {
                 sessionActive = true;
                 consecutiveErrorsRef.current = 0;
                 lastErrorWasTerminalRef.current = false;
-                startSTT();
                 storage.getState().setRealtimeStatus('connected');
                 storage.getState().setRealtimeMode('idle');
-                pipeline.speakGreeting();
+                pipeline.speakGreeting(() => {
+                    if (sessionActive) startSTT();
+                });
             },
 
             async endSession() {
