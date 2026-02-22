@@ -2,6 +2,8 @@ import { z } from "zod";
 import { AccessToken } from "livekit-server-sdk";
 import { type Fastify } from "../types";
 import { log } from "@/utils/log";
+import { db } from "@/storage/db";
+import { decryptString } from "@/modules/encrypt";
 
 export function voiceRoutes(app: Fastify) {
     app.post('/v1/voice/token', {
@@ -133,14 +135,40 @@ export function voiceRoutes(app: Fastify) {
 
         log({ module: 'voice' }, `LiveKit token request from user ${userId}`);
 
-        const livekitApiKey = process.env.LIVEKIT_API_KEY;
-        const livekitApiSecret = process.env.LIVEKIT_API_SECRET;
-        const livekitUrl = process.env.LIVEKIT_URL;
+        // Try per-user credentials first, fall back to env vars for dev convenience
+        let livekitApiKey: string | undefined;
+        let livekitApiSecret: string | undefined;
+        let livekitUrl: string | undefined;
+
+        const stored = await db.serviceAccountToken.findUnique({
+            where: { accountId_vendor: { accountId: userId, vendor: 'livekit' } },
+            select: { token: true }
+        });
+
+        if (stored) {
+            try {
+                const decrypted = decryptString(['user', userId, 'vendors', 'livekit', 'token'], stored.token);
+                const creds = JSON.parse(decrypted);
+                livekitApiKey = creds.apiKey;
+                livekitApiSecret = creds.apiSecret;
+                livekitUrl = creds.url;
+                log({ module: 'voice' }, `Using per-user LiveKit credentials for user ${userId}`);
+            } catch (e) {
+                log({ module: 'voice' }, `Failed to parse stored LiveKit credentials for user ${userId}: ${e}`);
+            }
+        }
+
+        // Fallback to env vars
+        if (!livekitApiKey || !livekitApiSecret || !livekitUrl) {
+            livekitApiKey = process.env.LIVEKIT_API_KEY;
+            livekitApiSecret = process.env.LIVEKIT_API_SECRET;
+            livekitUrl = process.env.LIVEKIT_URL;
+        }
 
         if (!livekitApiKey || !livekitApiSecret || !livekitUrl) {
             log({ module: 'voice' }, 'Missing LiveKit configuration');
             return reply.code(400).send({
-                error: 'Missing LiveKit configuration on the server'
+                error: 'LiveKit credentials not configured. Add them in Settings > Voice.'
             });
         }
 
