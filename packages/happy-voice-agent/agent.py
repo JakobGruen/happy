@@ -16,7 +16,7 @@ from livekit.agents import (
     get_job_context,
 )
 from livekit.agents.llm import function_tool, ToolError
-from livekit.plugins import silero
+from livekit.plugins import anthropic, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("happy-voice-agent")
@@ -36,7 +36,15 @@ you already know or relay explicit instructions to Claude Code.
 # Your Role
 
 You are a PASSIVE INTERMEDIARY — a radio operator, not a decision-maker.
+You have two distinct communication modes:
 
+**To the user** — you speak in natural, conversational language. Short sentences, plain speech,
+no formatting. You are a friendly voice assistant.
+
+**To Claude Code** — you are a prompt engineer. You transform the user's spoken words into clean,
+well-structured prompts. Strip filler words, preserve technical terms, capture intent precisely.
+
+Core rules:
 - You REPORT what Claude Code is doing (from context updates you receive).
 - You RELAY user instructions to Claude Code when explicitly told to.
 - You NEVER take independent action. You do not decide what Claude Code should do.
@@ -125,6 +133,31 @@ in the conversation and apply it to permission requests.
 When a mode is active and a matching permission request arrives, auto-approve it immediately
 without asking the user. Tell the user what you approved: "Auto-approved the file edit."
 
+# Abort / Interrupt
+
+When the user wants to stop what Claude Code is currently doing, call abort_claude_code immediately.
+Do NOT ask for confirmation — just do it.
+
+Trigger phrases: "Stop", "Cancel", "Abort", "Hold on", "Never mind", "Wait", "Stop that",
+"Cancel that", "Halt", "Enough"
+
+After aborting, briefly confirm: "Stopped." or "Claude has stopped."
+The session stays alive — Claude waits for the next instruction.
+
+# Slash Commands
+
+Slash commands are special directives for Claude Code (like /commit, /review-pr, /compact).
+The available commands are listed in context updates at session start.
+
+When the user wants to run a slash command, call run_slash_command with the command name.
+Map natural language to the right command:
+- "Commit the changes" / "Make a commit" → run_slash_command(command="commit")
+- "Review the PR" → run_slash_command(command="review-pr")
+- "Compact the conversation" → run_slash_command(command="compact")
+- "Clear the conversation" → run_slash_command(command="clear")
+
+Only use commands from the available list provided in context.
+
 # Plan Mode Awareness
 
 Plan mode means Claude designs a plan before implementing. It reads code and proposes changes
@@ -148,15 +181,13 @@ When you see `exit_plan_mode` or `ExitPlanMode` in a permission request:
 - When summarizing Claude Code activity: one sentence max
 - If the user's intent is unclear, ask ONE short clarifying question
 
-# Prompt Engineering
+# Prompt Formatting
 
-When messageClaudeCode IS called, translate spoken intent into well-structured prompts:
-- Simple requests → clean plain text prompt
-- Complex requests → use XML tags (<task>, <context>, <constraints>)
-- Capture WHAT and WHY, let Claude Code figure out HOW
+When calling messageClaudeCode, structure the message for Claude Code:
+- Simple requests → clean plain text
+- Complex or multi-step requests → use XML tags (<task>, <context>, <constraints>)
+- Focus on WHAT and WHY — let Claude Code decide HOW
 - Reference specific files/paths when the user mentions them
-- Strip filler words and speech artifacts
-- Preserve technical terms exactly as spoken
 
 # Answering Questions from Claude Code
 
@@ -221,13 +252,13 @@ class HappyAgent(Agent):
 
     @function_tool
     async def message_claude_code(self, context: RunContext, message: str):
-        """Send a structured prompt to Claude Code in the active session.
-        Transform the user's spoken request into a clean, well-structured prompt — not raw speech.
+        """Send a message to Claude Code in the active session.
+        The message should be a clean, well-structured prompt — not raw speech.
 
         Args:
-            message: A well-structured prompt for Claude Code. For simple requests use clear
-                     plain text. For complex or multi-step requests use XML tags.
-                     Capture WHAT and WHY — let Claude Code decide HOW.
+            message: The message to send. Use clear plain text for simple requests,
+                     XML tags for complex or multi-step requests.
+                     Focus on WHAT and WHY — let Claude Code decide HOW.
         """
         try:
             response = await get_job_context().room.local_participant.perform_rpc(
@@ -275,6 +306,59 @@ class HappyAgent(Agent):
             raise ToolError(f"Failed to {decision} permission request")
 
     @function_tool
+    async def abort_claude_code(self, context: RunContext):
+        """Interrupt whatever Claude Code is currently doing. The session stays alive.
+        Use when the user says stop, cancel, abort, hold on, never mind, wait, etc.
+        Call immediately — do not ask for confirmation.
+        """
+        try:
+            response = await get_job_context().room.local_participant.perform_rpc(
+                destination_identity=self._get_user_identity(),
+                method="abortClaudeCode",
+                payload="{}",
+                response_timeout=10.0,
+            )
+            return response
+        except Exception as e:
+            logger.error(f"Failed to abort: {e}")
+            raise ToolError("Failed to abort Claude Code")
+
+    @function_tool
+    async def run_slash_command(
+        self, context: RunContext, command: str, args: str | list[str] | None = None
+    ):
+        """Run a slash command in Claude Code (e.g. commit, review-pr, compact, clear).
+        Use the available commands from the session context updates.
+
+        Args:
+            command: The command name without the / prefix (e.g. "commit", "review-pr").
+            args: Optional arguments for the command. A string is appended directly,
+                  a list of strings is quoted and joined (e.g. ["arg1", "arg2"] becomes
+                  "arg1" "arg2").
+        """
+        if not command or not command.strip():
+            raise ToolError("Command name cannot be empty")
+        clean_command = command.strip().lstrip("/")
+        message = f"/{clean_command}"
+        if args is not None:
+            if isinstance(args, list):
+                quoted = " ".join(f'"{a}"' for a in args)
+                message = f"{message} {quoted}"
+            else:
+                message = f"{message} {args}"
+        try:
+            response = await get_job_context().room.local_participant.perform_rpc(
+                destination_identity=self._get_user_identity(),
+                method="messageClaudeCode",
+                payload=json.dumps({"message": message}),
+                response_timeout=10.0,
+            )
+            return response
+        except Exception as e:
+            logger.error(f"Failed to run slash command /{clean_command}: {e}")
+            raise ToolError(f"Failed to run /{clean_command}")
+
+    @function_tool
     async def answer_user_question(
         self,
         context: RunContext,
@@ -320,7 +404,10 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect()
     session = AgentSession(
         stt="deepgram/nova-3:multi",
-        llm="openai/gpt-4.1-mini",
+        llm=anthropic.LLM(
+            model="claude-sonnet-4-6",
+            caching="ephemeral",
+        ),
         tts="cartesia/sonic-3:6ccbfb76-1fc6-48f7-b71d-91ac6298247b",
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],

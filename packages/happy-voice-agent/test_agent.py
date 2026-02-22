@@ -127,9 +127,11 @@ def test_system_prompt_sections():
     assert "# Context Awareness" in SYSTEM_PROMPT
     assert "# Tool Usage Rules" in SYSTEM_PROMPT
     assert "# Speech Rules" in SYSTEM_PROMPT
-    assert "# Prompt Engineering" in SYSTEM_PROMPT
+    assert "# Prompt Formatting" in SYSTEM_PROMPT
     assert "# Mode Switching" in SYSTEM_PROMPT
     assert "# Plan Mode" in SYSTEM_PROMPT
+    assert "# Abort / Interrupt" in SYSTEM_PROMPT
+    assert "# Slash Commands" in SYSTEM_PROMPT
 
 
 def test_system_prompt_identity():
@@ -390,3 +392,204 @@ def test_answer_user_question_raises_tool_error_on_rpc_failure(happy_agent):
     with patch("agent.get_job_context", return_value=mock_job_ctx):
         with pytest.raises(ToolError, match="Failed to submit answer to question"):
             asyncio.run(happy_agent.answer_user_question(ctx, answers))
+
+
+# ---------------------------------------------------------------------------
+# 17. abort_claude_code tool exists on agent
+# ---------------------------------------------------------------------------
+
+def test_abort_claude_code_tool_exists(happy_agent):
+    """HappyAgent exposes abort_claude_code as a callable tool."""
+    assert hasattr(happy_agent, "abort_claude_code")
+    assert callable(happy_agent.abort_claude_code)
+
+
+# ---------------------------------------------------------------------------
+# 18. abort_claude_code sends correct RPC
+# ---------------------------------------------------------------------------
+
+def test_abort_claude_code_sends_rpc(happy_agent):
+    """abort_claude_code calls perform_rpc with method='abortClaudeCode'."""
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(return_value="interrupted")
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        result = asyncio.run(happy_agent.abort_claude_code(ctx))
+        assert result == "interrupted"
+
+        call_kwargs = mock_local.perform_rpc.call_args.kwargs
+        assert call_kwargs["method"] == "abortClaudeCode"
+        assert call_kwargs["destination_identity"] == "user-1"
+
+
+# ---------------------------------------------------------------------------
+# 19. abort_claude_code raises ToolError on RPC failure
+# ---------------------------------------------------------------------------
+
+def test_abort_claude_code_raises_tool_error_on_failure(happy_agent):
+    """abort_claude_code raises ToolError when perform_rpc fails."""
+    from livekit.agents.llm import ToolError
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(side_effect=Exception("timeout"))
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        with pytest.raises(ToolError, match="Failed to abort"):
+            asyncio.run(happy_agent.abort_claude_code(ctx))
+
+
+# ---------------------------------------------------------------------------
+# 20. run_slash_command tool exists on agent
+# ---------------------------------------------------------------------------
+
+def test_run_slash_command_tool_exists(happy_agent):
+    """HappyAgent exposes run_slash_command as a callable tool."""
+    assert hasattr(happy_agent, "run_slash_command")
+    assert callable(happy_agent.run_slash_command)
+
+
+# ---------------------------------------------------------------------------
+# 21. run_slash_command sends correct RPC with / prefix
+# ---------------------------------------------------------------------------
+
+def test_run_slash_command_sends_rpc(happy_agent):
+    """run_slash_command calls messageClaudeCode RPC with /<command> message."""
+    import json
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(return_value="ack")
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        result = asyncio.run(happy_agent.run_slash_command(ctx, "commit"))
+        assert result == "ack"
+
+        call_kwargs = mock_local.perform_rpc.call_args.kwargs
+        assert call_kwargs["method"] == "messageClaudeCode"
+        payload = json.loads(call_kwargs["payload"])
+        assert payload["message"] == "/commit"
+
+
+# ---------------------------------------------------------------------------
+# 22. run_slash_command strips leading slash from input
+# ---------------------------------------------------------------------------
+
+def test_run_slash_command_strips_leading_slash(happy_agent):
+    """run_slash_command strips a leading / if the user accidentally includes it."""
+    import json
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(return_value="ack")
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        asyncio.run(happy_agent.run_slash_command(ctx, "/review-pr"))
+
+        call_kwargs = mock_local.perform_rpc.call_args.kwargs
+        payload = json.loads(call_kwargs["payload"])
+        assert payload["message"] == "/review-pr"
+
+
+# ---------------------------------------------------------------------------
+# 23. run_slash_command validates empty command
+# ---------------------------------------------------------------------------
+
+def test_run_slash_command_validates_empty_command(happy_agent):
+    """run_slash_command raises ToolError for empty command."""
+    from livekit.agents.llm import ToolError
+
+    ctx = MagicMock()
+
+    with pytest.raises(ToolError, match="Command name cannot be empty"):
+        asyncio.run(happy_agent.run_slash_command(ctx, ""))
+
+    with pytest.raises(ToolError, match="Command name cannot be empty"):
+        asyncio.run(happy_agent.run_slash_command(ctx, "  "))
+
+
+# ---------------------------------------------------------------------------
+# 24. run_slash_command with string args
+# ---------------------------------------------------------------------------
+
+def test_run_slash_command_with_string_args(happy_agent):
+    """run_slash_command appends string args directly after the command."""
+    import json
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(return_value="ack")
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        result = asyncio.run(happy_agent.run_slash_command(ctx, "commit", "fix login bug"))
+        assert result == "ack"
+
+        call_kwargs = mock_local.perform_rpc.call_args.kwargs
+        payload = json.loads(call_kwargs["payload"])
+        assert payload["message"] == "/commit fix login bug"
+
+
+# ---------------------------------------------------------------------------
+# 25. run_slash_command with list args
+# ---------------------------------------------------------------------------
+
+def test_run_slash_command_with_list_args(happy_agent):
+    """run_slash_command quotes each list element and joins them."""
+    import json
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(return_value="ack")
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        result = asyncio.run(
+            happy_agent.run_slash_command(ctx, "commit", ["fix login bug", "update readme"])
+        )
+        assert result == "ack"
+
+        call_kwargs = mock_local.perform_rpc.call_args.kwargs
+        payload = json.loads(call_kwargs["payload"])
+        assert payload["message"] == '/commit "fix login bug" "update readme"'
