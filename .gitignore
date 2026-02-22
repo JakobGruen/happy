@@ -48,6 +48,10 @@ CLAUDE.local.md
 
 .dev/worktree/*
 
+# Python
+__pycache__/
+*.pyc
+
 # Development planning notes (keep local, don't commit)
 notes/
 # ralphex progress logs
