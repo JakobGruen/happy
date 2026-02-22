@@ -28,17 +28,32 @@ interface SessionMetadata {
 let shownSessions = new Set<string>();
 let lastFocusSession: string | null = null;
 
-function reportContextualUpdate(update: string | null | undefined) {
-    if (VOICE_CONFIG.ENABLE_DEBUG_LOGGING) {
-        console.log('🎤 Voice: Reporting contextual update:', update);
-    }
-    if (!update) return;
+// Debounce state for contextual updates
+let pendingContextUpdate: string | null = null;
+let contextDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushContextUpdate() {
+    contextDebounceTimer = null;
+    if (!pendingContextUpdate) return;
+    const update = pendingContextUpdate;
+    pendingContextUpdate = null;
+
     const voice = getVoiceSession();
-    if (VOICE_CONFIG.ENABLE_DEBUG_LOGGING) {
-        console.log('🎤 Voice: Voice session:', voice);
-    }
     if (!voice || !isVoiceSessionStarted()) return;
+    if (VOICE_CONFIG.ENABLE_DEBUG_LOGGING) {
+        console.log('🎤 Voice: Sending debounced context update:', update.slice(0, 120));
+    }
     voice.sendContextualUpdate(update);
+}
+
+function reportContextualUpdate(update: string | null | undefined) {
+    if (!update) return;
+    if (!isVoiceSessionStarted()) return;
+
+    pendingContextUpdate = update;
+    if (!contextDebounceTimer) {
+        contextDebounceTimer = setTimeout(flushContextUpdate, VOICE_CONFIG.CONTEXT_DEBOUNCE_MS);
+    }
 }
 
 function reportTextUpdate(update: string | null | undefined) {
@@ -157,5 +172,11 @@ export const voiceHooks = {
             console.log('🎤 Voice session stopped');
         }
         shownSessions.clear();
+        // Cancel any pending debounced update
+        if (contextDebounceTimer) {
+            clearTimeout(contextDebounceTimer);
+            contextDebounceTimer = null;
+        }
+        pendingContextUpdate = null;
     }
 };

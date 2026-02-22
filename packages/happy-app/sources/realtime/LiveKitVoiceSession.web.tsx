@@ -1,31 +1,44 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
     LiveKitRoom,
+    RoomAudioRenderer,
     useVoiceAssistant,
     useRoomContext,
-    useDataChannel,
 } from '@livekit/components-react';
-import { DataPublishOptions } from 'livekit-client';
+import type { Room } from 'livekit-client';
 import { registerVoiceSession } from './RealtimeSession';
 import { realtimeClientTools } from './realtimeClientTools';
 import { storage } from '@/sync/storage';
+import { VOICE_CONFIG } from './voiceConfig';
 import type { VoiceSession, VoiceSessionConfig } from './types';
 
 // Connection details set by the VoiceSession impl when startSession() is called
 let pendingConnectionDetails: { url: string; token: string } | null = null;
 let setConnectionDetailsFn: ((details: { url: string; token: string } | null) => void) | null = null;
 
-// Reference to data channel send function for text/context messages
-let dataChannelSend: ((payload: Uint8Array, options: DataPublishOptions) => Promise<void>) | null = null;
+// Room reference for sending text streams
+let roomRef: Room | null = null;
+
+// Initial context to send when room connects
+let pendingInitialContext: string | null = null;
+
+// Circuit breaker for sendText failures
+let consecutiveSendFailures = 0;
 
 class LiveKitVoiceSessionImpl implements VoiceSession {
     async startSession(config: VoiceSessionConfig): Promise<void> {
+        consecutiveSendFailures = 0;
         if (!config.livekitUrl || !config.livekitToken) {
             console.error('[LiveKit] Missing URL or token');
             return;
         }
 
         storage.getState().setRealtimeStatus('connecting');
+
+        // Store initial context to send after room connects
+        if (config.initialContext) {
+            pendingInitialContext = config.initialContext;
+        }
 
         // Request microphone permission (web)
         try {
@@ -48,35 +61,45 @@ class LiveKitVoiceSessionImpl implements VoiceSession {
         if (setConnectionDetailsFn) {
             setConnectionDetailsFn(null);
         }
-        dataChannelSend = null;
+        roomRef = null;
+        pendingInitialContext = null;
+        consecutiveSendFailures = 0;
         storage.getState().setRealtimeStatus('disconnected');
         storage.getState().setRealtimeMode('idle', true);
     }
 
     sendTextMessage(message: string): void {
-        if (!dataChannelSend) {
-            console.warn('[LiveKit] Data channel not ready');
+        if (!roomRef) {
+            console.warn('[LiveKit] Room not ready');
             return;
         }
+        if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) return;
 
-        const payload = new TextEncoder().encode(JSON.stringify({
-            type: 'text_message',
-            text: message
-        }));
-        dataChannelSend(payload, { topic: 'chat' });
+        roomRef.localParticipant.sendText(message, { topic: 'lk.chat' }).then(() => {
+            consecutiveSendFailures = 0;
+        }).catch((err) => {
+            consecutiveSendFailures++;
+            if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) {
+                console.error('[LiveKit] sendText circuit breaker open after', consecutiveSendFailures, 'failures:', err);
+            }
+        });
     }
 
     sendContextualUpdate(update: string): void {
-        if (!dataChannelSend) {
-            console.warn('[LiveKit] Data channel not ready');
+        if (!roomRef) {
+            console.warn('[LiveKit] Room not ready');
             return;
         }
+        if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) return;
 
-        const payload = new TextEncoder().encode(JSON.stringify({
-            type: 'context_update',
-            context: update
-        }));
-        dataChannelSend(payload, { topic: 'context' });
+        roomRef.localParticipant.sendText(update, { topic: 'lk.context' }).then(() => {
+            consecutiveSendFailures = 0;
+        }).catch((err) => {
+            consecutiveSendFailures++;
+            if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) {
+                console.error('[LiveKit] sendText circuit breaker open after', consecutiveSendFailures, 'failures:', err);
+            }
+        });
     }
 }
 
@@ -84,15 +107,14 @@ class LiveKitVoiceSessionImpl implements VoiceSession {
 const RoomHandler: React.FC = () => {
     const { state } = useVoiceAssistant();
     const room = useRoomContext();
-    const { send } = useDataChannel();
 
-    // Store the send function for the VoiceSession impl
+    // Store room reference for the VoiceSession impl
     useEffect(() => {
-        dataChannelSend = send;
+        roomRef = room;
         return () => {
-            dataChannelSend = null;
+            roomRef = null;
         };
-    }, [send]);
+    }, [room]);
 
     // Map agent state to store
     useEffect(() => {
@@ -133,6 +155,14 @@ const RoomHandler: React.FC = () => {
             console.log('[LiveKit] Room connected');
             storage.getState().setRealtimeStatus('connected');
             storage.getState().setRealtimeMode('idle');
+
+            // Send initial context (session history) to agent
+            if (pendingInitialContext) {
+                room.localParticipant.sendText(pendingInitialContext, { topic: 'lk.context' }).catch((err) => {
+                    console.error('[LiveKit] Failed to send initial context:', err);
+                });
+                pendingInitialContext = null;
+            }
         };
 
         const handleDisconnected = () => {
@@ -203,6 +233,7 @@ export const LiveKitVoiceSession: React.FC = () => {
                 storage.getState().setRealtimeMode('idle', true);
             }}
         >
+            <RoomAudioRenderer />
             <RoomHandler />
         </LiveKitRoom>
     );

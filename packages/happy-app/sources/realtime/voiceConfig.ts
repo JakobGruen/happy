@@ -28,4 +28,10 @@ export const VOICE_CONFIG = {
     
     /** Enable debug logging for voice context updates */
     ENABLE_DEBUG_LOGGING: true,
+
+    /** Debounce interval (ms) for batching contextual updates */
+    CONTEXT_DEBOUNCE_MS: 2000,
+
+    /** Max consecutive sendText failures before circuit breaker opens */
+    MAX_SEND_FAILURES: 3,
 } as const;
