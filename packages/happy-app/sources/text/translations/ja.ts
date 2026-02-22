@@ -512,6 +512,11 @@ export const ja: TranslationStructure = {
             initializing: 'エージェントを初期化中...',
             moreTools: ({ count }: { count: number }) => `+${count} 個のツール`,
         },
+        taskViewFull: {
+            agentPrompt: 'エージェントプロンプト',
+            activity: 'アクティビティ',
+            agentType: 'エージェントタイプ',
+        },
         askUserQuestion: {
             submit: '回答を送信',
             multipleQuestions: ({ count }: { count: number }) => `${count}件の質問`,

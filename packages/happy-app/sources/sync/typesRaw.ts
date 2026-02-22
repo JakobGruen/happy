@@ -564,8 +564,52 @@ function normalizeSessionEnvelope(
         return null;
     }
 
-    if (envelope.ev.t === 'start' || envelope.ev.t === 'stop') {
-        // Lifecycle marker for subagent boundaries; currently not rendered as chat content.
+    if (envelope.ev.t === 'start') {
+        // Subagent start → synthetic Task tool-call so the tracer can map subagentId → messageId
+        if (envelope.subagent) {
+            return {
+                id: messageId,
+                localId,
+                createdAt: messageCreatedAt,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call',
+                    id: envelope.subagent,
+                    name: 'Task',
+                    input: { description: envelope.ev.title ?? 'Agent' },
+                    description: envelope.ev.title ?? null,
+                    uuid: contentUUID,
+                    parentUUID: null
+                }],
+                meta
+            } satisfies NormalizedMessage;
+        }
+        // Session-level lifecycle without subagent — not rendered.
+        return null;
+    }
+
+    if (envelope.ev.t === 'stop') {
+        // Subagent stop → synthetic Task tool-result to close the tool call
+        if (envelope.subagent) {
+            return {
+                id: messageId,
+                localId,
+                createdAt: messageCreatedAt,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: envelope.subagent,
+                    content: '',
+                    is_error: false,
+                    uuid: contentUUID,
+                    parentUUID: null
+                }],
+                meta
+            } satisfies NormalizedMessage;
+        }
+        // Session-level lifecycle without subagent — not rendered.
         return null;
     }
 
