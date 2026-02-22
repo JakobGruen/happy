@@ -1,5 +1,5 @@
 import type { VoiceSession } from './types';
-import { fetchVoiceToken } from '@/sync/apiVoice';
+import { fetchVoiceToken, fetchLiveKitToken } from '@/sync/apiVoice';
 import { storage } from '@/sync/storage';
 import { sync } from '@/sync/sync';
 import { Modal } from '@/modal';
@@ -26,34 +26,72 @@ export async function startRealtimeSession(sessionId: string, initialContext?: s
         return;
     }
 
+    const voiceBackend = storage.getState().localSettings.voiceBackend;
+
+    if (voiceBackend === 'livekit') {
+        await startLiveKitSession(sessionId, initialContext);
+    } else {
+        await startElevenLabsSession(sessionId, initialContext);
+    }
+}
+
+async function startLiveKitSession(sessionId: string, initialContext?: string) {
+    try {
+        const credentials = await TokenStorage.getCredentials();
+        if (!credentials) {
+            Modal.alert(t('common.error'), t('errors.authenticationFailed'));
+            return;
+        }
+
+        const response = await fetchLiveKitToken(credentials, sessionId);
+        console.log('[Voice] LiveKit token response:', { url: response.url });
+
+        currentSessionId = sessionId;
+        voiceSessionStarted = true;
+
+        await voiceSession!.startSession({
+            sessionId,
+            initialContext,
+            livekitUrl: response.url,
+            livekitToken: response.token
+        });
+    } catch (error) {
+        console.error('Failed to start LiveKit session:', error);
+        currentSessionId = null;
+        voiceSessionStarted = false;
+        Modal.alert(t('common.error'), t('errors.voiceServiceUnavailable'));
+    }
+}
+
+async function startElevenLabsSession(sessionId: string, initialContext?: string) {
     const experimentsEnabled = storage.getState().settings.experiments;
     const agentId = __DEV__ ? config.elevenLabsAgentIdDev : config.elevenLabsAgentIdProd;
-    
+
     if (!agentId) {
         console.error('Agent ID not configured');
         return;
     }
-    
+
     try {
         // Simple path: No experiments = no auth needed
         if (!experimentsEnabled) {
             currentSessionId = sessionId;
             voiceSessionStarted = true;
-            await voiceSession.startSession({
+            await voiceSession!.startSession({
                 sessionId,
                 initialContext,
                 agentId  // Use agentId directly, no token
             });
             return;
         }
-        
+
         // Experiments enabled = full auth flow
         const credentials = await TokenStorage.getCredentials();
         if (!credentials) {
             Modal.alert(t('common.error'), t('errors.authenticationFailed'));
             return;
         }
-        
+
         const response = await fetchVoiceToken(credentials, sessionId);
         console.log('[Voice] fetchVoiceToken response:', response);
 
@@ -72,7 +110,7 @@ export async function startRealtimeSession(sessionId: string, initialContext?: s
 
         if (response.token) {
             // Use token from backend
-            await voiceSession.startSession({
+            await voiceSession!.startSession({
                 sessionId,
                 initialContext,
                 token: response.token,
@@ -80,7 +118,7 @@ export async function startRealtimeSession(sessionId: string, initialContext?: s
             });
         } else {
             // No token (e.g. server not deployed yet) - use agentId directly
-            await voiceSession.startSession({
+            await voiceSession!.startSession({
                 sessionId,
                 initialContext,
                 agentId

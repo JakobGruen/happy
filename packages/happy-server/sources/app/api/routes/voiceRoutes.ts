@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AccessToken } from "livekit-server-sdk";
 import { type Fastify } from "../types";
 import { log } from "@/utils/log";
 
@@ -108,5 +109,67 @@ export function voiceRoutes(app: Fastify) {
             token,
             agentId
         });
+    });
+
+    app.post('/v1/voice/livekit-token', {
+        preHandler: app.authenticate,
+        schema: {
+            body: z.object({
+                sessionId: z.string()
+            }),
+            response: {
+                200: z.object({
+                    url: z.string(),
+                    token: z.string()
+                }),
+                400: z.object({
+                    error: z.string()
+                })
+            }
+        }
+    }, async (request, reply) => {
+        const userId = request.userId;
+        const { sessionId } = request.body;
+
+        log({ module: 'voice' }, `LiveKit token request from user ${userId}`);
+
+        const livekitApiKey = process.env.LIVEKIT_API_KEY;
+        const livekitApiSecret = process.env.LIVEKIT_API_SECRET;
+        const livekitUrl = process.env.LIVEKIT_URL;
+
+        if (!livekitApiKey || !livekitApiSecret || !livekitUrl) {
+            log({ module: 'voice' }, 'Missing LiveKit configuration');
+            return reply.code(400).send({
+                error: 'Missing LiveKit configuration on the server'
+            });
+        }
+
+        try {
+            const token = new AccessToken(livekitApiKey, livekitApiSecret, {
+                identity: `user_${userId}`,
+                name: `User ${userId}`,
+                ttl: 3600
+            });
+
+            token.addGrant({
+                roomJoin: true,
+                room: `voice_${sessionId}`,
+                canPublish: true,
+                canSubscribe: true
+            });
+
+            const jwt = await token.toJwt();
+
+            log({ module: 'voice' }, `LiveKit token issued for user ${userId}`);
+            return reply.send({
+                url: livekitUrl,
+                token: jwt
+            });
+        } catch (error) {
+            log({ module: 'voice' }, `Failed to generate LiveKit token for user ${userId}: ${error}`);
+            return reply.code(400).send({
+                error: 'Failed to generate LiveKit token'
+            });
+        }
     });
 }

@@ -1,8 +1,12 @@
 export interface VoiceSessionConfig {
     sessionId: string;
     initialContext?: string;
+    // ElevenLabs fields
     token?: string;
     agentId?: string;
+    // LiveKit fields
+    livekitUrl?: string;
+    livekitToken?: string;
 }
 
 export interface VoiceSession {
