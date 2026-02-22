@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { ToolViewProps } from './_all';
 import { ToolSectionView } from '../ToolSectionView';
@@ -163,11 +163,30 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.text,
         flex: 1,
     },
+    otherInput: {
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 14,
+        color: theme.colors.text,
+        backgroundColor: theme.colors.surface,
+        marginTop: 8,
+        minHeight: 40,
+    },
+    otherInputFocused: {
+        borderColor: theme.colors.radio.active,
+    },
 }));
+
+// Sentinel index for "Other" option (always = options.length for a given question)
+const OTHER_INDEX = -1;
 
 export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId }) => {
     const { theme } = useUnistyles();
     const [selections, setSelections] = React.useState<Map<number, Set<number>>>(new Map());
+    const [otherTexts, setOtherTexts] = React.useState<Map<number, string>>(new Map());
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [isSubmitted, setIsSubmitted] = React.useState(false);
 
@@ -182,10 +201,16 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
     const isRunning = tool.state === 'running';
     const canInteract = isRunning && !isSubmitted;
 
-    // Check if all questions have at least one selection
+    // Check if all questions have at least one selection (or "Other" with text)
     const allQuestionsAnswered = questions.every((_, qIndex) => {
         const selected = selections.get(qIndex);
-        return selected && selected.size > 0;
+        if (!selected || selected.size === 0) return false;
+        // If "Other" is selected, require non-empty text
+        if (selected.has(OTHER_INDEX)) {
+            const text = otherTexts.get(qIndex);
+            return !!text && text.trim().length > 0;
+        }
+        return true;
     });
 
     const handleOptionToggle = React.useCallback((questionIndex: number, optionIndex: number, multiSelect: boolean) => {
@@ -211,6 +236,15 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
 
             return newMap;
         });
+
+        // Clear "Other" text when a non-Other option is selected in single-select mode
+        if (!multiSelect && optionIndex !== OTHER_INDEX) {
+            setOtherTexts(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(questionIndex);
+                return newMap;
+            });
+        }
     }, [canInteract]);
 
     const handleSubmit = React.useCallback(async () => {
@@ -229,11 +263,21 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
         questions.forEach((q, qIndex) => {
             const selected = selections.get(qIndex);
             if (selected && selected.size > 0) {
-                const selectedLabels = Array.from(selected)
-                    .map(optIndex => q.options[optIndex]?.label)
-                    .filter(Boolean)
-                    .join(', ');
-                responseLines.push(`${q.header}: ${selectedLabels}`);
+                const labels: string[] = [];
+                for (const optIndex of Array.from(selected)) {
+                    if (optIndex === OTHER_INDEX) {
+                        const text = otherTexts.get(qIndex)?.trim();
+                        if (text) {
+                            labels.push(`Other: ${text}`);
+                        }
+                    } else {
+                        const label = q.options[optIndex]?.label;
+                        if (label) labels.push(label);
+                    }
+                }
+                if (labels.length > 0) {
+                    responseLines.push(`${q.header}: ${labels.join(', ')}`);
+                }
             }
         });
 
@@ -251,7 +295,7 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
         } finally {
             setIsSubmitting(false);
         }
-    }, [sessionId, questions, selections, allQuestionsAnswered, isSubmitting, tool.permission?.id]);
+    }, [sessionId, questions, selections, otherTexts, allQuestionsAnswered, isSubmitting, tool.permission?.id]);
 
     // Show submitted state
     if (isSubmitted || tool.state === 'completed') {
@@ -260,16 +304,22 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
                 <View style={styles.submittedContainer}>
                     {questions.map((q, qIndex) => {
                         const selected = selections.get(qIndex);
-                        const selectedLabels = selected
-                            ? Array.from(selected)
-                                .map(optIndex => q.options[optIndex]?.label)
-                                .filter(Boolean)
-                                .join(', ')
-                            : '-';
+                        const labels: string[] = [];
+                        if (selected) {
+                            for (const optIndex of Array.from(selected)) {
+                                if (optIndex === OTHER_INDEX) {
+                                    const text = otherTexts.get(qIndex)?.trim();
+                                    if (text) labels.push(`Other: ${text}`);
+                                } else {
+                                    const label = q.options[optIndex]?.label;
+                                    if (label) labels.push(label);
+                                }
+                            }
+                        }
                         return (
                             <View key={qIndex} style={styles.submittedItem}>
                                 <Text style={styles.submittedHeader}>{q.header}:</Text>
-                                <Text style={styles.submittedValue}>{selectedLabels}</Text>
+                                <Text style={styles.submittedValue}>{labels.join(', ') || '-'}</Text>
                             </View>
                         );
                     })}
@@ -332,6 +382,64 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
                                         </TouchableOpacity>
                                     );
                                 })}
+
+                                {/* "Other" free-text option */}
+                                {(() => {
+                                    const isOtherSelected = selectedOptions.has(OTHER_INDEX);
+                                    return (
+                                        <>
+                                            <TouchableOpacity
+                                                style={[
+                                                    styles.optionButton,
+                                                    isOtherSelected && styles.optionButtonSelected,
+                                                    !canInteract && styles.optionButtonDisabled,
+                                                ]}
+                                                onPress={() => handleOptionToggle(qIndex, OTHER_INDEX, question.multiSelect)}
+                                                disabled={!canInteract}
+                                                activeOpacity={0.7}
+                                            >
+                                                {question.multiSelect ? (
+                                                    <View style={[
+                                                        styles.checkboxOuter,
+                                                        isOtherSelected && styles.checkboxOuterSelected,
+                                                    ]}>
+                                                        {isOtherSelected && (
+                                                            <Ionicons name="checkmark" size={14} color="#fff" />
+                                                        )}
+                                                    </View>
+                                                ) : (
+                                                    <View style={[
+                                                        styles.radioOuter,
+                                                        isOtherSelected && styles.radioOuterSelected,
+                                                    ]}>
+                                                        {isOtherSelected && <View style={styles.radioInner} />}
+                                                    </View>
+                                                )}
+                                                <View style={styles.optionContent}>
+                                                    <Text style={styles.optionLabel}>{t('tools.askUserQuestion.other')}</Text>
+                                                    <Text style={styles.optionDescription}>{t('tools.askUserQuestion.otherDescription')}</Text>
+                                                </View>
+                                            </TouchableOpacity>
+                                            {isOtherSelected && canInteract && (
+                                                <TextInput
+                                                    style={styles.otherInput}
+                                                    placeholder={t('tools.askUserQuestion.otherPlaceholder')}
+                                                    placeholderTextColor={theme.colors.textSecondary}
+                                                    value={otherTexts.get(qIndex) || ''}
+                                                    onChangeText={(text) => {
+                                                        setOtherTexts(prev => {
+                                                            const newMap = new Map(prev);
+                                                            newMap.set(qIndex, text);
+                                                            return newMap;
+                                                        });
+                                                    }}
+                                                    editable={canInteract}
+                                                    multiline
+                                                />
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </View>
                         </View>
                     );

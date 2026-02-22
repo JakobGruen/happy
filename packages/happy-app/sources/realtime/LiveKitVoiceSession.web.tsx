@@ -143,9 +143,15 @@ const RoomHandler: React.FC = () => {
             return await realtimeClientTools.processPermissionRequest(payload);
         });
 
+        room.registerRpcMethod('answerUserQuestion', async (data) => {
+            const payload = JSON.parse(data.payload);
+            return await realtimeClientTools.answerUserQuestion(payload);
+        });
+
         return () => {
             room.unregisterRpcMethod('messageClaudeCode');
             room.unregisterRpcMethod('processPermissionRequest');
+            room.unregisterRpcMethod('answerUserQuestion');
         };
     }, [room]);
 

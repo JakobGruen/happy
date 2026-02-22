@@ -1,5 +1,6 @@
 import { getCurrentRealtimeSessionId, getVoiceSession, isVoiceSessionStarted } from '../RealtimeSession';
 import {
+    formatAskUserQuestion,
     formatNewMessages,
     formatNewSingleMessage,
     formatPermissionRequest,
@@ -120,9 +121,15 @@ export const voiceHooks = {
      */
     onPermissionRequested(sessionId: string, requestId: string, toolName: string, toolArgs: any) {
         if (VOICE_CONFIG.DISABLE_PERMISSION_REQUESTS) return;
-        
+
         reportSession(sessionId);
-        reportTextUpdate(formatPermissionRequest(sessionId, requestId, toolName, toolArgs));
+
+        // AskUserQuestion gets a voice-friendly format with lettered options
+        if (toolName === 'AskUserQuestion' && toolArgs?.questions) {
+            reportTextUpdate(formatAskUserQuestion(sessionId, requestId, toolArgs.questions));
+        } else {
+            reportTextUpdate(formatPermissionRequest(sessionId, requestId, toolName, toolArgs));
+        }
     },
 
     /**

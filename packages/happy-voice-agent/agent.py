@@ -156,7 +156,23 @@ When messageClaudeCode IS called, translate spoken intent into well-structured p
 - Capture WHAT and WHY, let Claude Code figure out HOW
 - Reference specific files/paths when the user mentions them
 - Strip filler words and speech artifacts
-- Preserve technical terms exactly as spoken"""
+- Preserve technical terms exactly as spoken
+
+# Answering Questions from Claude Code
+
+When you receive a message about Claude Code asking the user question(s):
+1. Read the question and all options aloud to the user. Use the letter labels (A, B, C, D).
+   Example: "Claude is asking: Which database should we use? A, PostgreSQL. B, SQLite. C, MySQL."
+2. Wait for the user to speak their choice.
+3. Map their spoken answer to the option label(s). Users might say the letter, the label, or describe it.
+4. Call answer_user_question with the structured answer.
+   Example: answers=[{"questionIndex": 0, "header": "Database", "selectedLabels": ["PostgreSQL"]}]
+
+For multi-select questions, collect multiple answers before submitting.
+If the user's answer is ambiguous, ask for clarification: "Did you mean A or B?"
+
+IMPORTANT: Do NOT use processPermissionRequest for AskUserQuestion — use answer_user_question instead.
+It handles both the permission approval and sending the structured answer back."""
 
 
 class HappyAgent(Agent):
@@ -178,6 +194,20 @@ class HappyAgent(Agent):
         room.register_text_stream_handler(
             "lk.context",
             lambda reader, pid: asyncio.create_task(_handle_context(reader, pid)),
+        )
+
+        # Listen for immediate updates (permission requests, ready events, questions)
+        async def _handle_chat(reader, participant_identity):
+            text = await reader.read_all()
+            if text:
+                logger.info(f"Chat update from {participant_identity}: {text[:200]}")
+                chat_ctx = self.chat_ctx.copy()
+                chat_ctx.add_message(role="system", content=text)
+                await self.update_chat_ctx(chat_ctx)
+
+        room.register_text_stream_handler(
+            "lk.chat",
+            lambda reader, pid: asyncio.create_task(_handle_chat(reader, pid)),
         )
 
         self.session.generate_reply(allow_interruptions=False)
@@ -243,6 +273,43 @@ class HappyAgent(Agent):
         except Exception as e:
             logger.error(f"Failed to process permission: {e}")
             raise ToolError(f"Failed to {decision} permission request")
+
+    @function_tool
+    async def answer_user_question(
+        self,
+        context: RunContext,
+        answers: list[dict],
+    ):
+        """Answer a multi-choice question from Claude Code on behalf of the user.
+        Call this after the user verbally chooses from the presented options.
+        Do NOT use processPermissionRequest for AskUserQuestion — use this tool instead.
+
+        Args:
+            answers: List of answer objects, each with:
+                - questionIndex (int): 0-based index of the question being answered
+                - header (str): The question header/category (e.g. "Database", "Focus area")
+                - selectedLabels (list[str]): The label(s) of the option(s) the user chose
+        """
+        if not answers or not isinstance(answers, list):
+            raise ToolError("answers must be a non-empty list")
+        for i, answer in enumerate(answers):
+            if not isinstance(answer, dict):
+                raise ToolError(f"Answer at index {i} must be an object")
+            if "header" not in answer or "selectedLabels" not in answer:
+                raise ToolError(f"Answer at index {i} must have 'header' and 'selectedLabels'")
+            if not isinstance(answer["selectedLabels"], list) or len(answer["selectedLabels"]) == 0:
+                raise ToolError(f"Answer at index {i} must have at least one selectedLabel")
+        try:
+            response = await get_job_context().room.local_participant.perform_rpc(
+                destination_identity=self._get_user_identity(),
+                method="answerUserQuestion",
+                payload=json.dumps({"answers": answers}),
+                response_timeout=10.0,
+            )
+            return response
+        except Exception as e:
+            logger.error(f"Failed to submit answer: {e}")
+            raise ToolError("Failed to submit answer to question")
 
 
 def prewarm(proc: JobProcess):

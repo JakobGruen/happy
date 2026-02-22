@@ -84,10 +84,75 @@ export const realtimeClientTools = {
                 trackPermissionResponse(false);
             }
             const modeMsg = mode ? ` Mode switched to ${mode}.` : '';
-            return `Permission ${decision}ed.${modeMsg} Briefly confirm to the user.`;
+            const verb = decision === 'allow' ? 'allowed' : 'denied';
+            return `Permission ${verb}.${modeMsg} Briefly confirm to the user.`;
         } catch (error) {
             console.error('❌ Failed to process permission:', error);
             return `error (failed to ${decision} permission)`;
+        }
+    },
+
+    /**
+     * Answer a multi-choice question from Claude Code (AskUserQuestion tool).
+     * Approves the permission and sends the structured answer as a message.
+     */
+    answerUserQuestion: async (parameters: unknown) => {
+        const schema = z.object({
+            answers: z.array(z.object({
+                questionIndex: z.number(),
+                header: z.string(),
+                selectedLabels: z.array(z.string().min(1)),
+            }))
+        });
+        const parsed = schema.safeParse(parameters);
+
+        if (!parsed.success) {
+            console.error('❌ Invalid answerUserQuestion parameter:', parsed.error);
+            return "error (invalid parameters, expected answers: [{questionIndex, header, selectedLabels}])";
+        }
+
+        const sessionId = getCurrentRealtimeSessionId();
+        if (!sessionId) {
+            console.error('❌ No active session');
+            return "error (no active session)";
+        }
+
+        console.log('🔍 answerUserQuestion called with:', JSON.stringify(parsed.data.answers));
+
+        // Find the pending AskUserQuestion permission request
+        const session = storage.getState().sessions[sessionId];
+        const requests = session?.agentState?.requests;
+
+        if (!requests || Object.keys(requests).length === 0) {
+            console.error('❌ No pending question');
+            return "error (no pending question)";
+        }
+
+        // Look for the AskUserQuestion request specifically
+        const requestEntry = Object.entries(requests).find(
+            ([_, req]) => req.tool === 'AskUserQuestion'
+        );
+        if (!requestEntry) {
+            console.error('❌ No pending AskUserQuestion');
+            return "error (no pending AskUserQuestion)";
+        }
+        const [requestId] = requestEntry;
+
+        // Format answer text (same format as AskUserQuestionView)
+        const responseText = parsed.data.answers
+            .map(a => `${a.header}: ${a.selectedLabels.join(', ')}`)
+            .join('\n');
+
+        try {
+            // 1. Approve the permission
+            await sessionAllow(sessionId, requestId);
+            // 2. Send the formatted answer as a message
+            await sync.sendMessage(sessionId, responseText);
+            trackPermissionResponse(true);
+            return `Answer submitted: ${responseText}. Briefly confirm to the user.`;
+        } catch (error) {
+            console.error('❌ Failed to submit answer:', error);
+            return "error (failed to submit answer)";
         }
     }
 };

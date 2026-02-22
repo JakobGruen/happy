@@ -98,7 +98,7 @@ describe('realtimeClientTools', () => {
 
             const result = await realtimeClientTools.messageClaudeCode({ message: 'hello' });
 
-            expect(result).toBe("sent [DO NOT say anything else, simply say 'sent']");
+            expect(result).toBe('Message delivered to Claude Code: "hello". Briefly tell the user what you asked Claude to do and that it\'s working on it.');
         });
     });
 
@@ -108,17 +108,17 @@ describe('realtimeClientTools', () => {
     describe('processPermissionRequest', () => {
         it('returns error string when parameters is undefined', async () => {
             const result = await realtimeClientTools.processPermissionRequest(undefined);
-            expect(result).toBe("error (invalid decision parameter, expected 'allow' or 'deny')");
+            expect(result).toBe("error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions')");
         });
 
         it('returns error string when decision is missing', async () => {
             const result = await realtimeClientTools.processPermissionRequest({});
-            expect(result).toBe("error (invalid decision parameter, expected 'allow' or 'deny')");
+            expect(result).toBe("error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions')");
         });
 
         it('returns error string when decision is not allow or deny', async () => {
             const result = await realtimeClientTools.processPermissionRequest({ decision: 'maybe' });
-            expect(result).toBe("error (invalid decision parameter, expected 'allow' or 'deny')");
+            expect(result).toBe("error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions')");
         });
 
         it('returns error string when no active session', async () => {
@@ -172,9 +172,9 @@ describe('realtimeClientTools', () => {
 
             const result = await realtimeClientTools.processPermissionRequest({ decision: 'allow' });
 
-            expect(mocks.sessionAllow).toHaveBeenCalledWith('session-123', 'req-abc');
+            expect(mocks.sessionAllow).toHaveBeenCalledWith('session-123', 'req-abc', undefined);
             expect(mocks.trackPermissionResponse).toHaveBeenCalledWith(true);
-            expect(result).toBe("done [DO NOT say anything else, simply say 'done']");
+            expect(result).toBe("Permission allowed. Briefly confirm to the user.");
         });
 
         it('calls sessionDeny and trackPermissionResponse(false) for deny decision', async () => {
@@ -192,12 +192,12 @@ describe('realtimeClientTools', () => {
 
             const result = await realtimeClientTools.processPermissionRequest({ decision: 'deny' });
 
-            expect(mocks.sessionDeny).toHaveBeenCalledWith('session-123', 'req-xyz');
+            expect(mocks.sessionDeny).toHaveBeenCalledWith('session-123', 'req-xyz', undefined);
             expect(mocks.trackPermissionResponse).toHaveBeenCalledWith(false);
-            expect(result).toBe("done [DO NOT say anything else, simply say 'done']");
+            expect(result).toBe("Permission denied. Briefly confirm to the user.");
         });
 
-        it('returns "done" string on success', async () => {
+        it('returns success string on allow', async () => {
             mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
             mocks.storageGetState.mockReturnValue({
                 sessions: {
@@ -212,7 +212,7 @@ describe('realtimeClientTools', () => {
 
             const result = await realtimeClientTools.processPermissionRequest({ decision: 'allow' });
 
-            expect(result).toBe("done [DO NOT say anything else, simply say 'done']");
+            expect(result).toBe("Permission allowed. Briefly confirm to the user.");
         });
 
         it('uses the first request ID when multiple requests exist', async () => {
@@ -233,7 +233,7 @@ describe('realtimeClientTools', () => {
 
             await realtimeClientTools.processPermissionRequest({ decision: 'allow' });
 
-            expect(mocks.sessionAllow).toHaveBeenCalledWith('session-123', 'req-first');
+            expect(mocks.sessionAllow).toHaveBeenCalledWith('session-123', 'req-first', undefined);
         });
 
         it('returns error string when sessionAllow throws', async () => {
@@ -270,6 +270,154 @@ describe('realtimeClientTools', () => {
             const result = await realtimeClientTools.processPermissionRequest({ decision: 'deny' });
 
             expect(result).toBe('error (failed to deny permission)');
+        });
+    });
+
+    // ===================================================================
+    // answerUserQuestion
+    // ===================================================================
+    describe('answerUserQuestion', () => {
+        it('returns error when parameters is undefined', async () => {
+            const result = await realtimeClientTools.answerUserQuestion(undefined);
+            expect(result).toBe('error (invalid parameters, expected answers: [{questionIndex, header, selectedLabels}])');
+        });
+
+        it('returns error when no active session', async () => {
+            mocks.getCurrentRealtimeSessionId.mockReturnValue(null);
+
+            const result = await realtimeClientTools.answerUserQuestion({
+                answers: [{ questionIndex: 0, header: 'DB', selectedLabels: ['Postgres'] }],
+            });
+
+            expect(result).toBe('error (no active session)');
+        });
+
+        it('returns error when no pending requests', async () => {
+            mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
+            mocks.storageGetState.mockReturnValue({
+                sessions: {
+                    'session-123': {
+                        agentState: { requests: {} },
+                    },
+                },
+            });
+
+            const result = await realtimeClientTools.answerUserQuestion({
+                answers: [{ questionIndex: 0, header: 'DB', selectedLabels: ['Postgres'] }],
+            });
+
+            expect(result).toBe('error (no pending question)');
+        });
+
+        it('returns error when no AskUserQuestion request exists', async () => {
+            mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
+            mocks.storageGetState.mockReturnValue({
+                sessions: {
+                    'session-123': {
+                        agentState: {
+                            requests: { 'req-1': { tool: 'ExecuteBashCommand' } },
+                        },
+                    },
+                },
+            });
+
+            const result = await realtimeClientTools.answerUserQuestion({
+                answers: [{ questionIndex: 0, header: 'DB', selectedLabels: ['Postgres'] }],
+            });
+
+            expect(result).toBe('error (no pending AskUserQuestion)');
+        });
+
+        it('finds AskUserQuestion request among multiple requests', async () => {
+            mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
+            mocks.storageGetState.mockReturnValue({
+                sessions: {
+                    'session-123': {
+                        agentState: {
+                            requests: {
+                                'req-1': { tool: 'ExecuteBashCommand' },
+                                'req-ask': { tool: 'AskUserQuestion' },
+                            },
+                        },
+                    },
+                },
+            });
+            mocks.sessionAllow.mockResolvedValue(undefined);
+            mocks.sendMessage.mockResolvedValue(undefined);
+
+            await realtimeClientTools.answerUserQuestion({
+                answers: [{ questionIndex: 0, header: 'DB', selectedLabels: ['Postgres'] }],
+            });
+
+            expect(mocks.sessionAllow).toHaveBeenCalledWith('session-123', 'req-ask');
+        });
+
+        it('calls sessionAllow and sendMessage with correct format', async () => {
+            mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
+            mocks.storageGetState.mockReturnValue({
+                sessions: {
+                    'session-123': {
+                        agentState: {
+                            requests: { 'req-ask': { tool: 'AskUserQuestion' } },
+                        },
+                    },
+                },
+            });
+            mocks.sessionAllow.mockResolvedValue(undefined);
+            mocks.sendMessage.mockResolvedValue(undefined);
+
+            const result = await realtimeClientTools.answerUserQuestion({
+                answers: [{ questionIndex: 0, header: 'Database', selectedLabels: ['PostgreSQL'] }],
+            });
+
+            expect(mocks.sessionAllow).toHaveBeenCalledWith('session-123', 'req-ask');
+            expect(mocks.sendMessage).toHaveBeenCalledWith('session-123', 'Database: PostgreSQL');
+            expect(mocks.trackPermissionResponse).toHaveBeenCalledWith(true);
+            expect(result).toContain('Answer submitted');
+        });
+
+        it('formats multi-answer response correctly', async () => {
+            mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
+            mocks.storageGetState.mockReturnValue({
+                sessions: {
+                    'session-123': {
+                        agentState: {
+                            requests: { 'req-ask': { tool: 'AskUserQuestion' } },
+                        },
+                    },
+                },
+            });
+            mocks.sessionAllow.mockResolvedValue(undefined);
+            mocks.sendMessage.mockResolvedValue(undefined);
+
+            await realtimeClientTools.answerUserQuestion({
+                answers: [
+                    { questionIndex: 0, header: 'DB', selectedLabels: ['Postgres'] },
+                    { questionIndex: 1, header: 'Cache', selectedLabels: ['Redis', 'Memcached'] },
+                ],
+            });
+
+            expect(mocks.sendMessage).toHaveBeenCalledWith('session-123', 'DB: Postgres\nCache: Redis, Memcached');
+        });
+
+        it('returns error when sessionAllow throws', async () => {
+            mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
+            mocks.storageGetState.mockReturnValue({
+                sessions: {
+                    'session-123': {
+                        agentState: {
+                            requests: { 'req-ask': { tool: 'AskUserQuestion' } },
+                        },
+                    },
+                },
+            });
+            mocks.sessionAllow.mockRejectedValue(new Error('network failure'));
+
+            const result = await realtimeClientTools.answerUserQuestion({
+                answers: [{ questionIndex: 0, header: 'DB', selectedLabels: ['Postgres'] }],
+            });
+
+            expect(result).toBe('error (failed to submit answer)');
         });
     });
 });
