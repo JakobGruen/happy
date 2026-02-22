@@ -516,6 +516,7 @@ export const ja: TranslationStructure = {
             agentPrompt: 'エージェントプロンプト',
             activity: 'アクティビティ',
             agentType: 'エージェントタイプ',
+            response: 'レスポンス',
         },
         askUserQuestion: {
             submit: '回答を送信',

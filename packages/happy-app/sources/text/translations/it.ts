@@ -513,6 +513,7 @@ export const it: TranslationStructure = {
             agentPrompt: 'Prompt dell\'agente',
             activity: 'Attività',
             agentType: 'Tipo di agente',
+            response: 'Risposta',
         },
         askUserQuestion: {
             submit: 'Invia risposta',

@@ -93,6 +93,7 @@ const sessionTurnEndEventSchema = z.object({
 
 const sessionStopEventSchema = z.object({
     t: z.literal('stop'),
+    result: z.string().optional(),
 });
 
 const sessionEventSchema = z.discriminatedUnion('t', [
@@ -601,7 +602,7 @@ function normalizeSessionEnvelope(
                 content: [{
                     type: 'tool-result',
                     tool_use_id: envelope.subagent,
-                    content: '',
+                    content: envelope.ev.result ?? '',
                     is_error: false,
                     uuid: contentUUID,
                     parentUUID: null

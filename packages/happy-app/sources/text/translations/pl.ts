@@ -494,6 +494,7 @@ export const pl: TranslationStructure = {
             agentPrompt: 'Prompt agenta',
             activity: 'Aktywność',
             agentType: 'Typ agenta',
+            response: 'Odpowiedź',
         },
         multiEdit: {
             editNumber: ({ index, total }: { index: number; total: number }) => `Edycja ${index} z ${total}`,

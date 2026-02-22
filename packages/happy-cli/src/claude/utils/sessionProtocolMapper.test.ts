@@ -274,7 +274,7 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
             expect.arrayContaining([
                 expect.objectContaining({
                     subagent: mappedSubagent,
-                    ev: { t: 'stop' },
+                    ev: { t: 'stop', result: 'done' },
                 }),
             ]),
         );
@@ -282,6 +282,35 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
             return envelope.ev.t === 'tool-call-end'
                 && envelope.ev.call === 'task-2';
         })).toBe(false);
+    });
+
+    it('extracts result text from array content in Task tool result', () => {
+        const mappedSubagent = createId();
+        const state = {
+            currentTurnId: 'turn-1',
+            providerSubagentToSessionSubagent: new Map<string, string>([['task-arr', mappedSubagent]]),
+            hiddenParentToolCalls: new Set<string>(['task-arr']),
+            activeSubagents: new Set<string>([mappedSubagent]),
+        };
+
+        const stopped = mapClaudeLogMessageToSessionEnvelopes({
+            type: 'user',
+            uuid: 'u-arr-1',
+            isSidechain: false,
+            message: {
+                role: 'user',
+                content: [{ type: 'tool_result', tool_use_id: 'task-arr', content: [{ type: 'text', text: 'Array result text' }] }],
+            },
+        } as any, state);
+
+        expect(stopped.envelopes).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    subagent: mappedSubagent,
+                    ev: { t: 'stop', result: 'Array result text' },
+                }),
+            ]),
+        );
     });
 
     it('does not emit envelopes for summary messages', () => {

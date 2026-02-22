@@ -486,6 +486,7 @@ export const zhHans: TranslationStructure = {
             agentPrompt: '代理提示',
             activity: '活动',
             agentType: '代理类型',
+            response: '响应',
         },
         multiEdit: {
             editNumber: ({ index, total }: { index: number; total: number }) => `编辑 ${index}/${total}`,
