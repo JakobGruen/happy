@@ -143,10 +143,31 @@ const RoomHandler: React.FC = () => {
             return await realtimeClientTools.answerUserQuestion(payload);
         });
 
+        room.registerRpcMethod('answerSingleQuestion', async (data) => {
+            const payload = JSON.parse(data.payload);
+            return await realtimeClientTools.answerSingleQuestion(payload);
+        });
+
+        room.registerRpcMethod('confirmQuestionAnswers', async () => {
+            return await realtimeClientTools.confirmQuestionAnswers();
+        });
+
+        room.registerRpcMethod('rejectQuestionAnswers', async () => {
+            return await realtimeClientTools.rejectQuestionAnswers();
+        });
+
+        room.registerRpcMethod('abortClaudeCode', async () => {
+            return await realtimeClientTools.abortClaudeCode();
+        });
+
         return () => {
             room.unregisterRpcMethod('messageClaudeCode');
             room.unregisterRpcMethod('processPermissionRequest');
             room.unregisterRpcMethod('answerUserQuestion');
+            room.unregisterRpcMethod('answerSingleQuestion');
+            room.unregisterRpcMethod('confirmQuestionAnswers');
+            room.unregisterRpcMethod('rejectQuestionAnswers');
+            room.unregisterRpcMethod('abortClaudeCode');
         };
     }, [room]);
 

@@ -191,19 +191,25 @@ When calling messageClaudeCode, structure the message for Claude Code:
 
 # Answering Questions from Claude Code
 
-When you receive a message about Claude Code asking the user question(s):
-1. Read the question and all options aloud to the user. Use the letter labels (A, B, C, D).
-   Example: "Claude is asking: Which database should we use? A, PostgreSQL. B, SQLite. C, MySQL."
-2. Wait for the user to speak their choice.
-3. Map their spoken answer to the option label(s). Users might say the letter, the label, or describe it.
-4. Call answer_user_question with the structured answer.
-   Example: answers=[{"questionIndex": 0, "header": "Database", "selectedLabels": ["PostgreSQL"]}]
+Questions arrive ONE AT A TIME via the sequential voice flow:
 
-For multi-select questions, collect multiple answers before submitting.
+1. You receive a single question with lettered options (A, B, C, etc.) and an "Other" option.
+2. Read the question and options aloud.
+   Example: "Claude is asking: Which database? A, PostgreSQL. B, SQLite. C, MySQL. Or choose Other."
+3. Wait for the user's spoken choice.
+4. Map their answer to the option label(s). Users might say the letter, the label, or describe it.
+   If their answer doesn't match any listed option, use "Other: <their exact words>" as the label.
+5. Call answer_single_question with questionIndex, header, and selectedLabels from the message.
+6. The response will be either:
+   - The NEXT question → read it aloud, repeat from step 2
+   - A SUMMARY of all answers → read the summary and ask "Should I submit these answers?"
+7. If the user confirms → call confirm_question_answers
+8. If the user wants to redo → call reject_question_answers (restarts from question 1)
+
+For multi-select questions, collect all choices before calling answer_single_question.
 If the user's answer is ambiguous, ask for clarification: "Did you mean A or B?"
 
-IMPORTANT: Do NOT use processPermissionRequest for AskUserQuestion — use answer_user_question instead.
-It handles both the permission approval and sending the structured answer back."""
+IMPORTANT: Do NOT use processPermissionRequest for AskUserQuestion — use the sequential tools instead."""
 
 
 class HappyAgent(Agent):
@@ -359,41 +365,74 @@ class HappyAgent(Agent):
             raise ToolError(f"Failed to run /{clean_command}")
 
     @function_tool
-    async def answer_user_question(
+    async def answer_single_question(
         self,
         context: RunContext,
-        answers: list[dict],
+        question_index: int,
+        header: str,
+        selected_labels: list[str],
     ):
-        """Answer a multi-choice question from Claude Code on behalf of the user.
-        Call this after the user verbally chooses from the presented options.
-        Do NOT use processPermissionRequest for AskUserQuestion — use this tool instead.
+        """Answer ONE question from Claude Code's multi-choice question set.
+        The response will contain either the next question or a summary for confirmation.
 
         Args:
-            answers: List of answer objects, each with:
-                - questionIndex (int): 0-based index of the question being answered
-                - header (str): The question header/category (e.g. "Database", "Focus area")
-                - selectedLabels (list[str]): The label(s) of the option(s) the user chose
+            question_index: 0-based index of the question (provided in the question text).
+            header: The question header/category (e.g. "Database", "Focus area").
+            selected_labels: The label(s) the user chose. Use "Other: <text>" for custom answers.
         """
-        if not answers or not isinstance(answers, list):
-            raise ToolError("answers must be a non-empty list")
-        for i, answer in enumerate(answers):
-            if not isinstance(answer, dict):
-                raise ToolError(f"Answer at index {i} must be an object")
-            if "header" not in answer or "selectedLabels" not in answer:
-                raise ToolError(f"Answer at index {i} must have 'header' and 'selectedLabels'")
-            if not isinstance(answer["selectedLabels"], list) or len(answer["selectedLabels"]) == 0:
-                raise ToolError(f"Answer at index {i} must have at least one selectedLabel")
+        if not selected_labels or not isinstance(selected_labels, list):
+            raise ToolError("selected_labels must be a non-empty list")
+        if not header:
+            raise ToolError("header is required")
         try:
             response = await get_job_context().room.local_participant.perform_rpc(
                 destination_identity=self._get_user_identity(),
-                method="answerUserQuestion",
-                payload=json.dumps({"answers": answers}),
+                method="answerSingleQuestion",
+                payload=json.dumps({
+                    "questionIndex": question_index,
+                    "header": header,
+                    "selectedLabels": selected_labels,
+                }),
                 response_timeout=10.0,
             )
             return response
         except Exception as e:
-            logger.error(f"Failed to submit answer: {e}")
-            raise ToolError("Failed to submit answer to question")
+            logger.error(f"Failed to submit single answer: {e}")
+            raise ToolError("Failed to submit answer")
+
+    @function_tool
+    async def confirm_question_answers(self, context: RunContext):
+        """Confirm and submit all answered questions to Claude Code.
+        Call this after reading the summary to the user and they confirm.
+        """
+        try:
+            response = await get_job_context().room.local_participant.perform_rpc(
+                destination_identity=self._get_user_identity(),
+                method="confirmQuestionAnswers",
+                payload="{}",
+                response_timeout=10.0,
+            )
+            return response
+        except Exception as e:
+            logger.error(f"Failed to confirm answers: {e}")
+            raise ToolError("Failed to confirm answers")
+
+    @function_tool
+    async def reject_question_answers(self, context: RunContext):
+        """Reject all answers and restart from question 1.
+        Call this when the user wants to redo their choices.
+        """
+        try:
+            response = await get_job_context().room.local_participant.perform_rpc(
+                destination_identity=self._get_user_identity(),
+                method="rejectQuestionAnswers",
+                payload="{}",
+                response_timeout=10.0,
+            )
+            return response
+        except Exception as e:
+            logger.error(f"Failed to reject answers: {e}")
+            raise ToolError("Failed to reject answers")
 
 
 def prewarm(proc: JobProcess):

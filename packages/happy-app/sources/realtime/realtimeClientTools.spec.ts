@@ -11,6 +11,10 @@ const mocks = vi.hoisted(() => {
         storageGetState: vi.fn(),
         trackPermissionResponse: vi.fn(),
         getCurrentRealtimeSessionId: vi.fn(),
+        recordAnswer: vi.fn(),
+        confirmAndSubmit: vi.fn(),
+        resetFlow: vi.fn(),
+        isFlowActive: vi.fn(),
     };
 });
 
@@ -37,6 +41,13 @@ vi.mock('@/track', () => ({
 
 vi.mock('./RealtimeSession', () => ({
     getCurrentRealtimeSessionId: mocks.getCurrentRealtimeSessionId,
+}));
+
+vi.mock('./voiceQuestionBridge', () => ({
+    recordAnswer: mocks.recordAnswer,
+    confirmAndSubmit: mocks.confirmAndSubmit,
+    resetFlow: mocks.resetFlow,
+    isFlowActive: mocks.isFlowActive,
 }));
 
 // ---------------------------------------------------------------------------
@@ -418,6 +429,110 @@ describe('realtimeClientTools', () => {
             });
 
             expect(result).toBe('error (failed to submit answer)');
+        });
+    });
+
+    // ===================================================================
+    // answerSingleQuestion
+    // ===================================================================
+    describe('answerSingleQuestion', () => {
+        it('returns error when parameters is undefined', async () => {
+            const result = await realtimeClientTools.answerSingleQuestion(undefined);
+            expect(result).toBe('error (invalid parameters, expected {questionIndex, header, selectedLabels})');
+        });
+
+        it('returns error when selectedLabels is missing', async () => {
+            const result = await realtimeClientTools.answerSingleQuestion({
+                questionIndex: 0,
+                header: 'DB',
+            });
+            expect(result).toBe('error (invalid parameters, expected {questionIndex, header, selectedLabels})');
+        });
+
+        it('returns error when no active flow', async () => {
+            mocks.isFlowActive.mockReturnValue(false);
+
+            const result = await realtimeClientTools.answerSingleQuestion({
+                questionIndex: 0,
+                header: 'DB',
+                selectedLabels: ['Postgres'],
+            });
+
+            expect(result).toBe('error (no active question flow)');
+        });
+
+        it('calls recordAnswer with correct args and returns its result', async () => {
+            mocks.isFlowActive.mockReturnValue(true);
+            mocks.recordAnswer.mockReturnValue('Question 2 of 3:\nWhat cache?');
+
+            const result = await realtimeClientTools.answerSingleQuestion({
+                questionIndex: 0,
+                header: 'DB',
+                selectedLabels: ['Postgres'],
+            });
+
+            expect(mocks.recordAnswer).toHaveBeenCalledWith(0, 'DB', ['Postgres']);
+            expect(result).toBe('Question 2 of 3:\nWhat cache?');
+        });
+
+        it('returns the bridge response (next question text or summary)', async () => {
+            mocks.isFlowActive.mockReturnValue(true);
+            mocks.recordAnswer.mockReturnValue('All questions answered. Here is a summary:\n\nDB: Postgres');
+
+            const result = await realtimeClientTools.answerSingleQuestion({
+                questionIndex: 1,
+                header: 'Cache',
+                selectedLabels: ['Redis', 'Memcached'],
+            });
+
+            expect(mocks.recordAnswer).toHaveBeenCalledWith(1, 'Cache', ['Redis', 'Memcached']);
+            expect(result).toBe('All questions answered. Here is a summary:\n\nDB: Postgres');
+        });
+    });
+
+    // ===================================================================
+    // confirmQuestionAnswers
+    // ===================================================================
+    describe('confirmQuestionAnswers', () => {
+        it('returns error when no active flow', async () => {
+            mocks.isFlowActive.mockReturnValue(false);
+
+            const result = await realtimeClientTools.confirmQuestionAnswers();
+
+            expect(result).toBe('error (no active question flow)');
+        });
+
+        it('calls confirmAndSubmit and returns its result', async () => {
+            mocks.isFlowActive.mockReturnValue(true);
+            mocks.confirmAndSubmit.mockResolvedValue('Answers submitted: DB: Postgres. Briefly confirm to the user.');
+
+            const result = await realtimeClientTools.confirmQuestionAnswers();
+
+            expect(mocks.confirmAndSubmit).toHaveBeenCalled();
+            expect(result).toBe('Answers submitted: DB: Postgres. Briefly confirm to the user.');
+        });
+    });
+
+    // ===================================================================
+    // rejectQuestionAnswers
+    // ===================================================================
+    describe('rejectQuestionAnswers', () => {
+        it('returns error when no active flow', async () => {
+            mocks.isFlowActive.mockReturnValue(false);
+
+            const result = await realtimeClientTools.rejectQuestionAnswers();
+
+            expect(result).toBe('error (no active question flow)');
+        });
+
+        it('calls resetFlow and returns its result', async () => {
+            mocks.isFlowActive.mockReturnValue(true);
+            mocks.resetFlow.mockReturnValue('Question 1 of 3:\nWhat database?');
+
+            const result = await realtimeClientTools.rejectQuestionAnswers();
+
+            expect(mocks.resetFlow).toHaveBeenCalled();
+            expect(result).toBe('Question 1 of 3:\nWhat database?');
         });
     });
 });

@@ -7,6 +7,7 @@ import { sessionAllow } from '@/sync/ops';
 import { sync } from '@/sync/sync';
 import { t } from '@/text';
 import { Ionicons } from '@expo/vector-icons';
+import { subscribe as subscribeBridge } from '@/realtime/voiceQuestionBridge';
 
 interface QuestionOption {
     label: string;
@@ -230,6 +231,49 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
     // Parse input
     const input = tool.input as AskUserQuestionInput | undefined;
     const questions = input?.questions;
+
+    // Subscribe to voice question bridge for live UI sync during voice flow.
+    // No-op when voice is inactive (bridge emits nothing).
+    React.useEffect(() => {
+        const unsubscribe = subscribeBridge((event) => {
+            switch (event.type) {
+                case 'selection-update':
+                    if (event.questionIndex !== undefined && event.selectedIndices) {
+                        const qi = event.questionIndex;
+                        const si = event.selectedIndices;
+                        setSelections(prev => {
+                            const next = new Map(prev);
+                            next.set(qi, new Set(si));
+                            return next;
+                        });
+                        if (event.otherText !== undefined) {
+                            setOtherTexts(prev => {
+                                const next = new Map(prev);
+                                if (event.otherText) {
+                                    next.set(qi, event.otherText);
+                                }
+                                return next;
+                            });
+                        }
+                    }
+                    break;
+                case 'active-tab-change':
+                    if (event.activeTab !== undefined) {
+                        setActiveTab(event.activeTab);
+                    }
+                    break;
+                case 'submitted':
+                    setIsSubmitted(true);
+                    break;
+                case 'reset':
+                    setSelections(new Map());
+                    setOtherTexts(new Map());
+                    setActiveTab(0);
+                    break;
+            }
+        });
+        return unsubscribe;
+    }, []);
 
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
         return null;

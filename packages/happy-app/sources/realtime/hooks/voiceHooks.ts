@@ -1,6 +1,5 @@
 import { getCurrentRealtimeSessionId, getVoiceSession, isVoiceSessionStarted } from '../RealtimeSession';
 import {
-    formatAskUserQuestion,
     formatNewMessages,
     formatNewSingleMessage,
     formatPermissionRequest,
@@ -10,7 +9,9 @@ import {
     formatSessionOffline,
     formatSessionOnline
 } from './contextFormatters';
+import { startFlow, cleanup as cleanupVoiceQuestionBridge } from '../voiceQuestionBridge';
 import { storage } from '@/sync/storage';
+import { getAllCommands } from '@/sync/suggestionCommands';
 import { Message } from '@/sync/typesMessage';
 import { VOICE_CONFIG } from '../voiceConfig';
 
@@ -124,9 +125,10 @@ export const voiceHooks = {
 
         reportSession(sessionId);
 
-        // AskUserQuestion gets a voice-friendly format with lettered options
+        // AskUserQuestion: sequential voice flow via bridge (one question at a time)
         if (toolName === 'AskUserQuestion' && toolArgs?.questions) {
-            reportTextUpdate(formatAskUserQuestion(sessionId, requestId, toolArgs.questions));
+            const q1Text = startFlow(sessionId, requestId, toolArgs.questions);
+            reportTextUpdate(q1Text);
         } else {
             reportTextUpdate(formatPermissionRequest(sessionId, requestId, toolName, toolArgs));
         }
@@ -153,11 +155,16 @@ export const voiceHooks = {
         let prompt = '';
         prompt += 'THIS IS AN ACTIVE SESSION: \n\n' + formatSessionFull(storage.getState().sessions[sessionId], storage.getState().sessionMessages[sessionId]?.messages ?? []);
         shownSessions.add(sessionId);
-        // prompt += 'Another active sessions: \n\n';
-        // for (let s of storage.getState().getActiveSessions()) {
-        //     if (s.id === sessionId) continue;
-        //     prompt += formatSessionFull(s, storage.getState().sessionMessages[s.id]?.messages ?? []);
-        // }
+
+        // Include available slash commands for the agent
+        const commands = getAllCommands(sessionId);
+        if (commands.length > 0) {
+            prompt += '\n\nAvailable slash commands:\n';
+            for (const cmd of commands) {
+                prompt += `- /${cmd.command}${cmd.description ? ': ' + cmd.description : ''}\n`;
+            }
+        }
+
         return prompt;
     },
 
@@ -179,6 +186,7 @@ export const voiceHooks = {
             console.log('🎤 Voice session stopped');
         }
         shownSessions.clear();
+        cleanupVoiceQuestionBridge();
         // Cancel any pending debounced update
         if (contextDebounceTimer) {
             clearTimeout(contextDebounceTimer);

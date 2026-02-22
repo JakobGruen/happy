@@ -260,13 +260,25 @@ def test_process_permission_without_mode_omits_key(happy_agent):
 
 
 # ---------------------------------------------------------------------------
-# 10. answer_user_question tool exists on agent
+# 10. answer_single_question tool exists on agent
 # ---------------------------------------------------------------------------
 
-def test_answer_user_question_tool_exists(happy_agent):
-    """HappyAgent exposes answer_user_question as a callable tool."""
-    assert hasattr(happy_agent, "answer_user_question")
-    assert callable(happy_agent.answer_user_question)
+def test_answer_single_question_tool_exists(happy_agent):
+    """HappyAgent exposes answer_single_question as a callable tool."""
+    assert hasattr(happy_agent, "answer_single_question")
+    assert callable(happy_agent.answer_single_question)
+
+
+def test_confirm_question_answers_tool_exists(happy_agent):
+    """HappyAgent exposes confirm_question_answers as a callable tool."""
+    assert hasattr(happy_agent, "confirm_question_answers")
+    assert callable(happy_agent.confirm_question_answers)
+
+
+def test_reject_question_answers_tool_exists(happy_agent):
+    """HappyAgent exposes reject_question_answers as a callable tool."""
+    assert hasattr(happy_agent, "reject_question_answers")
+    assert callable(happy_agent.reject_question_answers)
 
 
 # ---------------------------------------------------------------------------
@@ -280,73 +292,58 @@ def test_system_prompt_includes_question_answering_section():
 
 
 # ---------------------------------------------------------------------------
-# 12. answer_user_question validates empty answers
+# 12. System prompt references all three question tools and sequential flow
 # ---------------------------------------------------------------------------
 
-def test_answer_user_question_validates_empty_answers(happy_agent):
-    """answer_user_question raises ToolError when passed an empty list."""
+def test_system_prompt_references_question_tools():
+    """SYSTEM_PROMPT mentions all three question tools and ONE AT A TIME flow."""
+    from agent import SYSTEM_PROMPT
+    assert "answer_single_question" in SYSTEM_PROMPT
+    assert "confirm_question_answers" in SYSTEM_PROMPT
+    assert "reject_question_answers" in SYSTEM_PROMPT
+    assert "ONE AT A TIME" in SYSTEM_PROMPT
+
+
+# ---------------------------------------------------------------------------
+# 13. answer_single_question validates empty selected_labels
+# ---------------------------------------------------------------------------
+
+def test_answer_single_question_validates_empty_selected_labels(happy_agent):
+    """answer_single_question raises ToolError when selected_labels is empty."""
     from livekit.agents.llm import ToolError
 
     ctx = MagicMock()
 
     with pytest.raises(ToolError, match="must be a non-empty list"):
-        asyncio.run(happy_agent.answer_user_question(ctx, []))
+        asyncio.run(happy_agent.answer_single_question(ctx, 0, "Database", []))
 
 
 # ---------------------------------------------------------------------------
-# 13. answer_user_question validates answer structure
+# 14. answer_single_question validates missing header
 # ---------------------------------------------------------------------------
 
-def test_answer_user_question_validates_answer_structure(happy_agent):
-    """answer_user_question raises ToolError when an answer is missing header or selectedLabels."""
+def test_answer_single_question_validates_missing_header(happy_agent):
+    """answer_single_question raises ToolError when header is empty."""
     from livekit.agents.llm import ToolError
 
     ctx = MagicMock()
 
-    # Missing selectedLabels
-    with pytest.raises(ToolError, match="must have 'header' and 'selectedLabels'"):
-        asyncio.run(happy_agent.answer_user_question(ctx, [{"questionIndex": 0, "header": "DB"}]))
-
-    # Missing header
-    with pytest.raises(ToolError, match="must have 'header' and 'selectedLabels'"):
-        asyncio.run(
-            happy_agent.answer_user_question(
-                ctx, [{"questionIndex": 0, "selectedLabels": ["PostgreSQL"]}]
-            )
-        )
+    with pytest.raises(ToolError, match="header is required"):
+        asyncio.run(happy_agent.answer_single_question(ctx, 0, "", ["PostgreSQL"]))
 
 
 # ---------------------------------------------------------------------------
-# 14. answer_user_question validates selectedLabels not empty
+# 15. answer_single_question sends correct RPC
 # ---------------------------------------------------------------------------
 
-def test_answer_user_question_validates_selected_labels_not_empty(happy_agent):
-    """answer_user_question raises ToolError when selectedLabels is an empty list."""
-    from livekit.agents.llm import ToolError
-
-    ctx = MagicMock()
-
-    with pytest.raises(ToolError, match="must have at least one selectedLabel"):
-        asyncio.run(
-            happy_agent.answer_user_question(
-                ctx,
-                [{"questionIndex": 0, "header": "Database", "selectedLabels": []}],
-            )
-        )
-
-
-# ---------------------------------------------------------------------------
-# 15. answer_user_question sends correct RPC
-# ---------------------------------------------------------------------------
-
-def test_answer_user_question_sends_correct_rpc(happy_agent):
-    """answer_user_question calls perform_rpc with method='answerUserQuestion' and correct payload."""
+def test_answer_single_question_sends_correct_rpc(happy_agent):
+    """answer_single_question calls perform_rpc with method='answerSingleQuestion' and correct payload."""
     import json
 
     mock_room = MagicMock()
     mock_room.remote_participants = {"user-1": MagicMock()}
     mock_local = MagicMock()
-    mock_local.perform_rpc = AsyncMock(return_value="ack")
+    mock_local.perform_rpc = AsyncMock(return_value="next-question")
     mock_room.local_participant = mock_local
 
     mock_job_ctx = MagicMock()
@@ -354,26 +351,28 @@ def test_answer_user_question_sends_correct_rpc(happy_agent):
 
     ctx = MagicMock()
 
-    answers = [{"questionIndex": 0, "header": "Database", "selectedLabels": ["PostgreSQL"]}]
-
     with patch("agent.get_job_context", return_value=mock_job_ctx):
-        result = asyncio.run(happy_agent.answer_user_question(ctx, answers))
-        assert result == "ack"
+        result = asyncio.run(
+            happy_agent.answer_single_question(ctx, 0, "Database", ["PostgreSQL"])
+        )
+        assert result == "next-question"
 
         call_kwargs = mock_local.perform_rpc.call_args.kwargs
-        assert call_kwargs["method"] == "answerUserQuestion"
+        assert call_kwargs["method"] == "answerSingleQuestion"
         assert call_kwargs["destination_identity"] == "user-1"
 
         payload = json.loads(call_kwargs["payload"])
-        assert payload["answers"] == answers
+        assert payload["questionIndex"] == 0
+        assert payload["header"] == "Database"
+        assert payload["selectedLabels"] == ["PostgreSQL"]
 
 
 # ---------------------------------------------------------------------------
-# 16. answer_user_question raises ToolError on RPC failure
+# 16. answer_single_question raises ToolError on RPC failure
 # ---------------------------------------------------------------------------
 
-def test_answer_user_question_raises_tool_error_on_rpc_failure(happy_agent):
-    """answer_user_question raises ToolError when perform_rpc fails."""
+def test_answer_single_question_raises_tool_error_on_rpc_failure(happy_agent):
+    """answer_single_question raises ToolError when perform_rpc fails."""
     from livekit.agents.llm import ToolError
 
     mock_room = MagicMock()
@@ -387,11 +386,111 @@ def test_answer_user_question_raises_tool_error_on_rpc_failure(happy_agent):
 
     ctx = MagicMock()
 
-    answers = [{"questionIndex": 0, "header": "Database", "selectedLabels": ["PostgreSQL"]}]
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        with pytest.raises(ToolError, match="Failed to submit answer"):
+            asyncio.run(
+                happy_agent.answer_single_question(ctx, 0, "Database", ["PostgreSQL"])
+            )
+
+
+# ---------------------------------------------------------------------------
+# 16b. confirm_question_answers sends correct RPC
+# ---------------------------------------------------------------------------
+
+def test_confirm_question_answers_sends_correct_rpc(happy_agent):
+    """confirm_question_answers calls perform_rpc with method='confirmQuestionAnswers'."""
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(return_value="confirmed")
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
 
     with patch("agent.get_job_context", return_value=mock_job_ctx):
-        with pytest.raises(ToolError, match="Failed to submit answer to question"):
-            asyncio.run(happy_agent.answer_user_question(ctx, answers))
+        result = asyncio.run(happy_agent.confirm_question_answers(ctx))
+        assert result == "confirmed"
+
+        call_kwargs = mock_local.perform_rpc.call_args.kwargs
+        assert call_kwargs["method"] == "confirmQuestionAnswers"
+        assert call_kwargs["destination_identity"] == "user-1"
+
+
+# ---------------------------------------------------------------------------
+# 16c. confirm_question_answers raises ToolError on RPC failure
+# ---------------------------------------------------------------------------
+
+def test_confirm_question_answers_raises_tool_error_on_rpc_failure(happy_agent):
+    """confirm_question_answers raises ToolError when perform_rpc fails."""
+    from livekit.agents.llm import ToolError
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(side_effect=Exception("RPC timeout"))
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        with pytest.raises(ToolError, match="Failed to confirm answers"):
+            asyncio.run(happy_agent.confirm_question_answers(ctx))
+
+
+# ---------------------------------------------------------------------------
+# 16d. reject_question_answers sends correct RPC
+# ---------------------------------------------------------------------------
+
+def test_reject_question_answers_sends_correct_rpc(happy_agent):
+    """reject_question_answers calls perform_rpc with method='rejectQuestionAnswers'."""
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(return_value="rejected")
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        result = asyncio.run(happy_agent.reject_question_answers(ctx))
+        assert result == "rejected"
+
+        call_kwargs = mock_local.perform_rpc.call_args.kwargs
+        assert call_kwargs["method"] == "rejectQuestionAnswers"
+        assert call_kwargs["destination_identity"] == "user-1"
+
+
+# ---------------------------------------------------------------------------
+# 16e. reject_question_answers raises ToolError on RPC failure
+# ---------------------------------------------------------------------------
+
+def test_reject_question_answers_raises_tool_error_on_rpc_failure(happy_agent):
+    """reject_question_answers raises ToolError when perform_rpc fails."""
+    from livekit.agents.llm import ToolError
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(side_effect=Exception("RPC timeout"))
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        with pytest.raises(ToolError, match="Failed to reject answers"):
+            asyncio.run(happy_agent.reject_question_answers(ctx))
 
 
 # ---------------------------------------------------------------------------

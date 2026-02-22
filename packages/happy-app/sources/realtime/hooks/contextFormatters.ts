@@ -29,47 +29,6 @@ export function formatPermissionRequest(
     `);
 }
 
-interface QuestionOption {
-    label: string;
-    description: string;
-}
-
-interface Question {
-    question: string;
-    header: string;
-    options: QuestionOption[];
-    multiSelect: boolean;
-}
-
-/**
- * Format an AskUserQuestion tool call in a voice-friendly way.
- * Presents questions with lettered options (A, B, C, D) for easy verbal selection.
- */
-export function formatAskUserQuestion(
-    sessionId: string,
-    requestId: string,
-    questions: Question[]
-): string {
-    const lines: string[] = [];
-    lines.push(`Claude Code is asking the user question(s) (session ${sessionId}):`);
-    lines.push(`<request_id>${requestId}</request_id>`);
-    lines.push('');
-
-    questions.forEach((q, i) => {
-        const prefix = questions.length > 1 ? `Question ${i + 1}: ` : '';
-        lines.push(`${prefix}${q.question}`);
-        lines.push(`[${q.multiSelect ? 'Select one or more' : 'Select one'}]`);
-        q.options.forEach((opt, j) => {
-            const letter = String.fromCharCode(65 + j); // A, B, C, D
-            lines.push(`  ${letter}) ${opt.label} — ${opt.description}`);
-        });
-        lines.push('');
-    });
-
-    lines.push('Read the question and options to the user. After they choose, call answer_user_question with their selections.');
-    return lines.join('\n');
-}
-
 //
 // Message formatting
 //

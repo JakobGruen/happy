@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { sync } from '@/sync/sync';
-import { sessionAllow, sessionDeny } from '@/sync/ops';
+import { sessionAbort, sessionAllow, sessionDeny } from '@/sync/ops';
 import { storage } from '@/sync/storage';
 import { trackPermissionResponse } from '@/track';
 import { getCurrentRealtimeSessionId } from './RealtimeSession';
+import { recordAnswer, confirmAndSubmit, resetFlow, isFlowActive } from './voiceQuestionBridge';
 
 /**
  * Static client tools for the realtime voice interface.
@@ -93,8 +94,76 @@ export const realtimeClientTools = {
     },
 
     /**
-     * Answer a multi-choice question from Claude Code (AskUserQuestion tool).
-     * Approves the permission and sends the structured answer as a message.
+     * Abort/interrupt the current Claude Code operation
+     */
+    abortClaudeCode: async () => {
+        const sessionId = getCurrentRealtimeSessionId();
+        if (!sessionId) {
+            console.error('❌ No active session');
+            return "error (no active session)";
+        }
+
+        console.log('🔍 abortClaudeCode called for session:', sessionId);
+
+        try {
+            await sessionAbort(sessionId);
+            return "Claude Code interrupted. Briefly confirm to the user.";
+        } catch (error) {
+            console.error('❌ Failed to abort:', error);
+            return "error (failed to abort)";
+        }
+    },
+
+    /**
+     * Answer a single question in the sequential voice flow.
+     * Returns the next question text or a summary for confirmation.
+     */
+    answerSingleQuestion: async (parameters: unknown) => {
+        const schema = z.object({
+            questionIndex: z.number(),
+            header: z.string(),
+            selectedLabels: z.array(z.string().min(1)),
+        });
+        const parsed = schema.safeParse(parameters);
+
+        if (!parsed.success) {
+            console.error('❌ Invalid answerSingleQuestion parameter:', parsed.error);
+            return "error (invalid parameters, expected {questionIndex, header, selectedLabels})";
+        }
+
+        if (!isFlowActive()) {
+            return "error (no active question flow)";
+        }
+
+        const { questionIndex, header, selectedLabels } = parsed.data;
+        console.log('🔍 answerSingleQuestion called:', questionIndex, header, selectedLabels);
+
+        return recordAnswer(questionIndex, header, selectedLabels);
+    },
+
+    /**
+     * Confirm all answers and submit to Claude Code.
+     */
+    confirmQuestionAnswers: async () => {
+        if (!isFlowActive()) {
+            return "error (no active question flow)";
+        }
+        return await confirmAndSubmit();
+    },
+
+    /**
+     * Reject answers and restart from Q1.
+     */
+    rejectQuestionAnswers: async () => {
+        if (!isFlowActive()) {
+            return "error (no active question flow)";
+        }
+        return resetFlow();
+    },
+
+    /**
+     * @deprecated Use answerSingleQuestion + confirmQuestionAnswers instead.
+     * Kept for backward compatibility with older voice agent versions.
      */
     answerUserQuestion: async (parameters: unknown) => {
         const schema = z.object({
