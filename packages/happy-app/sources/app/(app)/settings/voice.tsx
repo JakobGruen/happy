@@ -6,7 +6,7 @@ import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
 import { Text } from '@/components/StyledText';
-import { useSettingMutable, useLocalSetting, useLocalSettingMutable, useProfile } from '@/sync/storage';
+import { useSettingMutable, useLocalSettingMutable, useProfile } from '@/sync/storage';
 import { useUnistyles } from 'react-native-unistyles';
 import { StyleSheet } from 'react-native-unistyles';
 import { findLanguageByCode, getLanguageDisplayName, LANGUAGES } from '@/constants/Languages';
@@ -22,7 +22,6 @@ export default function VoiceSettingsScreen() {
     const auth = useAuth();
     const profile = useProfile();
     const [voiceAssistantLanguage] = useSettingMutable('voiceAssistantLanguage');
-    const devModeEnabled = useLocalSetting('devModeEnabled');
     const [voiceBackend, setVoiceBackend] = useLocalSettingMutable('voiceBackend');
 
     const isLiveKitConnected = profile.connectedServices?.includes('livekit') || false;
@@ -95,9 +94,8 @@ export default function VoiceSettingsScreen() {
                 />
             </ItemGroup>
 
-            {/* Voice Backend (dev only) */}
-            {devModeEnabled && (
-                <ItemGroup
+            {/* Voice Backend */}
+            <ItemGroup
                     title="Voice Backend"
                     footer="Switch between ElevenLabs (cloud) and LiveKit (self-hosted) voice pipelines. Requires app restart."
                 >
@@ -115,11 +113,10 @@ export default function VoiceSettingsScreen() {
                         detail={voiceBackend === 'livekit' ? 'Active' : undefined}
                         onPress={() => setVoiceBackend('livekit')}
                     />
-                </ItemGroup>
-            )}
+            </ItemGroup>
 
             {/* LiveKit Credentials (visible when LiveKit backend is selected) */}
-            {devModeEnabled && voiceBackend === 'livekit' && (
+            {voiceBackend === 'livekit' && (
                 <ItemGroup
                     title="LiveKit Credentials"
                     footer={isLiveKitConnected
