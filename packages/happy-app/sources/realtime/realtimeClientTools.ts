@@ -36,7 +36,7 @@ export const realtimeClientTools = {
         console.log('🔍 messageClaudeCode called with:', message);
         console.log('📤 Sending message to session:', sessionId);
         sync.sendMessage(sessionId, message);
-        return "sent [DO NOT say anything else, simply say 'sent']";
+        return `Message delivered to Claude Code: "${message}". Briefly tell the user what you asked Claude to do and that it's working on it.`;
     },
 
     /**
@@ -44,45 +44,47 @@ export const realtimeClientTools = {
      */
     processPermissionRequest: async (parameters: unknown) => {
         const messageSchema = z.object({
-            decision: z.enum(['allow', 'deny'])
+            decision: z.enum(['allow', 'deny']),
+            mode: z.enum(['default', 'acceptEdits', 'bypassPermissions']).optional()
         });
         const parsedMessage = messageSchema.safeParse(parameters);
 
         if (!parsedMessage.success) {
-            console.error('❌ Invalid decision parameter:', parsedMessage.error);
-            return "error (invalid decision parameter, expected 'allow' or 'deny')";
+            console.error('❌ Invalid permission parameter:', parsedMessage.error);
+            return "error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions')";
         }
 
-        const decision = parsedMessage.data.decision;
+        const { decision, mode } = parsedMessage.data;
         const sessionId = getCurrentRealtimeSessionId();
-        
+
         if (!sessionId) {
             console.error('❌ No active session');
             return "error (no active session)";
         }
-        
-        console.log('🔍 processPermissionRequest called with:', decision);
-        
+
+        console.log('🔍 processPermissionRequest called with:', decision, mode ? `mode=${mode}` : '');
+
         // Get the current session to check for permission requests
         const session = storage.getState().sessions[sessionId];
         const requests = session?.agentState?.requests;
-        
+
         if (!requests || Object.keys(requests).length === 0) {
             console.error('❌ No active permission request');
             return "error (no active permission request)";
         }
-        
+
         const requestId = Object.keys(requests)[0];
-        
+
         try {
             if (decision === 'allow') {
-                await sessionAllow(sessionId, requestId);
+                await sessionAllow(sessionId, requestId, mode);
                 trackPermissionResponse(true);
             } else {
-                await sessionDeny(sessionId, requestId);
+                await sessionDeny(sessionId, requestId, mode);
                 trackPermissionResponse(false);
             }
-            return "done [DO NOT say anything else, simply say 'done']";
+            const modeMsg = mode ? ` Mode switched to ${mode}.` : '';
+            return `Permission ${decision}ed.${modeMsg} Briefly confirm to the user.`;
         } catch (error) {
             console.error('❌ Failed to process permission:', error);
             return `error (failed to ${decision} permission)`;

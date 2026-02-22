@@ -120,13 +120,16 @@ def test_tool_methods_exist(happy_agent):
 # ---------------------------------------------------------------------------
 
 def test_system_prompt_sections():
-    """SYSTEM_PROMPT includes spoken-output-rules and prompt-engineering-rules."""
+    """SYSTEM_PROMPT includes key sections for role, context, and speech rules."""
     from agent import SYSTEM_PROMPT
 
-    assert "<spoken-output-rules>" in SYSTEM_PROMPT
-    assert "</spoken-output-rules>" in SYSTEM_PROMPT
-    assert "<prompt-engineering-rules>" in SYSTEM_PROMPT
-    assert "</prompt-engineering-rules>" in SYSTEM_PROMPT
+    assert "# Your Role" in SYSTEM_PROMPT
+    assert "# Context Awareness" in SYSTEM_PROMPT
+    assert "# Tool Usage Rules" in SYSTEM_PROMPT
+    assert "# Speech Rules" in SYSTEM_PROMPT
+    assert "# Prompt Engineering" in SYSTEM_PROMPT
+    assert "# Mode Switching" in SYSTEM_PROMPT
+    assert "# Plan Mode" in SYSTEM_PROMPT
 
 
 def test_system_prompt_identity():
@@ -177,3 +180,78 @@ def test_message_claude_code_sends_rpc(happy_agent):
         assert call_kwargs["method"] == "messageClaudeCode"
         assert '"fix the tests"' in call_kwargs["payload"]
         assert call_kwargs["destination_identity"] == "user-1"
+
+
+# ---------------------------------------------------------------------------
+# 9. process_permission_request mode parameter
+# ---------------------------------------------------------------------------
+
+def test_process_permission_invalid_mode(happy_agent):
+    """process_permission_request raises ToolError for invalid mode values."""
+    from livekit.agents.llm import ToolError
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(return_value="ok")
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        with pytest.raises(ToolError, match="Mode must be one of"):
+            asyncio.run(happy_agent.process_permission_request(ctx, "allow", "badMode"))
+
+
+def test_process_permission_with_mode(happy_agent):
+    """process_permission_request includes mode in RPC payload when provided."""
+    import json
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(return_value="ok")
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        result = asyncio.run(
+            happy_agent.process_permission_request(ctx, "allow", "acceptEdits")
+        )
+        assert result == "ok"
+
+        call_kwargs = mock_local.perform_rpc.call_args.kwargs
+        payload = json.loads(call_kwargs["payload"])
+        assert payload["decision"] == "allow"
+        assert payload["mode"] == "acceptEdits"
+
+
+def test_process_permission_without_mode_omits_key(happy_agent):
+    """process_permission_request omits mode from payload when not provided."""
+    import json
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(return_value="ok")
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        asyncio.run(happy_agent.process_permission_request(ctx, "deny"))
+
+        call_kwargs = mock_local.perform_rpc.call_args.kwargs
+        payload = json.loads(call_kwargs["payload"])
+        assert payload["decision"] == "deny"
+        assert "mode" not in payload

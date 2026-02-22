@@ -96,6 +96,15 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     session.client.rpcHandlerManager.registerHandler('switch', doSwitch); // When switch clicked
     // Removed catch-all stdin handler - now handled by RemoteModeDisplay keyboard handlers
 
+    // Display connection status changes in remote mode
+    session.client.on('connection-status', (status: string, detail?: string) => {
+        if (status === 'disconnected') {
+            messageBuffer.addMessage(`Server disconnected: ${detail || 'unknown reason'}`, 'status');
+        } else if (status === 'connected') {
+            messageBuffer.addMessage('Server reconnected', 'status');
+        }
+    });
+
     // Create permission handler
     const permissionHandler = new PermissionHandler(session);
 
