@@ -8,6 +8,7 @@ import {
 } from '@livekit/react-native';
 import { DataPublishOptions } from 'livekit-client';
 import { registerVoiceSession } from './RealtimeSession';
+import { realtimeClientTools } from './realtimeClientTools';
 import { storage } from '@/sync/storage';
 import type { VoiceSession, VoiceSessionConfig } from './types';
 
@@ -99,6 +100,24 @@ const RoomHandler: React.FC = () => {
                 break;
         }
     }, [state]);
+
+    // Register RPC handlers for agent tool calls
+    useEffect(() => {
+        room.registerRpcMethod('messageClaudeCode', async (data) => {
+            const payload = JSON.parse(data.payload);
+            return await realtimeClientTools.messageClaudeCode(payload);
+        });
+
+        room.registerRpcMethod('processPermissionRequest', async (data) => {
+            const payload = JSON.parse(data.payload);
+            return await realtimeClientTools.processPermissionRequest(payload);
+        });
+
+        return () => {
+            room.unregisterRpcMethod('messageClaudeCode');
+            room.unregisterRpcMethod('processPermissionRequest');
+        };
+    }, [room]);
 
     // Handle room connection events
     useEffect(() => {
