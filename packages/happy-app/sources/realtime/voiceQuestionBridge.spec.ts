@@ -6,7 +6,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const mocks = vi.hoisted(() => {
     return {
         sessionAllow: vi.fn(),
-        sendMessage: vi.fn(),
         trackPermissionResponse: vi.fn(),
     };
 });
@@ -15,11 +14,7 @@ vi.mock('@/sync/ops', () => ({
     sessionAllow: mocks.sessionAllow,
 }));
 
-vi.mock('@/sync/sync', () => ({
-    sync: {
-        sendMessage: mocks.sendMessage,
-    },
-}));
+// sync.sendMessage is no longer used by voiceQuestionBridge (answers go via updatedInput)
 
 vi.mock('@/track', () => ({
     trackPermissionResponse: mocks.trackPermissionResponse,
@@ -140,9 +135,8 @@ describe('voiceQuestionBridge', () => {
     // confirmAndSubmit
     // ===================================================================
     describe('confirmAndSubmit', () => {
-        it('calls sessionAllow + sendMessage with correct format', async () => {
+        it('calls sessionAllow with SDK-format answers (no sendMessage)', async () => {
             mocks.sessionAllow.mockResolvedValue(undefined);
-            mocks.sendMessage.mockResolvedValue(undefined);
 
             startFlow('session-1', 'req-1', testQuestions);
             recordAnswer(0, 'Database', ['PostgreSQL']);
@@ -150,10 +144,16 @@ describe('voiceQuestionBridge', () => {
 
             const result = await confirmAndSubmit();
 
-            expect(mocks.sessionAllow).toHaveBeenCalledWith('session-1', 'req-1');
-            expect(mocks.sendMessage).toHaveBeenCalledWith(
+            expect(mocks.sessionAllow).toHaveBeenCalledWith(
                 'session-1',
-                'Database: PostgreSQL\nFeatures: Auth, API'
+                'req-1',
+                undefined,
+                undefined,
+                undefined,
+                {
+                    'Which database should we use?': 'PostgreSQL',
+                    'Which features do you want?': 'Auth, API',
+                }
             );
             expect(mocks.trackPermissionResponse).toHaveBeenCalledWith(true);
             expect(result).toContain('Answers submitted');
@@ -164,7 +164,6 @@ describe('voiceQuestionBridge', () => {
 
             expect(result).toBe('error (no active question flow)');
             expect(mocks.sessionAllow).not.toHaveBeenCalled();
-            expect(mocks.sendMessage).not.toHaveBeenCalled();
         });
     });
 
@@ -205,18 +204,24 @@ describe('voiceQuestionBridge', () => {
             expect(result).toContain('Question 2 of 2:');
         });
 
-        it('"Other: custom text" maps correctly', () => {
+        it('"Other: custom text" maps correctly in SDK format (raw text, no prefix)', () => {
             startFlow('session-1', 'req-1', testQuestions);
             recordAnswer(0, 'Database', ['Other: CockroachDB']);
             recordAnswer(1, 'Features', ['Auth']);
 
             mocks.sessionAllow.mockResolvedValue(undefined);
-            mocks.sendMessage.mockResolvedValue(undefined);
 
             return confirmAndSubmit().then(result => {
-                expect(mocks.sendMessage).toHaveBeenCalledWith(
+                expect(mocks.sessionAllow).toHaveBeenCalledWith(
                     'session-1',
-                    'Database: Other: CockroachDB\nFeatures: Auth'
+                    'req-1',
+                    undefined,
+                    undefined,
+                    undefined,
+                    {
+                        'Which database should we use?': 'CockroachDB',
+                        'Which features do you want?': 'Auth',
+                    }
                 );
                 expect(result).toContain('Answers submitted');
             });
@@ -254,7 +259,6 @@ describe('voiceQuestionBridge', () => {
 
         it('emits submitted on confirmAndSubmit', async () => {
             mocks.sessionAllow.mockResolvedValue(undefined);
-            mocks.sendMessage.mockResolvedValue(undefined);
 
             startFlow('session-1', 'req-1', testQuestions);
             recordAnswer(0, 'Database', ['PostgreSQL']);
