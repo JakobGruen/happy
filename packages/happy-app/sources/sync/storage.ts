@@ -101,7 +101,7 @@ interface StorageState {
     applyMachines: (machines: Machine[], replace?: boolean) => void;
     applyLoaded: () => void;
     applyReady: () => void;
-    applyMessages: (sessionId: string, messages: NormalizedMessage[]) => { changed: string[], hasReadyEvent: boolean };
+    applyMessages: (sessionId: string, messages: NormalizedMessage[]) => { changed: string[], hasReadyEvent: boolean, permissionModeChanged?: string };
     applyMessagesLoaded: (sessionId: string) => void;
     applySettings: (settings: Settings, version: number) => void;
     applySettingsLocal: (settings: Partial<Settings>) => void;
@@ -483,6 +483,7 @@ export const storage = create<StorageState>()((set, get) => {
         applyMessages: (sessionId: string, messages: NormalizedMessage[]) => {
             let changed = new Set<string>();
             let hasReadyEvent = false;
+            let permissionModeChanged: string | undefined;
             set((state) => {
 
                 // Resolve session messages state
@@ -508,6 +509,9 @@ export const storage = create<StorageState>()((set, get) => {
                 }
                 if (reducerResult.hasReadyEvent) {
                     hasReadyEvent = true;
+                }
+                if (reducerResult.permissionModeChanged) {
+                    permissionModeChanged = reducerResult.permissionModeChanged;
                 }
 
                 // Merge messages
@@ -556,7 +560,12 @@ export const storage = create<StorageState>()((set, get) => {
                 };
             });
 
-            return { changed: Array.from(changed), hasReadyEvent };
+            // Apply permission mode change outside of set() to avoid nested state updates
+            if (permissionModeChanged) {
+                get().updateSessionPermissionMode(sessionId, permissionModeChanged);
+            }
+
+            return { changed: Array.from(changed), hasReadyEvent, permissionModeChanged };
         },
         applyMessagesLoaded: (sessionId: string) => set((state) => {
             const existingSession = state.sessionMessages[sessionId];

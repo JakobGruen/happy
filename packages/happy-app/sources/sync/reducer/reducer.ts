@@ -200,6 +200,7 @@ export type ReducerResult = {
         contextSize: number;
     };
     hasReadyEvent?: boolean;
+    permissionModeChanged?: string;
 };
 
 export function reducer(state: ReducerState, messages: NormalizedMessage[], agentState?: AgentState | null): ReducerResult {
@@ -216,6 +217,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
     let newMessages: Message[] = [];
     let changed: Set<string> = new Set();
     let hasReadyEvent = false;
+    let permissionModeChanged: string | undefined;
 
     // First, trace all messages to identify sidechains
     const tracedMessages = traceMessages(state.tracerState, messages);
@@ -250,6 +252,13 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             // Mark as processed to prevent duplication but don't add to messages
             state.messageIds.set(msg.id, msg.id);
             hasReadyEvent = true;
+            continue;
+        }
+
+        // Filter out permission-mode-changed events - apply side-effect, don't create visible message
+        if (msg.role === 'event' && msg.content.type === 'permission-mode-changed') {
+            state.messageIds.set(msg.id, msg.id);
+            permissionModeChanged = msg.content.mode;
             continue;
         }
 
@@ -1080,7 +1089,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             cacheRead: state.latestUsage.cacheRead,
             contextSize: state.latestUsage.contextSize
         } : undefined,
-        hasReadyEvent: hasReadyEvent || undefined
+        hasReadyEvent: hasReadyEvent || undefined,
+        permissionModeChanged: permissionModeChanged || undefined
     };
 }
 
