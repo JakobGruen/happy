@@ -106,34 +106,33 @@ Never decide on permissions yourself — unless the user has activated a mode (s
 
 # Mode Switching
 
-The user can change how permissions are handled via voice commands. Track the current mode
-in the conversation and apply it to permission requests.
+The user can change how permissions are handled via voice commands.
+Use switch_mode to change the permission mode directly — no pending permission required.
 
 **Available modes:**
 
 "Accept all edits" / "Auto-approve edits":
-- Remember this mode. When the next file edit permission request arrives, call
-  processPermissionRequest with decision='allow' and mode='acceptEdits'.
-- After this, the CLI switches mode and stops asking for edit permissions entirely.
-- Still ask the user about non-edit permissions (bash commands, etc.).
+- Call switch_mode with mode='acceptEdits'.
+- After this, file edit permissions are auto-approved. Still asks about bash commands.
 
 "Approve everything" / "Bypass permissions" / "Don't ask me":
-- Call processPermissionRequest with decision='allow' and mode='bypassPermissions'
-  on the next permission request.
-- After this, all permissions are auto-approved by the CLI.
+- Call switch_mode with mode='bypassPermissions'.
+- After this, all permissions are auto-approved.
 
 "Back to default" / "Ask me again" / "Reset permissions":
-- On the next permission request, call processPermissionRequest with decision='allow'
-  and mode='default'. From then on, every permission is asked again.
+- Call switch_mode with mode='default'.
+- Returns to asking permission for every tool use.
 
 "Enter planning mode" / "Switch to plan mode":
-- Call processPermissionRequest with decision='allow' and mode='plan' on the next
-  permission request. If there is no pending permission request, send messageClaudeCode
-  telling Claude to enter plan mode.
-- Example prompt: "Enter plan mode. Use the EnterPlanMode tool."
+- Call switch_mode with mode='plan'.
+- Claude enters plan-only mode: reads code and proposes changes but doesn't edit.
 
-When a mode is active and a matching permission request arrives, auto-approve it immediately
-without asking the user. Tell the user what you approved: "Auto-approved the file edit."
+If the user requests a mode switch AND there is a pending permission request,
+handle BOTH: call switch_mode for the mode change, then call
+processPermissionRequest to allow/deny the pending request.
+
+When a mode is active and a matching permission request arrives, auto-approve it
+immediately without asking the user. Tell the user what you approved.
 
 # Abort / Interrupt
 
@@ -285,13 +284,9 @@ class HappyAgent(Agent):
         self, context: RunContext, decision: str, mode: str | None = None
     ):
         """Allow or deny a pending permission request from Claude Code.
-        Optionally switch the permission mode so future permissions are handled differently.
 
         Args:
             decision: Must be 'allow' or 'deny'.
-            mode: Optional permission mode switch. Use 'acceptEdits' to auto-approve future
-                  file edits, 'bypassPermissions' to skip all future permissions, 'plan' to
-                  enter plan-only mode, or 'default' to reset to manual approval.
         """
         if decision not in ("allow", "deny"):
             raise ToolError("Decision must be 'allow' or 'deny'")
@@ -330,6 +325,33 @@ class HappyAgent(Agent):
         except Exception as e:
             logger.error(f"Failed to abort: {e}")
             raise ToolError("Failed to abort Claude Code")
+
+    @function_tool
+    async def switch_mode(self, context: RunContext, mode: str):
+        """Switch the permission mode for Claude Code. This controls how permissions
+        are handled going forward.
+
+        Args:
+            mode: The mode to switch to:
+                  'default' — ask for permission on every tool use
+                  'acceptEdits' — auto-approve file edits, still ask for bash commands
+                  'bypassPermissions' — auto-approve everything
+                  'plan' — enter plan-only mode (read/propose, no edits until approved)
+        """
+        valid_modes = ('default', 'acceptEdits', 'bypassPermissions', 'plan')
+        if mode not in valid_modes:
+            raise ToolError(f"Mode must be one of: {', '.join(valid_modes)}")
+        try:
+            response = await get_job_context().room.local_participant.perform_rpc(
+                destination_identity=self._get_user_identity(),
+                method="switchMode",
+                payload=json.dumps({"mode": mode}),
+                response_timeout=10.0,
+            )
+            return response
+        except Exception as e:
+            logger.error(f"Failed to switch mode: {e}")
+            raise ToolError(f"Failed to switch to {mode} mode")
 
     @function_tool
     async def run_slash_command(

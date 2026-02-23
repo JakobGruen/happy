@@ -108,11 +108,13 @@ def test_process_permission_valid_decisions(happy_agent):
 # ---------------------------------------------------------------------------
 
 def test_tool_methods_exist(happy_agent):
-    """HappyAgent exposes message_claude_code and process_permission_request."""
+    """HappyAgent exposes message_claude_code, process_permission_request, and switch_mode."""
     assert hasattr(happy_agent, "message_claude_code")
     assert callable(happy_agent.message_claude_code)
     assert hasattr(happy_agent, "process_permission_request")
     assert callable(happy_agent.process_permission_request)
+    assert hasattr(happy_agent, "switch_mode")
+    assert callable(happy_agent.switch_mode)
 
 
 # ---------------------------------------------------------------------------
@@ -692,3 +694,83 @@ def test_run_slash_command_with_list_args(happy_agent):
         call_kwargs = mock_local.perform_rpc.call_args.kwargs
         payload = json.loads(call_kwargs["payload"])
         assert payload["message"] == '/commit "fix login bug" "update readme"'
+
+
+# ---------------------------------------------------------------------------
+# 26. switch_mode tool exists on agent
+# ---------------------------------------------------------------------------
+
+def test_switch_mode_tool_exists(happy_agent):
+    """HappyAgent exposes switch_mode as a callable tool."""
+    assert hasattr(happy_agent, "switch_mode")
+    assert callable(happy_agent.switch_mode)
+
+
+# ---------------------------------------------------------------------------
+# 27. switch_mode validates mode input
+# ---------------------------------------------------------------------------
+
+def test_switch_mode_invalid_mode(happy_agent):
+    """switch_mode raises ToolError for invalid mode values."""
+    from livekit.agents.llm import ToolError
+
+    ctx = MagicMock()
+    for bad_value in ("yolo", "safe", "", "PLAN", "bypass"):
+        with pytest.raises(ToolError, match="Mode must be one of"):
+            asyncio.run(happy_agent.switch_mode(ctx, bad_value))
+
+
+# ---------------------------------------------------------------------------
+# 28. switch_mode sends correct RPC for all valid modes
+# ---------------------------------------------------------------------------
+
+def test_switch_mode_sends_correct_rpc(happy_agent):
+    """switch_mode calls perform_rpc with method='switchMode' and correct payload."""
+    import json
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(return_value="Mode switched to bypassPermissions.")
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        for mode in ("default", "acceptEdits", "bypassPermissions", "plan"):
+            result = asyncio.run(happy_agent.switch_mode(ctx, mode))
+            assert "Mode switched" in result or result is not None
+
+            call_kwargs = mock_local.perform_rpc.call_args.kwargs
+            assert call_kwargs["method"] == "switchMode"
+            assert call_kwargs["destination_identity"] == "user-1"
+
+            payload = json.loads(call_kwargs["payload"])
+            assert payload["mode"] == mode
+
+
+# ---------------------------------------------------------------------------
+# 29. switch_mode raises ToolError on RPC failure
+# ---------------------------------------------------------------------------
+
+def test_switch_mode_raises_tool_error_on_failure(happy_agent):
+    """switch_mode raises ToolError when perform_rpc fails."""
+    from livekit.agents.llm import ToolError
+
+    mock_room = MagicMock()
+    mock_room.remote_participants = {"user-1": MagicMock()}
+    mock_local = MagicMock()
+    mock_local.perform_rpc = AsyncMock(side_effect=Exception("timeout"))
+    mock_room.local_participant = mock_local
+
+    mock_job_ctx = MagicMock()
+    mock_job_ctx.room = mock_room
+
+    ctx = MagicMock()
+
+    with patch("agent.get_job_context", return_value=mock_job_ctx):
+        with pytest.raises(ToolError, match="Failed to switch to plan mode"):
+            asyncio.run(happy_agent.switch_mode(ctx, "plan"))

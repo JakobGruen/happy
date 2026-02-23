@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
         sessionAllow: vi.fn(),
         sessionDeny: vi.fn(),
         storageGetState: vi.fn(),
+        sessionRPC: vi.fn(),
         trackPermissionResponse: vi.fn(),
         getCurrentRealtimeSessionId: vi.fn(),
         recordAnswer: vi.fn(),
@@ -32,6 +33,12 @@ vi.mock('@/sync/ops', () => ({
 vi.mock('@/sync/storage', () => ({
     storage: {
         getState: mocks.storageGetState,
+    },
+}));
+
+vi.mock('@/sync/apiSocket', () => ({
+    apiSocket: {
+        sessionRPC: mocks.sessionRPC,
     },
 }));
 
@@ -533,6 +540,102 @@ describe('realtimeClientTools', () => {
 
             expect(mocks.resetFlow).toHaveBeenCalled();
             expect(result).toBe('Question 1 of 3:\nWhat database?');
+        });
+    });
+
+    // ===================================================================
+    // switchMode
+    // ===================================================================
+    describe('switchMode', () => {
+        it('returns error string when parameters is undefined', async () => {
+            const result = await realtimeClientTools.switchMode(undefined);
+            expect(result).toBe("error (invalid mode, expected 'default'|'acceptEdits'|'bypassPermissions'|'plan')");
+        });
+
+        it('returns error string when mode is missing', async () => {
+            const result = await realtimeClientTools.switchMode({});
+            expect(result).toBe("error (invalid mode, expected 'default'|'acceptEdits'|'bypassPermissions'|'plan')");
+        });
+
+        it('returns error string when mode is invalid', async () => {
+            const result = await realtimeClientTools.switchMode({ mode: 'yolo' });
+            expect(result).toBe("error (invalid mode, expected 'default'|'acceptEdits'|'bypassPermissions'|'plan')");
+        });
+
+        it('returns error string when no active session', async () => {
+            mocks.getCurrentRealtimeSessionId.mockReturnValue(null);
+
+            const result = await realtimeClientTools.switchMode({ mode: 'acceptEdits' });
+
+            expect(result).toBe('error (no active session)');
+        });
+
+        it('calls sessionRPC with correct method and payload', async () => {
+            mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
+            mocks.sessionRPC.mockResolvedValue(undefined);
+            mocks.storageGetState.mockReturnValue({
+                updateSessionPermissionMode: vi.fn(),
+            });
+
+            await realtimeClientTools.switchMode({ mode: 'bypassPermissions' });
+
+            expect(mocks.sessionRPC).toHaveBeenCalledWith(
+                'session-123',
+                'switch-permission-mode',
+                { mode: 'bypassPermissions' }
+            );
+        });
+
+        it('updates local store after successful RPC', async () => {
+            const mockUpdateMode = vi.fn();
+            mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
+            mocks.sessionRPC.mockResolvedValue(undefined);
+            mocks.storageGetState.mockReturnValue({
+                updateSessionPermissionMode: mockUpdateMode,
+            });
+
+            await realtimeClientTools.switchMode({ mode: 'plan' });
+
+            expect(mockUpdateMode).toHaveBeenCalledWith('session-123', 'plan');
+        });
+
+        it('returns success message on successful switch', async () => {
+            mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
+            mocks.sessionRPC.mockResolvedValue(undefined);
+            mocks.storageGetState.mockReturnValue({
+                updateSessionPermissionMode: vi.fn(),
+            });
+
+            const result = await realtimeClientTools.switchMode({ mode: 'acceptEdits' });
+
+            expect(result).toBe('Mode switched to acceptEdits. Briefly confirm to the user.');
+        });
+
+        it('returns error and does not update store when RPC fails', async () => {
+            const mockUpdateMode = vi.fn();
+            mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
+            mocks.sessionRPC.mockRejectedValue(new Error('connection lost'));
+            mocks.storageGetState.mockReturnValue({
+                updateSessionPermissionMode: mockUpdateMode,
+            });
+
+            const result = await realtimeClientTools.switchMode({ mode: 'bypassPermissions' });
+
+            expect(result).toBe('error (failed to switch mode to bypassPermissions)');
+            expect(mockUpdateMode).not.toHaveBeenCalled();
+        });
+
+        it('accepts all four valid modes', async () => {
+            mocks.getCurrentRealtimeSessionId.mockReturnValue('session-123');
+            mocks.sessionRPC.mockResolvedValue(undefined);
+            mocks.storageGetState.mockReturnValue({
+                updateSessionPermissionMode: vi.fn(),
+            });
+
+            for (const mode of ['default', 'acceptEdits', 'bypassPermissions', 'plan']) {
+                const result = await realtimeClientTools.switchMode({ mode });
+                expect(result).toBe(`Mode switched to ${mode}. Briefly confirm to the user.`);
+            }
         });
     });
 });

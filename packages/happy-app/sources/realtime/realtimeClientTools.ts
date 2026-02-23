@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { sync } from '@/sync/sync';
 import { sessionAbort, sessionAllow, sessionDeny } from '@/sync/ops';
 import { storage } from '@/sync/storage';
+import { apiSocket } from '@/sync/apiSocket';
 import { trackPermissionResponse } from '@/track';
 import { getCurrentRealtimeSessionId } from './RealtimeSession';
 import { recordAnswer, confirmAndSubmit, resetFlow, isFlowActive } from './voiceQuestionBridge';
@@ -94,6 +95,42 @@ export const realtimeClientTools = {
         } catch (error) {
             console.error('❌ Failed to process permission:', error);
             return `error (failed to ${decision} permission)`;
+        }
+    },
+
+    /**
+     * Switch the permission mode for the active session.
+     * Routes directly to the CLI via RPC — no pending permission required.
+     */
+    switchMode: async (parameters: unknown) => {
+        const schema = z.object({
+            mode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan'])
+        });
+        const parsed = schema.safeParse(parameters);
+
+        if (!parsed.success) {
+            console.error('❌ Invalid switchMode parameter:', parsed.error);
+            return "error (invalid mode, expected 'default'|'acceptEdits'|'bypassPermissions'|'plan')";
+        }
+
+        const { mode } = parsed.data;
+        const sessionId = getCurrentRealtimeSessionId();
+
+        if (!sessionId) {
+            console.error('❌ No active session');
+            return "error (no active session)";
+        }
+
+        console.log('🔍 switchMode called with:', mode);
+
+        try {
+            // Send RPC to CLI first — only update local state on success
+            await apiSocket.sessionRPC(sessionId, 'switch-permission-mode', { mode });
+            storage.getState().updateSessionPermissionMode(sessionId, mode);
+            return `Mode switched to ${mode}. Briefly confirm to the user.`;
+        } catch (error) {
+            console.error('❌ Failed to switch mode:', error);
+            return `error (failed to switch mode to ${mode})`;
         }
     },
 

@@ -156,6 +156,11 @@ const RoomHandler: React.FC = () => {
             return await realtimeClientTools.rejectQuestionAnswers();
         });
 
+        room.registerRpcMethod('switchMode', async (data) => {
+            const payload = JSON.parse(data.payload);
+            return await realtimeClientTools.switchMode(payload);
+        });
+
         room.registerRpcMethod('abortClaudeCode', async () => {
             return await realtimeClientTools.abortClaudeCode();
         });
@@ -167,6 +172,7 @@ const RoomHandler: React.FC = () => {
             room.unregisterRpcMethod('answerSingleQuestion');
             room.unregisterRpcMethod('confirmQuestionAnswers');
             room.unregisterRpcMethod('rejectQuestionAnswers');
+            room.unregisterRpcMethod('switchMode');
             room.unregisterRpcMethod('abortClaudeCode');
         };
     }, [room]);

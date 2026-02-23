@@ -61,6 +61,10 @@ export class PermissionHandler {
         this.permissionMode = mode;
     }
 
+    getPermissionMode(): PermissionMode {
+        return this.permissionMode;
+    }
+
     /**
      * Handler response
      */
@@ -110,6 +114,11 @@ export class PermissionHandler {
                 const updatedInput = response.answers
                     ? { ...baseInput, answers: response.answers }
                     : baseInput;
+                if (pending.toolName === 'AskUserQuestion') {
+                    logger.debug('[AskUserQuestion] Response answers:', JSON.stringify(response.answers));
+                    logger.debug('[AskUserQuestion] Updated input keys:', Object.keys(updatedInput));
+                    logger.debug('[AskUserQuestion] Full updatedInput:', JSON.stringify(updatedInput, null, 2));
+                }
                 pending.resolve({ behavior: 'allow', updatedInput });
             } else {
                 pending.resolve({ behavior: 'deny', message: response.reason || `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.` });
