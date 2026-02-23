@@ -75,7 +75,7 @@ class LiveKitVoiceSessionImpl implements VoiceSession {
         }
         if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) return;
 
-        roomRef.localParticipant.sendText(message, { topic: 'lk.chat' }).then(() => {
+        roomRef.localParticipant.sendText(message, { topic: 'happy.chat' }).then(() => {
             consecutiveSendFailures = 0;
         }).catch((err) => {
             consecutiveSendFailures++;
@@ -92,7 +92,7 @@ class LiveKitVoiceSessionImpl implements VoiceSession {
         }
         if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) return;
 
-        roomRef.localParticipant.sendText(update, { topic: 'lk.context' }).then(() => {
+        roomRef.localParticipant.sendText(update, { topic: 'happy.context' }).then(() => {
             consecutiveSendFailures = 0;
         }).catch((err) => {
             consecutiveSendFailures++;
@@ -148,10 +148,31 @@ const RoomHandler: React.FC = () => {
             return await realtimeClientTools.answerUserQuestion(payload);
         });
 
+        room.registerRpcMethod('answerSingleQuestion', async (data) => {
+            const payload = JSON.parse(data.payload);
+            return await realtimeClientTools.answerSingleQuestion(payload);
+        });
+
+        room.registerRpcMethod('confirmQuestionAnswers', async () => {
+            return await realtimeClientTools.confirmQuestionAnswers();
+        });
+
+        room.registerRpcMethod('rejectQuestionAnswers', async () => {
+            return await realtimeClientTools.rejectQuestionAnswers();
+        });
+
+        room.registerRpcMethod('abortClaudeCode', async () => {
+            return await realtimeClientTools.abortClaudeCode();
+        });
+
         return () => {
             room.unregisterRpcMethod('messageClaudeCode');
             room.unregisterRpcMethod('processPermissionRequest');
             room.unregisterRpcMethod('answerUserQuestion');
+            room.unregisterRpcMethod('answerSingleQuestion');
+            room.unregisterRpcMethod('confirmQuestionAnswers');
+            room.unregisterRpcMethod('rejectQuestionAnswers');
+            room.unregisterRpcMethod('abortClaudeCode');
         };
     }, [room]);
 
@@ -164,7 +185,7 @@ const RoomHandler: React.FC = () => {
 
             // Send initial context (session history) to agent
             if (pendingInitialContext) {
-                room.localParticipant.sendText(pendingInitialContext, { topic: 'lk.context' }).catch((err) => {
+                room.localParticipant.sendText(pendingInitialContext, { topic: 'happy.context' }).catch((err) => {
                     console.error('[LiveKit] Failed to send initial context:', err);
                 });
                 pendingInitialContext = null;

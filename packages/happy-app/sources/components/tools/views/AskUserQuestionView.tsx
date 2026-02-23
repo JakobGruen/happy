@@ -4,7 +4,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { ToolViewProps } from './_all';
 import { ToolSectionView } from '../ToolSectionView';
 import { sessionAllow } from '@/sync/ops';
-import { sync } from '@/sync/sync';
+import { trackPermissionResponse } from '@/track';
 import { t } from '@/text';
 import { Ionicons } from '@expo/vector-icons';
 import { subscribe as subscribeBridge } from '@/realtime/voiceQuestionBridge';
@@ -332,15 +332,10 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
         if (!sessionId || !allQuestionsAnswered || isSubmitting) return;
 
         setIsSubmitting(true);
-
-        // HACK: Disable the form immediately by switching to the submitted view.
-        // Without this, users could edit their selections while the network calls
-        // are in flight, but those edits would be ignored since we've already
-        // captured the values above. TODO: Revisit this logic.
         setIsSubmitted(true);
 
-        // Format answers as readable text
-        const responseLines: string[] = [];
+        // Build answers in SDK-expected format: { [questionText]: "label1, label2" }
+        const answers: Record<string, string> = {};
         questions.forEach((q, qIndex) => {
             const selected = selections.get(qIndex);
             if (selected && selected.size > 0) {
@@ -348,29 +343,23 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
                 for (const optIndex of Array.from(selected)) {
                     if (optIndex === OTHER_INDEX) {
                         const text = otherTexts.get(qIndex)?.trim();
-                        if (text) {
-                            labels.push(`Other: ${text}`);
-                        }
+                        if (text) labels.push(text);
                     } else {
                         const label = q.options[optIndex]?.label;
                         if (label) labels.push(label);
                     }
                 }
                 if (labels.length > 0) {
-                    responseLines.push(`${q.header}: ${labels.join(', ')}`);
+                    answers[q.question] = labels.join(', ');
                 }
             }
         });
 
-        const responseText = responseLines.join('\n');
-
         try {
-            // 1. Approve the permission (like PermissionFooter.handleApprove does)
             if (tool.permission?.id) {
-                await sessionAllow(sessionId, tool.permission.id);
+                await sessionAllow(sessionId, tool.permission.id, undefined, undefined, undefined, answers);
+                trackPermissionResponse(true);
             }
-            // 2. Send the answer as a message
-            await sync.sendMessage(sessionId, responseText);
         } catch (error) {
             console.error('Failed to submit answer:', error);
         } finally {

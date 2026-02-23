@@ -127,7 +127,9 @@ in the conversation and apply it to permission requests.
   and mode='default'. From then on, every permission is asked again.
 
 "Enter planning mode" / "Switch to plan mode":
-- Send messageClaudeCode telling Claude to enter plan mode.
+- Call processPermissionRequest with decision='allow' and mode='plan' on the next
+  permission request. If there is no pending permission request, send messageClaudeCode
+  telling Claude to enter plan mode.
 - Example prompt: "Enter plan mode. Use the EnterPlanMode tool."
 
 When a mode is active and a matching permission request arrives, auto-approve it immediately
@@ -229,7 +231,7 @@ class HappyAgent(Agent):
                 await self.update_chat_ctx(chat_ctx)
 
         room.register_text_stream_handler(
-            "lk.context",
+            "happy.context",
             lambda reader, pid: asyncio.create_task(_handle_context(reader, pid)),
         )
 
@@ -243,7 +245,7 @@ class HappyAgent(Agent):
                 await self.update_chat_ctx(chat_ctx)
 
         room.register_text_stream_handler(
-            "lk.chat",
+            "happy.chat",
             lambda reader, pid: asyncio.create_task(_handle_chat(reader, pid)),
         )
 
@@ -288,12 +290,12 @@ class HappyAgent(Agent):
         Args:
             decision: Must be 'allow' or 'deny'.
             mode: Optional permission mode switch. Use 'acceptEdits' to auto-approve future
-                  file edits, 'bypassPermissions' to skip all future permissions, or 'default'
-                  to reset to manual approval for each permission.
+                  file edits, 'bypassPermissions' to skip all future permissions, 'plan' to
+                  enter plan-only mode, or 'default' to reset to manual approval.
         """
         if decision not in ("allow", "deny"):
             raise ToolError("Decision must be 'allow' or 'deny'")
-        valid_modes = ("default", "acceptEdits", "bypassPermissions")
+        valid_modes = ("default", "acceptEdits", "bypassPermissions", "plan")
         if mode is not None and mode not in valid_modes:
             raise ToolError(f"Mode must be one of: {', '.join(valid_modes)}")
         try:

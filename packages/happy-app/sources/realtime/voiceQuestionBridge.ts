@@ -11,7 +11,6 @@
  */
 
 import { sessionAllow } from '@/sync/ops';
-import { sync } from '@/sync/sync';
 import { trackPermissionResponse } from '@/track';
 
 // Sentinel for "Other" free-text option (matches AskUserQuestionView)
@@ -140,11 +139,26 @@ export async function confirmAndSubmit(): Promise<string> {
         return 'error (no active question flow)';
     }
 
+    // Build answers in SDK-expected format: { [questionText]: "label1, label2" }
+    const sdkAnswers: Record<string, string> = {};
+    flowQuestions.forEach((q, qIndex) => {
+        const answer = answers.get(qIndex);
+        if (answer && answer.selectedIndices.size > 0) {
+            const labels = answerToLabels(q, answer);
+            if (labels.length > 0) {
+                // Strip "Other: " prefix — SDK wants raw free-text
+                const cleanLabels = labels.map(l =>
+                    l.startsWith('Other: ') ? l.substring('Other: '.length) : l
+                );
+                sdkAnswers[q.question] = cleanLabels.join(', ');
+            }
+        }
+    });
+
     const responseText = formatResponseText();
 
     try {
-        await sessionAllow(flowSessionId, flowRequestId);
-        await sync.sendMessage(flowSessionId, responseText);
+        await sessionAllow(flowSessionId, flowRequestId, undefined, undefined, undefined, sdkAnswers);
         trackPermissionResponse(true);
         emit({ type: 'submitted' });
         cleanup();

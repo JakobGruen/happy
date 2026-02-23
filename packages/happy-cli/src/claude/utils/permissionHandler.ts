@@ -23,6 +23,7 @@ interface PermissionResponse {
     mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
     allowTools?: string[];
     receivedAt?: number;
+    answers?: Record<string, string>;
 }
 
 
@@ -102,11 +103,17 @@ export class PermissionHandler {
             }
         } else {
             // Handle default case for all other tools
-            const result: PermissionResult = response.approved
-                ? { behavior: 'allow', updatedInput: (pending.input as Record<string, unknown>) || {} }
-                : { behavior: 'deny', message: response.reason || `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.` };
-
-            pending.resolve(result);
+            if (response.approved) {
+                const baseInput = (pending.input as Record<string, unknown>) || {};
+                // For AskUserQuestion: merge user answers into updatedInput so the SDK
+                // receives them as the tool result instead of a separate message.
+                const updatedInput = response.answers
+                    ? { ...baseInput, answers: response.answers }
+                    : baseInput;
+                pending.resolve({ behavior: 'allow', updatedInput });
+            } else {
+                pending.resolve({ behavior: 'deny', message: response.reason || `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.` });
+            }
         }
     }
 

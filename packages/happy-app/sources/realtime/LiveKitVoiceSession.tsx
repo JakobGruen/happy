@@ -70,7 +70,7 @@ class LiveKitVoiceSessionImpl implements VoiceSession {
         }
         if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) return;
 
-        roomRef.localParticipant.sendText(message, { topic: 'lk.chat' }).then(() => {
+        roomRef.localParticipant.sendText(message, { topic: 'happy.chat' }).then(() => {
             consecutiveSendFailures = 0;
         }).catch((err) => {
             consecutiveSendFailures++;
@@ -87,7 +87,7 @@ class LiveKitVoiceSessionImpl implements VoiceSession {
         }
         if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) return;
 
-        roomRef.localParticipant.sendText(update, { topic: 'lk.context' }).then(() => {
+        roomRef.localParticipant.sendText(update, { topic: 'happy.context' }).then(() => {
             consecutiveSendFailures = 0;
         }).catch((err) => {
             consecutiveSendFailures++;
@@ -180,7 +180,7 @@ const RoomHandler: React.FC = () => {
 
             // Send initial context (session history) to agent
             if (pendingInitialContext) {
-                room.localParticipant.sendText(pendingInitialContext, { topic: 'lk.context' }).catch((err) => {
+                room.localParticipant.sendText(pendingInitialContext, { topic: 'happy.context' }).catch((err) => {
                     console.error('[LiveKit] Failed to send initial context:', err);
                 });
                 pendingInitialContext = null;

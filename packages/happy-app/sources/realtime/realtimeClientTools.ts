@@ -46,13 +46,13 @@ export const realtimeClientTools = {
     processPermissionRequest: async (parameters: unknown) => {
         const messageSchema = z.object({
             decision: z.enum(['allow', 'deny']),
-            mode: z.enum(['default', 'acceptEdits', 'bypassPermissions']).optional()
+            mode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).optional()
         });
         const parsedMessage = messageSchema.safeParse(parameters);
 
         if (!parsedMessage.success) {
             console.error('❌ Invalid permission parameter:', parsedMessage.error);
-            return "error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions')";
+            return "error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions'|'plan')";
         }
 
         const { decision, mode } = parsedMessage.data;
@@ -83,6 +83,10 @@ export const realtimeClientTools = {
             } else {
                 await sessionDeny(sessionId, requestId, mode);
                 trackPermissionResponse(false);
+            }
+            // Sync permission mode to local Zustand store so UI reflects the change
+            if (mode) {
+                storage.getState().updateSessionPermissionMode(sessionId, mode);
             }
             const modeMsg = mode ? ` Mode switched to ${mode}.` : '';
             const verb = decision === 'allow' ? 'allowed' : 'denied';
@@ -205,18 +209,26 @@ export const realtimeClientTools = {
             console.error('❌ No pending AskUserQuestion');
             return "error (no pending AskUserQuestion)";
         }
-        const [requestId] = requestEntry;
+        const [requestId, requestData] = requestEntry;
 
-        // Format answer text (same format as AskUserQuestionView)
+        // Build SDK-format answers: { [questionText]: "label1, label2" }
+        // Look up full question text from the stored request arguments
+        const questionsList = (requestData as any)?.arguments?.questions as
+            Array<{ question: string; header: string }> | undefined;
+
+        const sdkAnswers: Record<string, string> = {};
+        for (const a of parsed.data.answers) {
+            const questionObj = questionsList?.find(q => q.header === a.header);
+            const key = questionObj?.question ?? a.header;
+            sdkAnswers[key] = a.selectedLabels.join(', ');
+        }
+
         const responseText = parsed.data.answers
             .map(a => `${a.header}: ${a.selectedLabels.join(', ')}`)
             .join('\n');
 
         try {
-            // 1. Approve the permission
-            await sessionAllow(sessionId, requestId);
-            // 2. Send the formatted answer as a message
-            await sync.sendMessage(sessionId, responseText);
+            await sessionAllow(sessionId, requestId, undefined, undefined, undefined, sdkAnswers);
             trackPermissionResponse(true);
             return `Answer submitted: ${responseText}. Briefly confirm to the user.`;
         } catch (error) {
