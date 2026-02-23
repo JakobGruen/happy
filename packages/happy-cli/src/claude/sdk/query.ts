@@ -191,9 +191,6 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
                     response
                 }
             }
-            if (request.request.tool_name === 'AskUserQuestion') {
-                logDebug(`[AskUserQuestion] Control response updatedInput: ${JSON.stringify(response, null, 2)}`)
-            }
             this.childStdin.write(JSON.stringify(controlResponse) + '\n')
         } catch (error) {
             const controlErrorResponse: CanUseToolControlResponse = {

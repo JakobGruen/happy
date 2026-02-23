@@ -108,17 +108,29 @@ export class PermissionHandler {
         } else {
             // Handle default case for all other tools
             if (response.approved) {
+                // WORKAROUND: Claude Code binary bug — updatedInput.answers not propagated
+                // to AskUserQuestion tool's call() when using --permission-prompt-tool stdio.
+                // Use deny-with-message to deliver answers in the exact format the binary's
+                // own template would produce. Same pattern as ExitPlanMode above.
+                // Revert when upstream fix lands in Claude Code.
+                if (pending.toolName === 'AskUserQuestion' && response.answers && Object.keys(response.answers).length > 0) {
+                    const formattedAnswers = Object.entries(response.answers)
+                        .map(([question, answer]) => `"${question}"="${answer}"`)
+                        .join(', ');
+
+                    logger.debug('[AskUserQuestion] Using deny-with-message workaround, answers:', formattedAnswers);
+
+                    pending.resolve({
+                        behavior: 'deny',
+                        message: `User has answered your questions: ${formattedAnswers}. You can now continue with the user's answers in mind.`
+                    });
+                    return;
+                }
+
                 const baseInput = (pending.input as Record<string, unknown>) || {};
-                // For AskUserQuestion: merge user answers into updatedInput so the SDK
-                // receives them as the tool result instead of a separate message.
                 const updatedInput = response.answers
                     ? { ...baseInput, answers: response.answers }
                     : baseInput;
-                if (pending.toolName === 'AskUserQuestion') {
-                    logger.debug('[AskUserQuestion] Response answers:', JSON.stringify(response.answers));
-                    logger.debug('[AskUserQuestion] Updated input keys:', Object.keys(updatedInput));
-                    logger.debug('[AskUserQuestion] Full updatedInput:', JSON.stringify(updatedInput, null, 2));
-                }
                 pending.resolve({ behavior: 'allow', updatedInput });
             } else {
                 pending.resolve({ behavior: 'deny', message: response.reason || `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.` });
