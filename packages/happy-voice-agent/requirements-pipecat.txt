@@ -1,4 +1,0 @@
-pipecat-ai[anthropic,silero,cartesia,deepgram,webrtc]>=0.0.67
-fastapi>=0.115
-uvicorn>=0.30
-python-dotenv>=1.0
