@@ -3,6 +3,11 @@ import { Message } from "@/sync/typesMessage";
 import { trimIdent } from "@/utils/trimIdent";
 import { VOICE_CONFIG } from "../voiceConfig";
 
+function truncate(text: string, maxLength: number): string {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '…[truncated]';
+}
+
 interface SessionMetadata {
     summary?: { text?: string };
     path?: string;
@@ -21,11 +26,12 @@ export function formatPermissionRequest(
     toolName: string,
     toolArgs: any
 ): string {
+    const argsStr = truncate(JSON.stringify(toolArgs), VOICE_CONFIG.MAX_PERMISSION_ARGS_LENGTH);
     return trimIdent(`
         Claude Code is requesting permission to use ${toolName} (session ${sessionId}):
         <request_id>${requestId}</request_id>
         <tool_name>${toolName}</tool_name>
-        <tool_args>${JSON.stringify(toolArgs)}</tool_args>
+        <tool_args>${argsStr}</tool_args>
     `);
 }
 
@@ -36,19 +42,23 @@ export function formatPermissionRequest(
 export function formatMessage(message: Message): string | null {
 
     // Lines
+    const maxLen = VOICE_CONFIG.MAX_TOOL_TEXT_LENGTH;
     let lines: string[] = [];
     if (message.kind === 'agent-text') {
         lines.push(`Claude Code: \n<text>${message.text}</text>`);
     } else if (message.kind === 'user-text') {
         lines.push(`User sent message: \n<text>${message.text}</text>`);
     } else if (message.kind === 'tool-call' && !VOICE_CONFIG.DISABLE_TOOL_CALLS) {
-        const toolDescription = message.tool.description ? ` - ${message.tool.description}` : '';
+        const toolDescription = message.tool.description
+            ? ` - ${truncate(message.tool.description, maxLen)}`
+            : '';
         if (VOICE_CONFIG.LIMITED_TOOL_CALLS) {
             if (message.tool.description) {
                 lines.push(`Claude Code is using ${message.tool.name}${toolDescription}`);
             }
         } else {
-            lines.push(`Claude Code is using ${message.tool.name}${toolDescription} (tool_use_id: ${message.id}) with arguments: <arguments>${JSON.stringify(message.tool.input)}</arguments>`);
+            const argsStr = truncate(JSON.stringify(message.tool.input), maxLen);
+            lines.push(`Claude Code is using ${message.tool.name}${toolDescription} with arguments: <arguments>${argsStr}</arguments>`);
         }
     }
     if (lines.length === 0) {

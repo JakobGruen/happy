@@ -9,7 +9,7 @@ import { getSessionName, useSessionStatus, getSessionAvatarId, formatPathRelativ
 import { Avatar } from './Avatar';
 import { Typography } from '@/constants/Typography';
 import { StatusDot } from './StatusDot';
-import { useAllMachines, useSetting } from '@/sync/storage';
+import { useAllMachines, useSetting, useRealtimeSessionId, useRealtimeStatus } from '@/sync/storage';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { machineSpawnNewSession, sessionKill } from '@/sync/ops';
@@ -298,6 +298,10 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
     const isTablet = useIsTablet();
     const swipeableRef = React.useRef<Swipeable | null>(null);
     const swipeEnabled = Platform.OS !== 'web';
+    const realtimeSessionId = useRealtimeSessionId();
+    const realtimeStatus = useRealtimeStatus();
+    const isVoiceActive = session.id === realtimeSessionId
+        && (realtimeStatus === 'connected' || realtimeStatus === 'connecting');
 
     const [archivingSession, performArchive] = useHappyAction(async () => {
         const result = await sessionKill(session.id);
@@ -343,8 +347,18 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
             <View style={styles.sessionContent}>
                 {/* Title line with status */}
                 <View style={styles.sessionTitleRow}>
+                    {/* Voice active indicator */}
+                    {isVoiceActive && (
+                        <Ionicons
+                            name="mic"
+                            size={14}
+                            color={theme.colors.status.connected}
+                            style={{ marginRight: 8 }}
+                        />
+                    )}
+
                     {/* Status dot or draft icon on the left */}
-                    {(() => {
+                    {!isVoiceActive && (() => {
                         // Show draft icon when online with draft
                         if (sessionStatus.state === 'waiting' && session.draft) {
                             return (

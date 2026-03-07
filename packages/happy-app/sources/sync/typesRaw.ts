@@ -564,6 +564,11 @@ function normalizeSessionEnvelope(
     const isSidechain = parentUUID !== null;
     const contentUUID = envelope.id;
 
+    // Diagnostic: log when text/service events are tagged as sidechain
+    if (isSidechain && (envelope.ev.t === 'text' || envelope.ev.t === 'service')) {
+        console.log(`[DIAG:sidechain-text] subagent=${envelope.subagent} ev.t=${envelope.ev.t} id=${envelope.id} time=${messageCreatedAt}`);
+    }
+
     if (envelope.ev.t === 'turn-start') {
         return null;
     }

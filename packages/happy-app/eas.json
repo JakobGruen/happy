@@ -12,47 +12,6 @@
       "env": {
         "APP_ENV": "development"
       }
-    },
-    "development-store": {
-      "autoIncrement": true,
-      "developmentClient": true,
-      "distribution": "store",
-      "channel": "development",
-      "env": {
-        "APP_ENV": "development"
-      }
-    },
-    "preview": {
-      "autoIncrement": true,
-      "distribution": "internal",
-      "channel": "preview",
-      "env": {
-        "APP_ENV": "preview"
-      }
-    },
-    "preview-store": {
-      "autoIncrement": true,
-      "distribution": "store",
-      "channel": "preview",
-      "env": {
-        "APP_ENV": "preview"
-      }
-    },
-    "production": {
-      "autoIncrement": true,
-      "channel": "production",
-      "env": {
-        "APP_ENV": "production"
-      }
-    }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "appleId": "steve@bulkovo.com",
-        "ascAppId": "126165711",
-        "appleTeamId": "466DQWDR8C"
-      }
     }
   }
 }

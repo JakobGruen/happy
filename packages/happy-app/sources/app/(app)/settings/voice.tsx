@@ -23,6 +23,8 @@ export default function VoiceSettingsScreen() {
     const profile = useProfile();
     const [voiceAssistantLanguage] = useSettingMutable('voiceAssistantLanguage');
     const [voiceBackend, setVoiceBackend] = useLocalSettingMutable('voiceBackend');
+    const [pipecatUrl, setPipecatUrl] = useLocalSettingMutable('pipecatUrl');
+    const [pipecatAuthSecret, setPipecatAuthSecret] = useLocalSettingMutable('pipecatAuthSecret');
 
     const isLiveKitConnected = profile.connectedServices?.includes('livekit') || false;
 
@@ -113,7 +115,47 @@ export default function VoiceSettingsScreen() {
                         detail={voiceBackend === 'livekit' ? 'Active' : undefined}
                         onPress={() => setVoiceBackend('livekit')}
                     />
+                    <Item
+                        title="Pipecat"
+                        subtitle="Self-hosted P2P WebRTC agent"
+                        icon={<Ionicons name="hardware-chip-outline" size={29} color="#34C759" />}
+                        detail={voiceBackend === 'pipecat' ? 'Active' : undefined}
+                        onPress={() => setVoiceBackend('pipecat')}
+                    />
             </ItemGroup>
+
+            {/* Pipecat Server URL (visible when Pipecat backend is selected) */}
+            {voiceBackend === 'pipecat' && (
+                <ItemGroup
+                    title="Pipecat Server"
+                    footer="Enter the URL of your Pipecat voice agent server. Leave empty to use the URL from happy-server."
+                >
+                    <View style={styles.credentialsForm}>
+                        <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>Server URL</Text>
+                        <TextInput
+                            style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.textSecondary, backgroundColor: theme.colors.surface }]}
+                            value={pipecatUrl}
+                            onChangeText={setPipecatUrl}
+                            placeholder="http://localhost:8765"
+                            placeholderTextColor={theme.colors.textSecondary}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            keyboardType="url"
+                        />
+                        <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>Access Secret</Text>
+                        <TextInput
+                            style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.textSecondary, backgroundColor: theme.colors.surface }]}
+                            value={pipecatAuthSecret}
+                            onChangeText={setPipecatAuthSecret}
+                            placeholder="Optional"
+                            placeholderTextColor={theme.colors.textSecondary}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            secureTextEntry={true}
+                        />
+                    </View>
+                </ItemGroup>
+            )}
 
             {/* LiveKit Credentials (visible when LiveKit backend is selected) */}
             {voiceBackend === 'livekit' && (
@@ -136,7 +178,7 @@ export default function VoiceSettingsScreen() {
                         <View style={styles.credentialsForm}>
                             <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>API Key</Text>
                             <TextInput
-                                style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+                                style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.textSecondary, backgroundColor: theme.colors.surface }]}
                                 value={lkApiKey}
                                 onChangeText={setLkApiKey}
                                 placeholder="APIxxxxxxxx"
@@ -146,7 +188,7 @@ export default function VoiceSettingsScreen() {
                             />
                             <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>API Secret</Text>
                             <TextInput
-                                style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+                                style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.textSecondary, backgroundColor: theme.colors.surface }]}
                                 value={lkApiSecret}
                                 onChangeText={setLkApiSecret}
                                 placeholder="Your API secret"
@@ -157,7 +199,7 @@ export default function VoiceSettingsScreen() {
                             />
                             <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>LiveKit URL</Text>
                             <TextInput
-                                style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+                                style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.textSecondary, backgroundColor: theme.colors.surface }]}
                                 value={lkUrl}
                                 onChangeText={setLkUrl}
                                 placeholder="wss://your-project.livekit.cloud"

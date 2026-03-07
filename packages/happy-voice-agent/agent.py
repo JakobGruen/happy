@@ -1,6 +1,7 @@
 import logging
 import json
 import asyncio
+import os
 
 from dotenv import load_dotenv
 
@@ -210,12 +211,57 @@ Questions arrive ONE AT A TIME via the sequential voice flow:
 For multi-select questions, collect all choices before calling answer_single_question.
 If the user's answer is ambiguous, ask for clarification: "Did you mean A or B?"
 
-IMPORTANT: Do NOT use processPermissionRequest for AskUserQuestion — use the sequential tools instead."""
+IMPORTANT: Do NOT use processPermissionRequest for AskUserQuestion — use the sequential tools instead.
+
+# Proactive Updates
+
+You will sometimes be triggered to speak proactively — without the user asking first.
+This happens in two situations:
+
+**Turn Complete**: Claude Code finished its current task. You receive this as a proactive trigger.
+- Summarize what Claude accomplished in 1-2 sentences based on your accumulated context.
+- Ask the user what they'd like to do next.
+- Examples:
+  - "Claude finished updating the login component and the tests pass. What's next?"
+  - "Done. Claude added the new API endpoint with tests. Need anything else?"
+
+**Progress Update**: Claude Code is still working but there's been significant activity.
+- Give a brief 1-sentence status update based on the recent activity summary you receive.
+- Don't repeat what you've already reported.
+- Examples:
+  - "Claude is now running the test suite."
+  - "Still working — Claude is refactoring the auth module."
+
+Keep proactive speech short, natural, and conversational. The user can always interrupt you."""
 
 
 class HappyAgent(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
+        self._stt_paused = False
+
+    def _pause_stt(self):
+        """Disable audio input to stop Deepgram STT billing during idle."""
+        if self._stt_paused:
+            return
+        self._stt_paused = True
+        self.session.input.set_audio_enabled(False)
+        logger.info("STT paused — user idle")
+
+    def _resume_stt(self):
+        """Re-enable audio input to resume STT transcription."""
+        if not self._stt_paused:
+            return
+        self._stt_paused = False
+        self.session.input.set_audio_enabled(True)
+        logger.info("STT resumed")
+
+    def _on_user_state_changed(self, ev):
+        """Pause STT when user goes idle, resume when they come back."""
+        if ev.new_state == "away" and not self._stt_paused:
+            self._pause_stt()
+        elif ev.old_state == "away" and self._stt_paused:
+            self._resume_stt()
 
     async def on_enter(self):
         # Listen for context updates from the app (tool calls, session info, new messages)
@@ -234,19 +280,70 @@ class HappyAgent(Agent):
             lambda reader, pid: asyncio.create_task(_handle_context(reader, pid)),
         )
 
-        # Listen for immediate updates (permission requests, ready events, questions)
+        # Listen for immediate updates (permission requests, questions)
+        # These require the agent to speak proactively — generate_reply triggers speech
         async def _handle_chat(reader, participant_identity):
             text = await reader.read_all()
             if text:
                 logger.info(f"Chat update from {participant_identity}: {text[:200]}")
+                # Resume STT before speaking — user will need to respond
+                self._resume_stt()
                 chat_ctx = self.chat_ctx.copy()
                 chat_ctx.add_message(role="system", content=text)
                 await self.update_chat_ctx(chat_ctx)
+                # Trigger proactive speech for chat messages (permissions, questions)
+                self.session.generate_reply()
 
         room.register_text_stream_handler(
             "happy.chat",
             lambda reader, pid: asyncio.create_task(_handle_chat(reader, pid)),
         )
+
+        # Listen for proactive speech triggers (turn complete, progress updates)
+        # These are NOT added to chat context — just trigger ephemeral speech via instructions
+        async def _handle_trigger(reader, participant_identity):
+            text = await reader.read_all()
+            if not text:
+                return
+            logger.info(f"Trigger from {participant_identity}: {text[:200]}")
+            try:
+                trigger = json.loads(text)
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid trigger JSON: {text[:100]}")
+                return
+
+            trigger_type = trigger.get("type")
+
+            # Resume STT before speaking — user may want to respond
+            self._resume_stt()
+
+            if trigger_type == "turn_complete":
+                self.session.generate_reply(
+                    instructions=(
+                        "Claude Code just finished working. Based on the context you have, "
+                        "give the user a brief 1-2 sentence summary of what Claude accomplished "
+                        "and ask if they need anything else. Be concise and natural."
+                    ),
+                    allow_interruptions=True,
+                )
+            elif trigger_type == "progress_update":
+                summary = trigger.get("summary", "Claude is still working.")
+                self.session.generate_reply(
+                    instructions=(
+                        f"Claude Code is still working. Recent activity: {summary}. "
+                        "Give the user a very brief 1-sentence progress update. "
+                        "Be concise — just the key point of what's happening now."
+                    ),
+                    allow_interruptions=True,
+                )
+
+        room.register_text_stream_handler(
+            "happy.trigger",
+            lambda reader, pid: asyncio.create_task(_handle_trigger(reader, pid)),
+        )
+
+        # Pause STT when user goes idle to save Deepgram transcription costs
+        self.session.on("user_state_changed", self._on_user_state_changed)
 
         self.session.generate_reply(allow_interruptions=False)
 
@@ -468,12 +565,14 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt="deepgram/nova-3:multi",
         llm=anthropic.LLM(
-            model="claude-sonnet-4-6",
+            model=os.environ.get("VOICE_AGENT_MODEL", "claude-haiku-4-5-20251001"),
             caching="ephemeral",
         ),
-        tts="cartesia/sonic-3:6ccbfb76-1fc6-48f7-b71d-91ac6298247b",
+        tts="cartesia/sonic-3:f786b574-daa5-4673-aa0c-cbe3e8534c02",
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
+        # After this timeout of mutual silence, user state → "away" and STT pauses
+        user_away_timeout=15.0,
     )
     await session.start(agent=HappyAgent(), room=ctx.room)
 

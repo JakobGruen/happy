@@ -11,7 +11,9 @@ export const LocalSettingsSchema = z.object({
     commandPaletteEnabled: z.boolean().describe('Enable CMD+K command palette (web only)'),
     themePreference: z.enum(['light', 'dark', 'adaptive']).describe('Theme preference: light, dark, or adaptive (follows system)'),
     markdownCopyV2: z.boolean().describe('Replace native paragraph selection with long-press modal for full markdown copy'),
-    voiceBackend: z.enum(['elevenlabs', 'livekit']).describe('Voice pipeline backend'),
+    voiceBackend: z.enum(['elevenlabs', 'livekit', 'pipecat']).describe('Voice pipeline backend'),
+    pipecatUrl: z.string().describe('Direct Pipecat server URL (bypasses happy-server when set)'),
+    pipecatAuthSecret: z.string().describe('Access secret for direct Pipecat server connections'),
     // CLI version acknowledgments - keyed by machineId
     acknowledgedCliVersions: z.record(z.string(), z.string()).describe('Acknowledged CLI versions per machine'),
 });
@@ -36,6 +38,8 @@ export const localSettingsDefaults: LocalSettings = {
     themePreference: 'adaptive',
     markdownCopyV2: false,
     voiceBackend: 'elevenlabs',
+    pipecatUrl: '',
+    pipecatAuthSecret: '',
     acknowledgedCliVersions: {},
 };
 Object.freeze(localSettingsDefaults);

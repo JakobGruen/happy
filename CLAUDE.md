@@ -16,7 +16,7 @@ Yarn 1.22 workspaces (no Turborepo/Lerna). Package manager: `yarn` — never use
 | `happy-cli` | `happy-coder` | CLI wrapper for Claude Code / Codex / Gemini |
 | `happy-server` | `happy-server` | Fastify 5 backend API + Socket.IO relay |
 | `happy-wire` | `@slopus/happy-wire` | Shared Zod schemas — the wire protocol source of truth |
-| `happy-agent` | `@slopus/agent` | Programmatic remote agent control CLI |
+| `happy-agent` | `@slopus/agent` | Programmatic remote agent control CLI (`auth`, `list`, `create`, `send`, `history`, `status`, `stop`, `wait`) |
 | `happy-voice-agent` | *(Python, not in workspaces)* | LiveKit voice agent (standalone Python package) |
 
 **Dependency graph**: All TS packages depend on `@slopus/happy-wire`. Wire must be built first on clean checkout.
@@ -35,6 +35,7 @@ yarn cli codex                        # run in Codex mode
 yarn workspace happy-app start        # Expo dev server
 yarn workspace happy-app ios          # iOS simulator
 yarn workspace happy-app web          # web browser
+yarn web                              # shortcut for above
 yarn workspace happy-app typecheck    # MUST run after changes
 
 # Server
@@ -94,6 +95,29 @@ State updates (session metadata, agent state, machine daemon state) use `expecte
 ### PGlite Standalone Mode
 Server can run with embedded WASM PostgreSQL (PGlite) instead of external Postgres. Azure deployment uses `tsx sources/standalone.ts migrate && tsx sources/standalone.ts serve`.
 
+### Voice Architecture
+Three selectable backends via `localSettings.voiceBackend` (`elevenlabs` | `livekit` | `pipecat`). All implement `VoiceSession` interface (`startSession`, `endSession`, `sendTextMessage`, `sendContextualUpdate`, `sendTrigger`).
+
+```
+User speaks → Voice backend (ElevenLabs/LiveKit/Pipecat)
+  → Voice agent LLM decides action
+  → RPC tool call lands in happy-app (client-registered handlers)
+  → App calls sessionAllow / sends message to CLI daemon
+```
+
+**Backends & token endpoints:**
+- **ElevenLabs** (`/v1/voice/token`): Managed service, checks RevenueCat subscription in prod
+- **LiveKit** (`/v1/voice/livekit-token`): Python agent in `packages/happy-voice-agent/agent.py` (Deepgram STT → LLM → Cartesia TTS), runs on LiveKit Cloud
+- **Pipecat** (`/v1/voice/pipecat-session`): Self-hosted, HMAC-signed URLs. Python bot in `packages/happy-voice-agent/pipecat_bot.py`
+
+Per-user credentials stored encrypted in `serviceAccountToken` table (vendor=`livekit`/`pipecat`), with env var fallbacks.
+
+**Key app files** (all in `packages/happy-app/sources/realtime/`):
+- `RealtimeSession.ts` — orchestrator: picks backend, requests mic, manages singleton session
+- `types.ts` — `VoiceSession` interface contract
+- `hooks/voiceHooks.ts` — bridges app events (messages, permissions, focus) to voice session
+- `voiceQuestionBridge.ts` — state machine for `AskUserQuestion` RPC flows
+
 ## Critical Gotchas
 
 1. **Build order**: `@slopus/happy-wire` must be built before other packages (distributes from `dist/`, not `src/`)
@@ -126,10 +150,28 @@ Server can run with embedded WASM PostgreSQL (PGlite) instead of external Postgr
 | Server | `DATABASE_URL` | PostgreSQL (if absent + `PGLITE_DIR` set → embedded PGlite) |
 | Server | `HANDY_MASTER_SECRET` | Required master secret for auth/encryption KeyTree |
 | Server | `PORT` | Default 3005 |
+| Server | `ELEVENLABS_API_KEY` | ElevenLabs voice backend |
+| Server | `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` / `LIVEKIT_URL` | LiveKit voice fallback creds |
+| Server | `PIPECAT_VOICE_URL` / `PIPECAT_AUTH_SECRET` | Pipecat voice server URL + HMAC secret |
 
 ## Per-Package Details
 
 Each package has its own `CLAUDE.md` with package-specific conventions, patterns, and gotchas. They load automatically when you work in those directories:
 - `packages/happy-app/CLAUDE.md` — app conventions, i18n system, Unistyles guide
 - `packages/happy-cli/CLAUDE.md` — CLI architecture, daemon details
+  - `packages/happy-cli/src/daemon/CLAUDE.md` — daemon internals (loads automatically when editing daemon files)
 - `packages/happy-server/CLAUDE.md` — server conventions, Prisma rules, debugging
+
+## Architecture Docs
+
+`docs/` contains detailed architecture references. Check these before reading source code for these topics:
+
+- `docs/protocol.md` — WebSocket payload formats, sequencing, concurrency rules
+- `docs/encryption.md` — Encryption boundaries and on-wire encoding
+- `docs/session-protocol.md` — Unified encrypted chat event protocol (9 event types)
+- `docs/permission-resolution.md` — Permission mode resolution (sandbox, auto, manual)
+- `docs/backend-architecture.md` — Internal backend data flow and key subsystems
+- `docs/cli-architecture.md` — CLI and daemon architecture
+- `docs/api.md` — HTTP endpoints and auth flows
+- `docs/happy-wire.md` — Wire schemas package and migration notes
+- `docs/deployment.md` — Deployment procedures

@@ -2908,5 +2908,173 @@ describe('reducer', () => {
                 }
             }
         });
+
+        it('redirects post-Task-completion sidechain text to main chat', () => {
+            const state = createReducer();
+
+            // Batch 1: Task tool-call + sidechain text + tool-result completing the Task
+            const result1 = reducer(state, [
+                // Main agent's message with a Task tool call
+                {
+                    id: 'task-msg',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'task-tool-1',
+                        name: 'Task',
+                        input: { prompt: 'Search for files' },
+                        description: null,
+                        uuid: 'task-uuid',
+                        parentUUID: null
+                    }]
+                },
+                // Sidechain text from subagent (legitimate — before Task completes)
+                {
+                    id: 'sidechain-text-1',
+                    localId: null,
+                    createdAt: 1100,
+                    role: 'agent',
+                    isSidechain: true,
+                    content: [{
+                        type: 'text',
+                        text: 'Subagent found 3 files',
+                        uuid: 'sc-uuid-1',
+                        parentUUID: 'task-tool-1'
+                    }]
+                },
+                // Task tool-result (stop event) — marks Task as completed
+                {
+                    id: 'task-result-msg',
+                    localId: null,
+                    createdAt: 1200,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'task-tool-1',
+                        content: 'Found 3 matching files',
+                        is_error: false,
+                        uuid: 'result-uuid',
+                        parentUUID: null
+                    }]
+                }
+            ]);
+
+            // Batch 1 should produce 1 tool-call message with 1 sidechain child
+            expect(result1.messages).toHaveLength(1);
+            expect(result1.messages[0].kind).toBe('tool-call');
+            if (result1.messages[0].kind === 'tool-call') {
+                expect(result1.messages[0].tool.state).toBe('completed');
+                expect(result1.messages[0].children).toHaveLength(1);
+                expect(result1.messages[0].children[0].kind).toBe('agent-text');
+            }
+
+            // Batch 2: A text message incorrectly tagged as sidechain
+            // (simulates CLI bug where subagent field persists on main-agent text)
+            const result2 = reducer(state, [
+                {
+                    id: 'main-agent-text',
+                    localId: null,
+                    createdAt: 1300, // After Task completed at 1200
+                    role: 'agent',
+                    isSidechain: true, // BUG: should be false
+                    content: [{
+                        type: 'text',
+                        text: 'Based on the search results, here are my findings...',
+                        uuid: 'main-uuid',
+                        parentUUID: 'task-tool-1' // Points to completed Task
+                    }]
+                }
+            ]);
+
+            // The text should be redirected to main chat, NOT absorbed into the sidechain.
+            // result2 includes the redirected agent-text AND the re-emitted tool-call
+            // (Phase 4 marks the Task owner as changed when processing sidechain messages).
+            const redirectedText = result2.messages.find(m => m.kind === 'agent-text');
+            expect(redirectedText).toBeDefined();
+            if (redirectedText && redirectedText.kind === 'agent-text') {
+                expect(redirectedText.text).toBe('Based on the search results, here are my findings...');
+            }
+
+            // The tool-call should NOT have the redirected text in its children
+            const toolCall = result2.messages.find(m => m.kind === 'tool-call');
+            if (toolCall && toolCall.kind === 'tool-call') {
+                const childTexts = toolCall.children.filter(c => c.kind === 'agent-text');
+                for (const child of childTexts) {
+                    if (child.kind === 'agent-text') {
+                        expect(child.text).not.toBe('Based on the search results, here are my findings...');
+                    }
+                }
+            }
+        });
+
+        it('keeps legitimate sidechain text that arrives before Task completion', () => {
+            const state = createReducer();
+
+            // All messages in one batch: Task + sidechain text + result
+            // The sidechain text has createdAt BEFORE the task completion
+            const result = reducer(state, [
+                {
+                    id: 'task-msg',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'task-tool-1',
+                        name: 'Task',
+                        input: { prompt: 'Analyze code' },
+                        description: null,
+                        uuid: 'task-uuid',
+                        parentUUID: null
+                    }]
+                },
+                // Subagent text with timestamp before completion
+                {
+                    id: 'sc-text',
+                    localId: null,
+                    createdAt: 1050, // Before task completion at 1200
+                    role: 'agent',
+                    isSidechain: true,
+                    content: [{
+                        type: 'text',
+                        text: 'Analyzing the auth module...',
+                        uuid: 'sc-uuid',
+                        parentUUID: 'task-tool-1'
+                    }]
+                },
+                // Task completes
+                {
+                    id: 'result-msg',
+                    localId: null,
+                    createdAt: 1200,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'task-tool-1',
+                        content: 'Analysis complete',
+                        is_error: false,
+                        uuid: 'result-uuid',
+                        parentUUID: null
+                    }]
+                }
+            ]);
+
+            // Should produce 1 tool-call with the sidechain text as a child
+            const toolMsg = result.messages.find(m => m.kind === 'tool-call');
+            expect(toolMsg).toBeDefined();
+            if (toolMsg && toolMsg.kind === 'tool-call') {
+                expect(toolMsg.children).toHaveLength(1);
+                expect(toolMsg.children[0].kind).toBe('agent-text');
+                if (toolMsg.children[0].kind === 'agent-text') {
+                    expect(toolMsg.children[0].text).toBe('Analyzing the auth module...');
+                }
+            }
+        });
     });
 });

@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
     return {
         fetchVoiceToken: vi.fn(),
         fetchLiveKitToken: vi.fn(),
+        fetchPipecatSession: vi.fn(),
         getCredentials: vi.fn(),
         modalAlert: vi.fn(),
         presentPaywall: vi.fn(),
@@ -28,6 +29,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('@/sync/apiVoice', () => ({
     fetchVoiceToken: mocks.fetchVoiceToken,
     fetchLiveKitToken: mocks.fetchLiveKitToken,
+    fetchPipecatSession: mocks.fetchPipecatSession,
 }));
 
 vi.mock('@/sync/storage', () => ({
@@ -90,6 +92,7 @@ function createMockVoiceSession(): VoiceSession {
         endSession: vi.fn().mockResolvedValue(undefined),
         sendTextMessage: vi.fn(),
         sendContextualUpdate: vi.fn(),
+        sendTrigger: vi.fn(),
     };
 }
 
@@ -462,6 +465,102 @@ describe('RealtimeSession', () => {
             await mod.startRealtimeSession('session-el');
 
             expect(mockSession.startSession).not.toHaveBeenCalled();
+            expect(mod.isVoiceSessionStarted()).toBe(false);
+        });
+    });
+
+    // ===================================================================
+    // Pipecat path
+    // ===================================================================
+    describe('Pipecat path', () => {
+        beforeEach(() => {
+            mocks.storageGetState.mockReturnValue({
+                localSettings: { voiceBackend: 'pipecat' },
+                settings: { experiments: false },
+            });
+            mod.registerVoiceSession(mockSession);
+        });
+
+        it('routes to Pipecat when voiceBackend is "pipecat"', async () => {
+            mocks.fetchPipecatSession.mockResolvedValue({
+                url: 'https://voice.example.com/api/offer?session_id=session-pc&token=abc',
+            });
+
+            await mod.startRealtimeSession('session-pc');
+
+            expect(mocks.fetchPipecatSession).toHaveBeenCalled();
+            expect(mocks.fetchLiveKitToken).not.toHaveBeenCalled();
+            expect(mocks.fetchVoiceToken).not.toHaveBeenCalled();
+        });
+
+        it('fetches credentials and Pipecat session URL', async () => {
+            mocks.fetchPipecatSession.mockResolvedValue({
+                url: 'https://voice.example.com/api/offer?session_id=session-pc&token=abc',
+            });
+
+            await mod.startRealtimeSession('session-pc');
+
+            expect(mocks.getCredentials).toHaveBeenCalledTimes(1);
+            expect(mocks.fetchPipecatSession).toHaveBeenCalledWith(
+                { token: 'test-token', secret: 'test-secret' },
+                'session-pc'
+            );
+        });
+
+        it('calls voiceSession.startSession with pipecatUrl', async () => {
+            mocks.fetchPipecatSession.mockResolvedValue({
+                url: 'https://voice.example.com/api/offer?session_id=session-pc&token=abc',
+            });
+
+            await mod.startRealtimeSession('session-pc', 'some context');
+
+            expect(mockSession.startSession).toHaveBeenCalledWith({
+                sessionId: 'session-pc',
+                initialContext: 'some context',
+                pipecatUrl: 'https://voice.example.com/api/offer?session_id=session-pc&token=abc',
+            });
+        });
+
+        it('shows alert when credentials are missing', async () => {
+            mocks.getCredentials.mockResolvedValue(null);
+
+            await mod.startRealtimeSession('session-pc');
+
+            expect(mocks.modalAlert).toHaveBeenCalledWith(
+                'common.error',
+                'errors.authenticationFailed'
+            );
+            expect(mockSession.startSession).not.toHaveBeenCalled();
+        });
+
+        it('shows alert on fetch failure', async () => {
+            mocks.fetchPipecatSession.mockRejectedValue(new Error('Network error'));
+
+            await mod.startRealtimeSession('session-pc');
+
+            expect(mocks.modalAlert).toHaveBeenCalledWith(
+                'common.error',
+                'errors.voiceServiceUnavailable'
+            );
+        });
+
+        it('sets currentSessionId and voiceSessionStarted on success', async () => {
+            mocks.fetchPipecatSession.mockResolvedValue({
+                url: 'https://voice.example.com/api/offer?session_id=session-pc&token=abc',
+            });
+
+            await mod.startRealtimeSession('session-pc');
+
+            expect(mod.getCurrentRealtimeSessionId()).toBe('session-pc');
+            expect(mod.isVoiceSessionStarted()).toBe(true);
+        });
+
+        it('cleans up state on failure', async () => {
+            mocks.fetchPipecatSession.mockRejectedValue(new Error('fail'));
+
+            await mod.startRealtimeSession('session-pc');
+
+            expect(mod.getCurrentRealtimeSessionId()).toBeNull();
             expect(mod.isVoiceSessionStarted()).toBe(false);
         });
     });

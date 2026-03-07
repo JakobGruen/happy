@@ -1,0 +1,38 @@
+ARG PYTHON_VERSION=3.13
+FROM python:${PYTHON_VERSION}-slim AS base
+
+ENV PYTHONUNBUFFERED=1
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+ARG UID=10001
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/app" \
+    --shell "/sbin/nologin" \
+    --uid "${UID}" \
+    appuser
+
+# Build deps for native Python extensions
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    python3-dev \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements-pipecat.txt ./
+RUN uv pip install --system --no-cache -r requirements-pipecat.txt
+
+COPY . .
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+# Pre-download Silero VAD model
+RUN python -c "from pipecat.audio.vad.silero import SileroVADAnalyzer; SileroVADAnalyzer()"
+
+EXPOSE 8765
+CMD ["uvicorn", "pipecat_server:app", "--host", "0.0.0.0", "--port", "8765"]

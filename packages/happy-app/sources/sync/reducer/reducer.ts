@@ -149,6 +149,7 @@ export type ReducerState = {
     messageIds: Map<string, string>; // originalId -> internalId
     messages: Map<string, ReducerMessage>;
     sidechains: Map<string, ReducerMessage[]>;
+    realIdToInternalId: Map<string, string>; // realID → internal message ID (reverse index for Task lookup)
     tracerState: TracerState; // Tracer state for sidechain processing
     latestTodos?: {
         todos: Array<{
@@ -178,6 +179,7 @@ export function createReducer(): ReducerState {
         localIds: new Map(),
         messageIds: new Map(),
         sidechains: new Map(),
+        realIdToInternalId: new Map(),
         tracerState: createTracer()
     }
 };
@@ -687,6 +689,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         const message = state.messages.get(existingMessageId);
                         if (message?.tool) {
                             message.realID = msg.id;
+                            state.realIdToInternalId.set(msg.id, existingMessageId);
                             message.tool.description = c.description;
                             message.tool.startedAt = msg.createdAt;
                             // If permission was approved and shown as completed (no tool), now it's running
@@ -763,6 +766,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         });
 
                         state.toolIdToMessageId.set(c.id, mid);
+                        state.realIdToInternalId.set(msg.id, mid);
                         changed.add(mid);
 
                         // Track TodoWrite tool inputs
@@ -858,6 +862,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
 
         // Get or create the sidechain array for this Task
         const existingSidechain = state.sidechains.get(msg.sidechainId) || [];
+        const sidechainLengthBefore = existingSidechain.length;
 
         // Process and add new sidechain messages
         if (msg.role === 'agent' && msg.content[0]?.type === 'sidechain') {
@@ -879,6 +884,37 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             // Process agent content in sidechain
             for (let c of msg.content) {
                 if (c.type === 'text' || c.type === 'thinking') {
+                    // Defensive fix: if the owning Task has already completed,
+                    // text arriving after completion is likely a main-agent message
+                    // that was incorrectly tagged as sidechain (e.g. CLI sent subagent
+                    // field on a post-Task text event). Redirect to main chat.
+                    const taskInternalId = state.realIdToInternalId.get(msg.sidechainId!);
+                    const taskMsg = taskInternalId ? state.messages.get(taskInternalId) : undefined;
+                    const taskCompletedAt = (taskMsg?.tool &&
+                        (taskMsg.tool.state === 'completed' || taskMsg.tool.state === 'error'))
+                        ? taskMsg.tool.completedAt
+                        : null;
+
+                    if (taskCompletedAt !== null && msg.createdAt > taskCompletedAt) {
+                        // Redirect to main chat — misrouted main-agent message
+                        console.log(`[DIAG:sidechain-redirect] Redirecting post-Task text to main chat: sidechainId=${msg.sidechainId}, createdAt=${msg.createdAt}, taskCompletedAt=${taskCompletedAt}`);
+                        let mid = allocateId();
+                        const isThinking = c.type === 'thinking';
+                        state.messages.set(mid, {
+                            id: mid,
+                            realID: msg.id,
+                            role: 'agent',
+                            createdAt: msg.createdAt,
+                            text: isThinking ? `*${c.thinking}*` : c.text,
+                            isThinking,
+                            tool: null,
+                            event: null,
+                            meta: msg.meta,
+                        });
+                        changed.add(mid);
+                        continue; // Don't add to sidechain
+                    }
+
                     let mid = allocateId();
                     const isThinking = c.type === 'thinking';
                     let textMsg: ReducerMessage = {
@@ -1022,15 +1058,13 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             }
         }
 
-        // Update the sidechain in state
-        state.sidechains.set(msg.sidechainId, existingSidechain);
-
-        // Find the Task tool message that owns this sidechain and mark it as changed
-        // msg.sidechainId is the realID of the Task message
-        for (const [internalId, message] of state.messages) {
-            if (message.realID === msg.sidechainId && message.tool) {
-                changed.add(internalId);
-                break;
+        // Update the sidechain in state and mark the Task as changed only if
+        // new content was actually added (not when all content was redirected)
+        if (existingSidechain.length > sidechainLengthBefore) {
+            state.sidechains.set(msg.sidechainId, existingSidechain);
+            const ownerInternalId = state.realIdToInternalId.get(msg.sidechainId);
+            if (ownerInternalId) {
+                changed.add(ownerInternalId);
             }
         }
     }

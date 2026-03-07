@@ -96,6 +96,23 @@ class LiveKitVoiceSessionImpl implements VoiceSession {
             }
         });
     }
+
+    sendTrigger(trigger: string): void {
+        if (!roomRef) {
+            console.warn('[LiveKit] Room not ready');
+            return;
+        }
+        if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) return;
+
+        roomRef.localParticipant.sendText(trigger, { topic: 'happy.trigger' }).then(() => {
+            consecutiveSendFailures = 0;
+        }).catch((err) => {
+            consecutiveSendFailures++;
+            if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) {
+                console.error('[LiveKit] sendText circuit breaker open after', consecutiveSendFailures, 'failures:', err);
+            }
+        });
+    }
 }
 
 // Inner component with access to room context
