@@ -1901,7 +1901,7 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
             }
         });
 
-        it('drops start/stop lifecycle markers', () => {
+        it('converts subagent start/stop to synthetic Task tool-call/result', () => {
             const subagent = createId();
             const start = normalizeRawMessage('db-start-1', null, 1, {
                 ...base,
@@ -1917,7 +1917,18 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                     }
                 }
             });
-            expect(start).toBeNull();
+            expect(start).not.toBeNull();
+            expect(start!.role).toBe('agent');
+            expect(start!.isSidechain).toBe(false);
+            expect(start!.content).toEqual([{
+                type: 'tool-call',
+                id: subagent,
+                name: 'Task',
+                input: { description: 'Research agent' },
+                description: 'Research agent',
+                uuid: 'env-start-1',
+                parentUUID: null
+            }]);
 
             const stop = normalizeRawMessage('db-stop-1', null, 1, {
                 ...base,
@@ -1929,6 +1940,48 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                         role: 'agent',
                         turn: 'turn-1',
                         subagent,
+                        ev: { t: 'stop' }
+                    }
+                }
+            });
+            expect(stop).not.toBeNull();
+            expect(stop!.role).toBe('agent');
+            expect(stop!.isSidechain).toBe(false);
+            expect(stop!.content).toEqual([{
+                type: 'tool-result',
+                tool_use_id: subagent,
+                content: '',
+                is_error: false,
+                uuid: 'env-stop-1',
+                parentUUID: null
+            }]);
+        });
+
+        it('drops session-level start/stop without subagent', () => {
+            const start = normalizeRawMessage('db-start-2', null, 1, {
+                ...base,
+                content: {
+                    type: 'session',
+                    data: {
+                        id: 'env-start-2',
+                        time: 1,
+                        role: 'agent',
+                        turn: 'turn-1',
+                        ev: { t: 'start', title: 'Session start' }
+                    }
+                }
+            });
+            expect(start).toBeNull();
+
+            const stop = normalizeRawMessage('db-stop-2', null, 1, {
+                ...base,
+                content: {
+                    type: 'session',
+                    data: {
+                        id: 'env-stop-2',
+                        time: 1,
+                        role: 'agent',
+                        turn: 'turn-1',
                         ev: { t: 'stop' }
                     }
                 }

@@ -490,6 +490,12 @@ export const ru: TranslationStructure = {
             initializing: 'Инициализация агента...',
             moreTools: ({ count }: { count: number }) => `+${count} ещё ${plural({ count, one: 'инструмент', few: 'инструмента', many: 'инструментов' })}`,
         },
+        taskViewFull: {
+            agentPrompt: 'Промпт агента',
+            activity: 'Активность',
+            agentType: 'Тип агента',
+            response: 'Ответ',
+        },
         multiEdit: {
             editNumber: ({ index, total }: { index: number; total: number }) => `Правка ${index} из ${total}`,
             replaceAll: 'Заменить все',

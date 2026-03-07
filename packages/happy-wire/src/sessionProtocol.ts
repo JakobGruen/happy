@@ -62,6 +62,7 @@ export const sessionTurnEndEventSchema = z.object({
 
 export const sessionStopEventSchema = z.object({
   t: z.literal('stop'),
+  result: z.string().optional(),
 });
 
 export const sessionEventSchema = z.discriminatedUnion('t', [

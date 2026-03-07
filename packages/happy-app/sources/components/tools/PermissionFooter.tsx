@@ -35,7 +35,13 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
 
         setLoadingButton('allow');
         try {
-            await sessionAllow(sessionId, permission.id);
+            // ExitPlanMode: explicitly send mode='default' and update local state
+            // so the UI correctly reflects exiting plan mode
+            const isExitPlan = toolName === 'exit_plan_mode' || toolName === 'ExitPlanMode';
+            await sessionAllow(sessionId, permission.id, isExitPlan ? 'default' : undefined);
+            if (isExitPlan) {
+                storage.getState().updateSessionPermissionMode(sessionId, 'default');
+            }
         } catch (error) {
             console.error('Failed to approve permission:', error);
         } finally {

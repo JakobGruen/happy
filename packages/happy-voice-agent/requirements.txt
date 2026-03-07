@@ -1,0 +1,4 @@
+livekit-agents[codecs,silero,turn-detector]~=1.2.0
+livekit-plugins-anthropic~=1.2.0
+python-dotenv~=1.0
+pytest~=8.3

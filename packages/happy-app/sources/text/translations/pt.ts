@@ -480,6 +480,12 @@ export const pt: TranslationStructure = {
             initializing: 'Inicializando agente...',
             moreTools: ({ count }: { count: number }) => `+${count} mais ${plural({ count, singular: 'ferramenta', plural: 'ferramentas' })}`,
         },
+        taskViewFull: {
+            agentPrompt: 'Prompt do agente',
+            activity: 'Atividade',
+            agentType: 'Tipo de agente',
+            response: 'Resposta',
+        },
         multiEdit: {
             editNumber: ({ index, total }: { index: number; total: number }) => `Edição ${index} de ${total}`,
             replaceAll: 'Substituir tudo',

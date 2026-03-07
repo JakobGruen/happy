@@ -3,7 +3,7 @@ import { View, Pressable, FlatList, Platform } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Text } from '@/components/StyledText';
 import { usePathname } from 'expo-router';
-import { SessionListViewItem } from '@/sync/storage';
+import { SessionListViewItem, useRealtimeSessionId, useRealtimeStatus } from '@/sync/storage';
 import { Ionicons } from '@expo/vector-icons';
 import { getSessionName, useSessionStatus, getSessionSubtitle, getSessionAvatarId } from '@/utils/sessionUtils';
 import { Avatar } from './Avatar';
@@ -172,6 +172,17 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     draftIconOverlay: {
         color: theme.colors.textSecondary,
+    },
+    voiceIconContainer: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: theme.colors.status.connected,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     artifactsSection: {
         paddingHorizontal: 16,
@@ -366,6 +377,11 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
         return getSessionAvatarId(session);
     }, [session]);
 
+    const realtimeSessionId = useRealtimeSessionId();
+    const realtimeStatus = useRealtimeStatus();
+    const isVoiceActive = session.id === realtimeSessionId
+        && (realtimeStatus === 'connected' || realtimeStatus === 'connecting');
+
     const itemContent = (
         <Pressable
             style={[
@@ -394,6 +410,15 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
                             name="create-outline"
                             size={12}
                             style={styles.draftIconOverlay}
+                        />
+                    </View>
+                )}
+                {isVoiceActive && (
+                    <View style={styles.voiceIconContainer}>
+                        <Ionicons
+                            name="mic"
+                            size={10}
+                            color="#FFFFFF"
                         />
                     </View>
                 )}

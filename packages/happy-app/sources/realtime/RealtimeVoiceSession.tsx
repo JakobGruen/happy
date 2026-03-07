@@ -87,6 +87,10 @@ class RealtimeVoiceSessionImpl implements VoiceSession {
             console.error('Failed to send contextual update:', error);
         }
     }
+
+    sendTrigger(_trigger: string): void {
+        // Proactive speech triggers are only supported with LiveKit agent
+    }
 }
 
 export const RealtimeVoiceSession: React.FC = () => {

@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import { sync } from '@/sync/sync';
-import { sessionAllow, sessionDeny } from '@/sync/ops';
+import { sessionAbort, sessionAllow, sessionDeny } from '@/sync/ops';
 import { storage } from '@/sync/storage';
+import { apiSocket } from '@/sync/apiSocket';
 import { trackPermissionResponse } from '@/track';
 import { getCurrentRealtimeSessionId } from './RealtimeSession';
+import { recordAnswer, confirmAndSubmit, resetFlow, isFlowActive } from './voiceQuestionBridge';
 
 /**
  * Static client tools for the realtime voice interface.
@@ -36,7 +38,7 @@ export const realtimeClientTools = {
         console.log('🔍 messageClaudeCode called with:', message);
         console.log('📤 Sending message to session:', sessionId);
         sync.sendMessage(sessionId, message);
-        return "sent [DO NOT say anything else, simply say 'sent']";
+        return `Message delivered to Claude Code: "${message}". Briefly tell the user what you asked Claude to do and that it's working on it.`;
     },
 
     /**
@@ -44,48 +46,231 @@ export const realtimeClientTools = {
      */
     processPermissionRequest: async (parameters: unknown) => {
         const messageSchema = z.object({
-            decision: z.enum(['allow', 'deny'])
+            decision: z.enum(['allow', 'deny']),
+            mode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).optional()
         });
         const parsedMessage = messageSchema.safeParse(parameters);
 
         if (!parsedMessage.success) {
-            console.error('❌ Invalid decision parameter:', parsedMessage.error);
-            return "error (invalid decision parameter, expected 'allow' or 'deny')";
+            console.error('❌ Invalid permission parameter:', parsedMessage.error);
+            return "error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions'|'plan')";
         }
 
-        const decision = parsedMessage.data.decision;
+        const { decision, mode } = parsedMessage.data;
         const sessionId = getCurrentRealtimeSessionId();
-        
+
         if (!sessionId) {
             console.error('❌ No active session');
             return "error (no active session)";
         }
-        
-        console.log('🔍 processPermissionRequest called with:', decision);
-        
+
+        console.log('🔍 processPermissionRequest called with:', decision, mode ? `mode=${mode}` : '');
+
         // Get the current session to check for permission requests
         const session = storage.getState().sessions[sessionId];
         const requests = session?.agentState?.requests;
-        
+
         if (!requests || Object.keys(requests).length === 0) {
             console.error('❌ No active permission request');
             return "error (no active permission request)";
         }
-        
+
         const requestId = Object.keys(requests)[0];
-        
+
         try {
             if (decision === 'allow') {
-                await sessionAllow(sessionId, requestId);
+                await sessionAllow(sessionId, requestId, mode);
                 trackPermissionResponse(true);
             } else {
-                await sessionDeny(sessionId, requestId);
+                await sessionDeny(sessionId, requestId, mode);
                 trackPermissionResponse(false);
             }
-            return "done [DO NOT say anything else, simply say 'done']";
+            // Sync permission mode to local Zustand store so UI reflects the change
+            if (mode) {
+                storage.getState().updateSessionPermissionMode(sessionId, mode);
+            }
+            const modeMsg = mode ? ` Mode switched to ${mode}.` : '';
+            const verb = decision === 'allow' ? 'allowed' : 'denied';
+            return `Permission ${verb}.${modeMsg} Briefly confirm to the user.`;
         } catch (error) {
             console.error('❌ Failed to process permission:', error);
             return `error (failed to ${decision} permission)`;
+        }
+    },
+
+    /**
+     * Switch the permission mode for the active session.
+     * Routes directly to the CLI via RPC — no pending permission required.
+     */
+    switchMode: async (parameters: unknown) => {
+        const schema = z.object({
+            mode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan'])
+        });
+        const parsed = schema.safeParse(parameters);
+
+        if (!parsed.success) {
+            console.error('❌ Invalid switchMode parameter:', parsed.error);
+            return "error (invalid mode, expected 'default'|'acceptEdits'|'bypassPermissions'|'plan')";
+        }
+
+        const { mode } = parsed.data;
+        const sessionId = getCurrentRealtimeSessionId();
+
+        if (!sessionId) {
+            console.error('❌ No active session');
+            return "error (no active session)";
+        }
+
+        console.log('🔍 switchMode called with:', mode);
+
+        try {
+            // Send RPC to CLI first — only update local state on success
+            await apiSocket.sessionRPC(sessionId, 'switch-permission-mode', { mode });
+            storage.getState().updateSessionPermissionMode(sessionId, mode);
+            return `Mode switched to ${mode}. Briefly confirm to the user.`;
+        } catch (error) {
+            console.error('❌ Failed to switch mode:', error);
+            return `error (failed to switch mode to ${mode})`;
+        }
+    },
+
+    /**
+     * Abort/interrupt the current Claude Code operation
+     */
+    abortClaudeCode: async () => {
+        const sessionId = getCurrentRealtimeSessionId();
+        if (!sessionId) {
+            console.error('❌ No active session');
+            return "error (no active session)";
+        }
+
+        console.log('🔍 abortClaudeCode called for session:', sessionId);
+
+        try {
+            await sessionAbort(sessionId);
+            return "Claude Code interrupted. Briefly confirm to the user.";
+        } catch (error) {
+            console.error('❌ Failed to abort:', error);
+            return "error (failed to abort)";
+        }
+    },
+
+    /**
+     * Answer a single question in the sequential voice flow.
+     * Returns the next question text or a summary for confirmation.
+     */
+    answerSingleQuestion: async (parameters: unknown) => {
+        const schema = z.object({
+            questionIndex: z.number(),
+            header: z.string(),
+            selectedLabels: z.array(z.string().min(1)),
+        });
+        const parsed = schema.safeParse(parameters);
+
+        if (!parsed.success) {
+            console.error('❌ Invalid answerSingleQuestion parameter:', parsed.error);
+            return "error (invalid parameters, expected {questionIndex, header, selectedLabels})";
+        }
+
+        if (!isFlowActive()) {
+            return "error (no active question flow)";
+        }
+
+        const { questionIndex, header, selectedLabels } = parsed.data;
+        console.log('🔍 answerSingleQuestion called:', questionIndex, header, selectedLabels);
+
+        return recordAnswer(questionIndex, header, selectedLabels);
+    },
+
+    /**
+     * Confirm all answers and submit to Claude Code.
+     */
+    confirmQuestionAnswers: async () => {
+        if (!isFlowActive()) {
+            return "error (no active question flow)";
+        }
+        return await confirmAndSubmit();
+    },
+
+    /**
+     * Reject answers and restart from Q1.
+     */
+    rejectQuestionAnswers: async () => {
+        if (!isFlowActive()) {
+            return "error (no active question flow)";
+        }
+        return resetFlow();
+    },
+
+    /**
+     * @deprecated Use answerSingleQuestion + confirmQuestionAnswers instead.
+     * Kept for backward compatibility with older voice agent versions.
+     */
+    answerUserQuestion: async (parameters: unknown) => {
+        const schema = z.object({
+            answers: z.array(z.object({
+                questionIndex: z.number(),
+                header: z.string(),
+                selectedLabels: z.array(z.string().min(1)),
+            }))
+        });
+        const parsed = schema.safeParse(parameters);
+
+        if (!parsed.success) {
+            console.error('❌ Invalid answerUserQuestion parameter:', parsed.error);
+            return "error (invalid parameters, expected answers: [{questionIndex, header, selectedLabels}])";
+        }
+
+        const sessionId = getCurrentRealtimeSessionId();
+        if (!sessionId) {
+            console.error('❌ No active session');
+            return "error (no active session)";
+        }
+
+        console.log('🔍 answerUserQuestion called with:', JSON.stringify(parsed.data.answers));
+
+        // Find the pending AskUserQuestion permission request
+        const session = storage.getState().sessions[sessionId];
+        const requests = session?.agentState?.requests;
+
+        if (!requests || Object.keys(requests).length === 0) {
+            console.error('❌ No pending question');
+            return "error (no pending question)";
+        }
+
+        // Look for the AskUserQuestion request specifically
+        const requestEntry = Object.entries(requests).find(
+            ([_, req]) => req.tool === 'AskUserQuestion'
+        );
+        if (!requestEntry) {
+            console.error('❌ No pending AskUserQuestion');
+            return "error (no pending AskUserQuestion)";
+        }
+        const [requestId, requestData] = requestEntry;
+
+        // Build SDK-format answers: { [questionText]: "label1, label2" }
+        // Look up full question text from the stored request arguments
+        const questionsList = (requestData as any)?.arguments?.questions as
+            Array<{ question: string; header: string }> | undefined;
+
+        const sdkAnswers: Record<string, string> = {};
+        for (const a of parsed.data.answers) {
+            const questionObj = questionsList?.find(q => q.header === a.header);
+            const key = questionObj?.question ?? a.header;
+            sdkAnswers[key] = a.selectedLabels.join(', ');
+        }
+
+        const responseText = parsed.data.answers
+            .map(a => `${a.header}: ${a.selectedLabels.join(', ')}`)
+            .join('\n');
+
+        try {
+            await sessionAllow(sessionId, requestId, undefined, undefined, undefined, sdkAnswers);
+            trackPermissionResponse(true);
+            return `Answer submitted: ${responseText}. Briefly confirm to the user.`;
+        } catch (error) {
+            console.error('❌ Failed to submit answer:', error);
+            return "error (failed to submit answer)";
         }
     }
 };

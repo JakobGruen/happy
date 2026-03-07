@@ -346,13 +346,17 @@ function maybeEmitSubagentStop(
     turn: string,
     subagent: string,
     envelopes: SessionEnvelope[],
+    result?: string,
 ): void {
     const active = getActiveSubagents(state);
     if (!active.has(subagent)) {
         return;
     }
 
-    envelopes.push(createEnvelope('agent', { t: 'stop' }, { turn, subagent }));
+    envelopes.push(createEnvelope('agent', {
+        t: 'stop',
+        ...(result && result.length > 0 ? { result } : {}),
+    }, { turn, subagent }));
     active.delete(subagent);
 }
 
@@ -559,7 +563,16 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                 if (!message.isSidechain) {
                     if (getHiddenParentToolCalls(state).has(block.tool_use_id)) {
                         if (sessionSubagentForToolResult) {
-                            maybeEmitSubagentStop(state, turnId, sessionSubagentForToolResult, envelopes);
+                            let resultText: string | undefined;
+                            if (typeof block.content === 'string') {
+                                resultText = block.content;
+                            } else if (Array.isArray(block.content)) {
+                                resultText = block.content
+                                    .filter((b: any) => b.type === 'text' && typeof b.text === 'string')
+                                    .map((b: any) => b.text)
+                                    .join('\n') || undefined;
+                            }
+                            maybeEmitSubagentStop(state, turnId, sessionSubagentForToolResult, envelopes, resultText);
                         }
                         getHiddenParentToolCalls(state).delete(block.tool_use_id);
                         continue;

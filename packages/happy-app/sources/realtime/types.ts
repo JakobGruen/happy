@@ -1,8 +1,14 @@
 export interface VoiceSessionConfig {
     sessionId: string;
     initialContext?: string;
+    // ElevenLabs fields
     token?: string;
     agentId?: string;
+    // LiveKit fields
+    livekitUrl?: string;
+    livekitToken?: string;
+    // Pipecat fields
+    pipecatUrl?: string;
 }
 
 export interface VoiceSession {
@@ -10,6 +16,7 @@ export interface VoiceSession {
     endSession(): Promise<void>;
     sendTextMessage(message: string): void;
     sendContextualUpdate(update: string): void;
+    sendTrigger(trigger: string): void;
 }
 
 export type ConversationStatus = 'disconnected' | 'connecting' | 'connected';

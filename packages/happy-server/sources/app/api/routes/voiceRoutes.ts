@@ -1,6 +1,10 @@
+import crypto from "crypto";
 import { z } from "zod";
+import { AccessToken } from "livekit-server-sdk";
 import { type Fastify } from "../types";
 import { log } from "@/utils/log";
+import { db } from "@/storage/db";
+import { decryptString } from "@/modules/encrypt";
 
 export function voiceRoutes(app: Fastify) {
     app.post('/v1/voice/token', {
@@ -108,5 +112,162 @@ export function voiceRoutes(app: Fastify) {
             token,
             agentId
         });
+    });
+
+    app.post('/v1/voice/livekit-token', {
+        preHandler: app.authenticate,
+        schema: {
+            body: z.object({
+                sessionId: z.string()
+            }),
+            response: {
+                200: z.object({
+                    url: z.string(),
+                    token: z.string()
+                }),
+                400: z.object({
+                    error: z.string()
+                })
+            }
+        }
+    }, async (request, reply) => {
+        const userId = request.userId;
+        const { sessionId } = request.body;
+
+        log({ module: 'voice' }, `LiveKit token request from user ${userId}`);
+
+        // Try per-user credentials first, fall back to env vars for dev convenience
+        let livekitApiKey: string | undefined;
+        let livekitApiSecret: string | undefined;
+        let livekitUrl: string | undefined;
+
+        const stored = await db.serviceAccountToken.findUnique({
+            where: { accountId_vendor: { accountId: userId, vendor: 'livekit' } },
+            select: { token: true }
+        });
+
+        if (stored) {
+            try {
+                const decrypted = decryptString(['user', userId, 'vendors', 'livekit', 'token'], stored.token);
+                const creds = JSON.parse(decrypted);
+                livekitApiKey = creds.apiKey;
+                livekitApiSecret = creds.apiSecret;
+                livekitUrl = creds.url;
+                log({ module: 'voice' }, `Using per-user LiveKit credentials for user ${userId}`);
+            } catch (e) {
+                log({ module: 'voice' }, `Failed to parse stored LiveKit credentials for user ${userId}: ${e}`);
+            }
+        }
+
+        // Fallback to env vars
+        if (!livekitApiKey || !livekitApiSecret || !livekitUrl) {
+            livekitApiKey = process.env.LIVEKIT_API_KEY;
+            livekitApiSecret = process.env.LIVEKIT_API_SECRET;
+            livekitUrl = process.env.LIVEKIT_URL;
+        }
+
+        if (!livekitApiKey || !livekitApiSecret || !livekitUrl) {
+            log({ module: 'voice' }, 'Missing LiveKit configuration');
+            return reply.code(400).send({
+                error: 'LiveKit credentials not configured. Add them in Settings > Voice.'
+            });
+        }
+
+        try {
+            const token = new AccessToken(livekitApiKey, livekitApiSecret, {
+                identity: `user_${userId}`,
+                name: `User ${userId}`,
+                ttl: 3600
+            });
+
+            token.addGrant({
+                roomJoin: true,
+                room: `voice_${sessionId}`,
+                canPublish: true,
+                canSubscribe: true
+            });
+
+            const jwt = await token.toJwt();
+
+            log({ module: 'voice' }, `LiveKit token issued for user ${userId}`);
+            return reply.send({
+                url: livekitUrl,
+                token: jwt
+            });
+        } catch (error) {
+            log({ module: 'voice' }, `Failed to generate LiveKit token for user ${userId}: ${error}`);
+            return reply.code(400).send({
+                error: 'Failed to generate LiveKit token'
+            });
+        }
+    });
+
+    app.post('/v1/voice/pipecat-session', {
+        preHandler: app.authenticate,
+        schema: {
+            body: z.object({
+                sessionId: z.string()
+            }),
+            response: {
+                200: z.object({
+                    url: z.string()
+                }),
+                400: z.object({
+                    error: z.string()
+                })
+            }
+        }
+    }, async (request, reply) => {
+        const userId = request.userId;
+        const { sessionId } = request.body;
+
+        log({ module: 'voice' }, `Pipecat session request from user ${userId}`);
+
+        // Try per-user stored Pipecat URL, fall back to env var
+        let pipecatUrl: string | undefined;
+
+        const stored = await db.serviceAccountToken.findUnique({
+            where: { accountId_vendor: { accountId: userId, vendor: 'pipecat' } },
+            select: { token: true }
+        });
+
+        if (stored) {
+            try {
+                const decrypted = decryptString(['user', userId, 'vendors', 'pipecat', 'token'], stored.token);
+                pipecatUrl = JSON.parse(decrypted).url;
+                log({ module: 'voice' }, `Using per-user Pipecat URL for user ${userId}`);
+            } catch (e) {
+                log({ module: 'voice' }, `Failed to parse stored Pipecat config for user ${userId}: ${e}`);
+            }
+        }
+
+        if (!pipecatUrl) {
+            pipecatUrl = process.env.PIPECAT_VOICE_URL;
+        }
+
+        if (!pipecatUrl) {
+            log({ module: 'voice' }, 'Missing Pipecat configuration');
+            return reply.code(400).send({
+                error: 'Pipecat voice server not configured. Set PIPECAT_VOICE_URL or add in Settings > Voice.'
+            });
+        }
+
+        // Generate HMAC auth token for the Pipecat server
+        const authSecret = process.env.PIPECAT_AUTH_SECRET;
+        let offerUrl = `${pipecatUrl}/api/offer?session_id=${encodeURIComponent(sessionId)}`;
+
+        if (authSecret) {
+            const expiry = Math.floor(Date.now() / 1000) + 300; // 5 minutes
+            const message = `${userId}:${sessionId}:${expiry}`;
+            const signature = crypto
+                .createHmac('sha256', authSecret)
+                .update(message)
+                .digest('hex');
+            const token = `${userId}:${sessionId}:${expiry}:${signature}`;
+            offerUrl += `&token=${encodeURIComponent(token)}`;
+        }
+
+        log({ module: 'voice' }, `Pipecat session URL issued for user ${userId}`);
+        return reply.send({ url: offerUrl });
     });
 }

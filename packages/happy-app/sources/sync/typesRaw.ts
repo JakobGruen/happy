@@ -37,6 +37,9 @@ const agentEventSchema = z.discriminatedUnion('type', [z.object({
     endsAt: z.number(),
 }), z.object({
     type: z.literal('ready'),
+}), z.object({
+    type: z.literal('permission-mode-changed'),
+    mode: z.string(),
 })]);
 export type AgentEvent = z.infer<typeof agentEventSchema>;
 
@@ -93,6 +96,7 @@ const sessionTurnEndEventSchema = z.object({
 
 const sessionStopEventSchema = z.object({
     t: z.literal('stop'),
+    result: z.string().optional(),
 });
 
 const sessionEventSchema = z.discriminatedUnion('t', [
@@ -151,7 +155,7 @@ export type RawToolUseContent = z.infer<typeof rawToolUseContentSchema>;
 const rawToolResultContentSchema = z.object({
     type: z.literal('tool_result'),
     tool_use_id: z.string(),
-    content: z.union([z.array(z.object({ type: z.literal('text'), text: z.string() })), z.string()]),
+    content: z.union([z.array(z.object({ type: z.string() }).passthrough()), z.string()]),
     is_error: z.boolean().optional(),
     permissions: z.object({
         date: z.number(),
@@ -274,7 +278,19 @@ export type RawAgentContent = z.infer<typeof rawAgentContentSchema>;
 
 const rawAgentRecordSchema = z.discriminatedUnion('type', [z.object({
     type: z.literal('output'),
-    data: z.intersection(z.discriminatedUnion('type', [
+    data: z.preprocess(
+        // Remap unknown output data types (e.g. rate_limit_event) to 'system' so the discriminated union doesn't reject them.
+        // The normalizer already returns null for unhandled types, so they're silently skipped.
+        (val) => {
+            if (val && typeof val === 'object' && 'type' in val) {
+                const t = (val as Record<string, unknown>).type;
+                if (typeof t === 'string' && !['system', 'result', 'summary', 'assistant', 'user'].includes(t)) {
+                    return { ...(val as Record<string, unknown>), type: 'system' };
+                }
+            }
+            return val;
+        },
+        z.intersection(z.discriminatedUnion('type', [
         z.object({ type: z.literal('system') }),
         z.object({ type: z.literal('result') }),
         z.object({ type: z.literal('summary'), summary: z.string() }),
@@ -286,7 +302,7 @@ const rawAgentRecordSchema = z.discriminatedUnion('type', [z.object({
         isMeta: z.boolean().nullish(),
         uuid: z.string().nullish(),
         parentUuid: z.string().nullish(),
-    }).passthrough()),  // ROBUST: Accept CLI metadata fields (userType, cwd, sessionId, version, gitBranch, slug, requestId, timestamp)
+    }).passthrough())),  // ROBUST: Accept CLI metadata fields (userType, cwd, sessionId, version, gitBranch, slug, requestId, timestamp)
 }), z.object({
     type: z.literal('event'),
     id: z.string(),
@@ -548,12 +564,61 @@ function normalizeSessionEnvelope(
     const isSidechain = parentUUID !== null;
     const contentUUID = envelope.id;
 
+    // Diagnostic: log when text/service events are tagged as sidechain
+    if (isSidechain && (envelope.ev.t === 'text' || envelope.ev.t === 'service')) {
+        console.log(`[DIAG:sidechain-text] subagent=${envelope.subagent} ev.t=${envelope.ev.t} id=${envelope.id} time=${messageCreatedAt}`);
+    }
+
     if (envelope.ev.t === 'turn-start') {
         return null;
     }
 
-    if (envelope.ev.t === 'start' || envelope.ev.t === 'stop') {
-        // Lifecycle marker for subagent boundaries; currently not rendered as chat content.
+    if (envelope.ev.t === 'start') {
+        // Subagent start → synthetic Task tool-call so the tracer can map subagentId → messageId
+        if (envelope.subagent) {
+            return {
+                id: messageId,
+                localId,
+                createdAt: messageCreatedAt,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call',
+                    id: envelope.subagent,
+                    name: 'Task',
+                    input: { description: envelope.ev.title ?? 'Agent' },
+                    description: envelope.ev.title ?? null,
+                    uuid: contentUUID,
+                    parentUUID: null
+                }],
+                meta
+            } satisfies NormalizedMessage;
+        }
+        // Session-level lifecycle without subagent — not rendered.
+        return null;
+    }
+
+    if (envelope.ev.t === 'stop') {
+        // Subagent stop → synthetic Task tool-result to close the tool call
+        if (envelope.subagent) {
+            return {
+                id: messageId,
+                localId,
+                createdAt: messageCreatedAt,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: envelope.subagent,
+                    content: envelope.ev.result ?? '',
+                    is_error: false,
+                    uuid: contentUUID,
+                    parentUUID: null
+                }],
+                meta
+            } satisfies NormalizedMessage;
+        }
+        // Session-level lifecycle without subagent — not rendered.
         return null;
     }
 

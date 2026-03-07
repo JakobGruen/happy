@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Text, View, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { Text, View, TouchableOpacity, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import { getToolViewComponent } from './views/_all';
@@ -123,6 +123,9 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         hideDefaultError = knownTool.hideDefaultError;
     }
 
+    // Collapse/expand state for content area
+    const [isContentExpanded, setIsContentExpanded] = React.useState(true);
+
     let statusIcon = null;
 
     let isToolUseError = false;
@@ -156,56 +159,60 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         }
     }
 
-    return (
-        <View style={styles.container}>
-            {isPressable ? (
-                <TouchableOpacity style={styles.header} onPress={handlePress} activeOpacity={0.8}>
-                    <View style={styles.headerLeft}>
-                        <View style={styles.iconContainer}>
-                            {icon}
-                        </View>
-                        <View style={styles.titleContainer}>
-                            <Text style={styles.toolName} numberOfLines={1}>{toolTitle}{status ? <Text style={styles.status}>{` ${status}`}</Text> : null}</Text>
-                            {description && (
-                                <Text style={styles.toolDescription} numberOfLines={1}>
-                                    {description}
-                                </Text>
-                            )}
-                        </View>
-                        {tool.state === 'running' && (
-                            <View style={styles.elapsedContainer}>
-                                <ElapsedView from={tool.createdAt} />
-                            </View>
-                        )}
-                        {statusIcon}
-                    </View>
-                </TouchableOpacity>
-            ) : (
-                <View style={styles.header}>
-                    <View style={styles.headerLeft}>
-                        <View style={styles.iconContainer}>
-                            {icon}
-                        </View>
-                        <View style={styles.titleContainer}>
-                            <Text style={styles.toolName} numberOfLines={1}>{toolTitle}{status ? <Text style={styles.status}>{` ${status}`}</Text> : null}</Text>
-                            {description && (
-                                <Text style={styles.toolDescription} numberOfLines={1}>
-                                    {description}
-                                </Text>
-                            )}
-                        </View>
-                        {tool.state === 'running' && (
-                            <View style={styles.elapsedContainer}>
-                                <ElapsedView from={tool.createdAt} />
-                            </View>
-                        )}
-                        {statusIcon}
-                    </View>
+    // Computed after all minimal mutations (incl. isToolUseError) are finalized
+    const hasCollapsibleContent = !minimal && tool.name !== 'AskUserQuestion';
+
+    const headerContent = (
+        <View style={styles.headerLeft}>
+            <View style={styles.iconContainer}>
+                {icon}
+            </View>
+            <View style={styles.titleContainer}>
+                <Text style={styles.toolName} numberOfLines={1}>{toolTitle}{status ? <Text style={styles.status}>{` ${status}`}</Text> : null}</Text>
+                {description && (
+                    <Text style={styles.toolDescription} numberOfLines={1}>
+                        {description}
+                    </Text>
+                )}
+            </View>
+            {tool.state === 'running' && (
+                <View style={styles.elapsedContainer}>
+                    <ElapsedView from={tool.createdAt} />
                 </View>
             )}
+            {statusIcon}
+        </View>
+    );
+
+    return (
+        <View style={styles.container}>
+            <View style={styles.header}>
+                {isPressable ? (
+                    <TouchableOpacity style={styles.headerMain} onPress={handlePress} activeOpacity={0.8}>
+                        {headerContent}
+                    </TouchableOpacity>
+                ) : (
+                    <View style={styles.headerMain}>
+                        {headerContent}
+                    </View>
+                )}
+                {hasCollapsibleContent && (
+                    <Pressable
+                        onPress={() => setIsContentExpanded(v => !v)}
+                        style={styles.collapseButton}
+                        hitSlop={8}
+                    >
+                        <Ionicons
+                            name={isContentExpanded ? 'chevron-down' : 'chevron-forward'}
+                            size={18}
+                            color={theme.colors.textSecondary}
+                        />
+                    </Pressable>
+                )}
+            </View>
 
             {/* Content area - either custom children or tool-specific view */}
-            {(() => {
+            {isContentExpanded && (() => {
                 // Check if minimal first - minimal tools don't show content
                 if (minimal) {
                     return null;
@@ -283,9 +290,17 @@ const styles = StyleSheet.create((theme) => ({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
         padding: 12,
         backgroundColor: theme.colors.surfaceHighest,
+    },
+    headerMain: {
+        flex: 1,
+    },
+    collapseButton: {
+        paddingLeft: 8,
+        paddingVertical: 4,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     headerLeft: {
         flexDirection: 'row',

@@ -91,6 +91,7 @@ interface StorageState {
     feedLoaded: boolean;  // True after initial feed fetch
     friendsLoaded: boolean;  // True after initial friends fetch
     realtimeStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
+    realtimeSessionId: string | null;
     realtimeMode: 'idle' | 'speaking';
     socketStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
     socketLastConnectedAt: number | null;
@@ -101,7 +102,7 @@ interface StorageState {
     applyMachines: (machines: Machine[], replace?: boolean) => void;
     applyLoaded: () => void;
     applyReady: () => void;
-    applyMessages: (sessionId: string, messages: NormalizedMessage[]) => { changed: string[], hasReadyEvent: boolean };
+    applyMessages: (sessionId: string, messages: NormalizedMessage[]) => { changed: string[], hasReadyEvent: boolean, permissionModeChanged?: string };
     applyMessagesLoaded: (sessionId: string) => void;
     applySettings: (settings: Settings, version: number) => void;
     applySettingsLocal: (settings: Partial<Settings>) => void;
@@ -112,6 +113,7 @@ interface StorageState {
     applyNativeUpdateStatus: (status: { available: boolean; updateUrl?: string } | null) => void;
     isMutableToolCall: (sessionId: string, callId: string) => boolean;
     setRealtimeStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void;
+    setRealtimeSessionId: (id: string | null) => void;
     setRealtimeMode: (mode: 'idle' | 'speaking', immediate?: boolean) => void;
     clearRealtimeModeDebounce: () => void;
     setSocketStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void;
@@ -273,6 +275,7 @@ export const storage = create<StorageState>()((set, get) => {
         sessionMessages: {},
         sessionGitStatus: {},
         realtimeStatus: 'disconnected',
+        realtimeSessionId: null,
         realtimeMode: 'idle',
         socketStatus: 'disconnected',
         socketLastConnectedAt: null,
@@ -483,6 +486,7 @@ export const storage = create<StorageState>()((set, get) => {
         applyMessages: (sessionId: string, messages: NormalizedMessage[]) => {
             let changed = new Set<string>();
             let hasReadyEvent = false;
+            let permissionModeChanged: string | undefined;
             set((state) => {
 
                 // Resolve session messages state
@@ -508,6 +512,9 @@ export const storage = create<StorageState>()((set, get) => {
                 }
                 if (reducerResult.hasReadyEvent) {
                     hasReadyEvent = true;
+                }
+                if (reducerResult.permissionModeChanged) {
+                    permissionModeChanged = reducerResult.permissionModeChanged;
                 }
 
                 // Merge messages
@@ -556,7 +563,12 @@ export const storage = create<StorageState>()((set, get) => {
                 };
             });
 
-            return { changed: Array.from(changed), hasReadyEvent };
+            // Apply permission mode change outside of set() to avoid nested state updates
+            if (permissionModeChanged) {
+                get().updateSessionPermissionMode(sessionId, permissionModeChanged);
+            }
+
+            return { changed: Array.from(changed), hasReadyEvent, permissionModeChanged };
         },
         applyMessagesLoaded: (sessionId: string) => set((state) => {
             const existingSession = state.sessionMessages[sessionId];
@@ -692,6 +704,10 @@ export const storage = create<StorageState>()((set, get) => {
         setRealtimeStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => set((state) => ({
             ...state,
             realtimeStatus: status
+        })),
+        setRealtimeSessionId: (id: string | null) => set((state) => ({
+            ...state,
+            realtimeSessionId: id
         })),
         setRealtimeMode: (mode: 'idle' | 'speaking', immediate?: boolean) => {
             if (immediate) {
@@ -1227,6 +1243,10 @@ export function useEntitlement(id: KnownEntitlements): boolean {
 
 export function useRealtimeStatus(): 'disconnected' | 'connecting' | 'connected' | 'error' {
     return storage(useShallow((state) => state.realtimeStatus));
+}
+
+export function useRealtimeSessionId(): string | null {
+    return storage(useShallow((state) => state.realtimeSessionId));
 }
 
 export function useRealtimeMode(): 'idle' | 'speaking' {

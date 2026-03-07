@@ -1,7 +1,7 @@
 import { logger } from '@/ui/logger'
 import { EventEmitter } from 'node:events'
 import { io, Socket } from 'socket.io-client'
-import { AgentState, ClientToServerEvents, Metadata, ServerToClientEvents, Session, Update, UserMessage, UserMessageSchema, Usage } from './types'
+import { AgentState, ClientToServerEvents, Metadata, PermissionMode, ServerToClientEvents, Session, Update, UserMessage, UserMessageSchema, Usage } from './types'
 import { decodeBase64, decrypt, encodeBase64, encrypt } from './encryption';
 import { backoff, delay } from '@/utils/time';
 import { configuration } from '@/configuration';
@@ -97,6 +97,7 @@ export class ApiSessionClient extends EventEmitter {
         startedSubagents: new Set<string>(),
         activeSubagents: new Set<string>(),
     };
+    private pollInterval: NodeJS.Timeout | null = null;
     private lastSeq = 0;
     private pendingOutbox: Array<{ content: string; localId: string }> = [];
     private readonly sendSync: InvalidateSync;
@@ -152,6 +153,7 @@ export class ApiSessionClient extends EventEmitter {
             logger.debug('Socket connected successfully');
             this.rpcHandlerManager.onSocketConnect(this.socket);
             this.receiveSync.invalidate();
+            this.emit('connection-status', 'connected');
         })
 
         // Set up global RPC request handler
@@ -162,11 +164,13 @@ export class ApiSessionClient extends EventEmitter {
         this.socket.on('disconnect', (reason) => {
             logger.debug('[API] Socket disconnected:', reason);
             this.rpcHandlerManager.onSocketDisconnect();
+            this.emit('connection-status', 'disconnected', reason);
         })
 
         this.socket.on('connect_error', (error) => {
             logger.debug('[API] Socket connection error:', error);
             this.rpcHandlerManager.onSocketDisconnect();
+            this.emit('connection-status', 'error', error.message);
         })
 
         // Server events
@@ -224,6 +228,12 @@ export class ApiSessionClient extends EventEmitter {
         //
 
         this.socket.connect();
+
+        // Periodic fallback: poll for messages every 30s in case WebSocket events are missed
+        // (e.g., after server redeploy, transient network issues, or load balancer timeouts)
+        this.pollInterval = setInterval(() => {
+            this.receiveSync.invalidate();
+        }, 30000);
     }
 
     onUserMessage(callback: (data: UserMessage) => void) {
@@ -454,7 +464,7 @@ export class ApiSessionClient extends EventEmitter {
     } | {
         type: 'message', message: string
     } | {
-        type: 'permission-mode-changed', mode: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
+        type: 'permission-mode-changed', mode: PermissionMode
     } | {
         type: 'ready'
     }, id?: string) {
@@ -597,6 +607,10 @@ export class ApiSessionClient extends EventEmitter {
 
     async close() {
         logger.debug('[API] socket.close() called');
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+        }
         this.sendSync.stop();
         this.receiveSync.stop();
         this.socket.close();

@@ -49,7 +49,8 @@ export const TaskView = React.memo<ToolViewProps>(({ tool, metadata, messages })
     const styles = StyleSheet.create({
         container: {
             paddingVertical: 4,
-            paddingBottom: 12
+            paddingBottom: 12,
+            minHeight: 88, // 3 tool items — prevents size jitter as tools stream in
         },
         toolItem: {
             flexDirection: 'row',
@@ -103,7 +104,7 @@ export const TaskView = React.memo<ToolViewProps>(({ tool, metadata, messages })
         <View style={styles.container}>
             {visibleTools.map((item, index) => (
                 <View key={`${item.tool.name}-${index}`} style={styles.toolItem}>
-                    <Text style={styles.toolTitle}>{item.title}</Text>
+                    <Text style={styles.toolTitle} numberOfLines={1}>{item.title}</Text>
                     <View style={styles.statusContainer}>
                         {item.state === 'running' && (
                             <ActivityIndicator size={Platform.OS === 'ios' ? "small" : 14 as any} color={theme.colors.warning} />

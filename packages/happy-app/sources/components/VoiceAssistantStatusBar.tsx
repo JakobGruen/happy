@@ -6,8 +6,11 @@ import { StatusDot } from './StatusDot';
 import { Typography } from '@/constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
 import { stopRealtimeSession } from '@/realtime/RealtimeSession';
+import { voiceHooks } from '@/realtime/hooks/voiceHooks';
 import { useUnistyles } from 'react-native-unistyles';
 import { VoiceBars } from './VoiceBars';
+import { useRealtimeSessionId } from '@/sync/storage';
+import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 
 interface VoiceAssistantStatusBarProps {
     variant?: 'full' | 'sidebar';
@@ -18,6 +21,8 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'full', style }: 
     const { theme } = useUnistyles();
     const realtimeStatus = useRealtimeStatus();
     const realtimeMode = useRealtimeMode();
+    const realtimeSessionId = useRealtimeSessionId();
+    const navigateToSession = useNavigateToSession();
 
     // Don't render if disconnected
     if (realtimeStatus === 'disconnected') {
@@ -66,13 +71,20 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'full', style }: 
 
     const statusInfo = getStatusInfo();
 
-    const handlePress = async () => {
+    const handleNavigate = () => {
+        if (realtimeSessionId) {
+            navigateToSession(realtimeSessionId);
+        }
+    };
+
+    const handleStop = async () => {
         if (realtimeStatus === 'connected' || realtimeStatus === 'connecting') {
             try {
                 await stopRealtimeSession();
             } catch (error) {
                 console.error('Error stopping voice session:', error);
             }
+            voiceHooks.onVoiceStopped();
         }
     };
 
@@ -88,7 +100,7 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'full', style }: 
                 paddingHorizontal: 16,
             }}>
                 <Pressable
-                    onPress={handlePress}
+                    onPress={handleNavigate}
                     style={{
                         height: 32,
                         width: '100%',
@@ -118,18 +130,26 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'full', style }: 
                                 {statusInfo.text}
                             </Text>
                         </View>
-                        
+
                         <View style={styles.rightSection}>
                             {isVoiceSpeaking && (
-                                <VoiceBars 
-                                    isActive={isVoiceSpeaking} 
+                                <VoiceBars
+                                    isActive={isVoiceSpeaking}
                                     color={statusInfo.textColor}
                                     size="small"
                                 />
                             )}
-                            <Text style={[styles.tapToEndText, { color: statusInfo.textColor, marginLeft: isVoiceSpeaking ? 8 : 0 }]}>
-                                Tap to end
-                            </Text>
+                            <Pressable
+                                onPress={handleStop}
+                                hitSlop={10}
+                                style={[styles.closeIcon, { marginLeft: isVoiceSpeaking ? 4 : 8 }]}
+                            >
+                                <Ionicons
+                                    name="close"
+                                    size={14}
+                                    color={statusInfo.textColor}
+                                />
+                            </Pressable>
                         </View>
                     </View>
                 </Pressable>
@@ -150,7 +170,7 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'full', style }: 
     return (
         <View style={containerStyle}>
             <Pressable
-                onPress={handlePress}
+                onPress={handleNavigate}
                 style={styles.pressable}
                 hitSlop={5}
             >
@@ -176,21 +196,26 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'full', style }: 
                             {statusInfo.text}
                         </Text>
                     </View>
-                    
+
                     {isVoiceSpeaking && (
-                        <VoiceBars 
-                            isActive={isVoiceSpeaking} 
+                        <VoiceBars
+                            isActive={isVoiceSpeaking}
                             color={statusInfo.textColor}
                             size="small"
                         />
                     )}
-                    
-                    <Ionicons
-                        name="close"
-                        size={14}
-                        color={statusInfo.textColor}
+
+                    <Pressable
+                        onPress={handleStop}
+                        hitSlop={10}
                         style={[styles.closeIcon, { marginLeft: isVoiceSpeaking ? 4 : 8 }]}
-                    />
+                    >
+                        <Ionicons
+                            name="close"
+                            size={14}
+                            color={statusInfo.textColor}
+                        />
+                    </Pressable>
                 </View>
             </Pressable>
         </View>
@@ -250,11 +275,5 @@ const styles = StyleSheet.create({
     },
     sidebarStatusText: {
         fontSize: 12,
-    },
-    tapToEndText: {
-        fontSize: 12,
-        fontWeight: '400',
-        opacity: 0.8,
-        ...Typography.default(),
     },
 });

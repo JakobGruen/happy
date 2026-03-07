@@ -50,3 +50,56 @@ export async function fetchVoiceToken(
 
     return await response.json();
 }
+
+export interface LiveKitTokenResponse {
+    url: string;
+    token: string;
+}
+
+export async function fetchLiveKitToken(
+    credentials: AuthCredentials,
+    sessionId: string
+): Promise<LiveKitTokenResponse> {
+    const serverUrl = getServerUrl();
+
+    const response = await fetch(`${serverUrl}/v1/voice/livekit-token`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${credentials.token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ sessionId })
+    });
+
+    if (!response.ok) {
+        throw new Error(`LiveKit token request failed: ${response.status}`);
+    }
+
+    return await response.json();
+}
+
+export interface PipecatSessionResponse {
+    url: string;
+}
+
+export async function fetchPipecatSession(
+    credentials: AuthCredentials,
+    sessionId: string
+): Promise<PipecatSessionResponse> {
+    const serverUrl = getServerUrl();
+
+    const response = await fetch(`${serverUrl}/v1/voice/pipecat-session`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${credentials.token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ sessionId })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Pipecat session request failed: ${response.status}`);
+    }
+
+    return await response.json();
+}

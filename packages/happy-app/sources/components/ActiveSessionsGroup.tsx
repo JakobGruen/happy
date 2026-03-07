@@ -9,7 +9,7 @@ import { getSessionName, useSessionStatus, getSessionAvatarId, formatPathRelativ
 import { Avatar } from './Avatar';
 import { Typography } from '@/constants/Typography';
 import { StatusDot } from './StatusDot';
-import { useAllMachines, useSetting } from '@/sync/storage';
+import { useAllMachines, useSetting, useRealtimeSessionId, useRealtimeStatus } from '@/sync/storage';
 import { StyleSheet } from 'react-native-unistyles';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { machineSpawnNewSession, sessionKill } from '@/sync/ops';
@@ -129,6 +129,17 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         position: 'relative',
         width: 48,
         height: 48,
+    },
+    voiceIconContainer: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: theme.colors.status.connected,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     newSessionButton: {
         flexDirection: 'row',
@@ -371,6 +382,11 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
         return getSessionAvatarId(session);
     }, [session]);
 
+    const realtimeSessionId = useRealtimeSessionId();
+    const realtimeStatus = useRealtimeStatus();
+    const isVoiceActive = session.id === realtimeSessionId
+        && (realtimeStatus === 'connected' || realtimeStatus === 'connecting');
+
     const itemContent = (
         <Pressable
             style={[
@@ -391,6 +407,15 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
         >
             <View style={styles.avatarContainer}>
                 <Avatar id={avatarId} size={48} monochrome={!sessionStatus.isConnected} flavor={session.metadata?.flavor} />
+                {isVoiceActive && (
+                    <View style={styles.voiceIconContainer}>
+                        <Ionicons
+                            name="mic"
+                            size={10}
+                            color="#FFFFFF"
+                        />
+                    </View>
+                )}
             </View>
             <View style={styles.sessionContent}>
                 {/* Title line */}
