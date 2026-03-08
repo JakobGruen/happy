@@ -78,6 +78,20 @@ export function libsodiumEncryptForPublicKey(data: Uint8Array, recipientPublicKe
   return result;
 }
 
+export function libsodiumDecryptForPrivateKey(encryptedBundle: Uint8Array, recipientSecretKey: Uint8Array): Uint8Array | null {
+  // Extract components from bundle: ephemeral public key (32 bytes) + nonce (24 bytes) + encrypted data
+  const ephemeralPublicKey = encryptedBundle.slice(0, tweetnacl.box.publicKeyLength);
+  const nonce = encryptedBundle.slice(tweetnacl.box.publicKeyLength, tweetnacl.box.publicKeyLength + tweetnacl.box.nonceLength);
+  const encrypted = encryptedBundle.slice(tweetnacl.box.publicKeyLength + tweetnacl.box.nonceLength);
+
+  // tweetnacl requires the secret key derived the same way as libsodium
+  const hashedSeed = new Uint8Array(createHash('sha512').update(recipientSecretKey).digest());
+  const curveSecretKey = hashedSeed.slice(0, 32);
+
+  const decrypted = tweetnacl.box.open(encrypted, nonce, ephemeralPublicKey, curveSecretKey);
+  return decrypted ? new Uint8Array(decrypted) : null;
+}
+
 /**
  * Encrypt data using the secret key
  * @param data - The data to encrypt

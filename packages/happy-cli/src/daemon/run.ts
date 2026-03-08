@@ -417,6 +417,16 @@ export async function startDaemon(): Promise<void> {
           };
         }
 
+        // Pass resume env vars for session reactivation (before tmux/regular spawn paths)
+        if (options.claudeSessionId) {
+          extraEnv.HAPPY_RESUME_CLAUDE_SESSION_ID = options.claudeSessionId;
+          logger.debug(`[DAEMON RUN] Setting HAPPY_RESUME_CLAUDE_SESSION_ID for Claude --resume`);
+        }
+        if (options.happySessionId) {
+          extraEnv.HAPPY_RESUME_SESSION_ID = options.happySessionId;
+          logger.debug(`[DAEMON RUN] Setting HAPPY_RESUME_SESSION_ID for session revival: ${options.happySessionId}`);
+        }
+
         // Check if tmux is available and should be used
         const tmuxAvailable = await isTmuxAvailable();
         let useTmux = tmuxAvailable;
@@ -554,8 +564,6 @@ export async function startDaemon(): Promise<void> {
             '--started-by', 'daemon'
           ];
 
-          // TODO: In future, sessionId could be used with --resume to continue existing sessions
-          // For now, we ignore it - each spawn creates a new session
           const happyProcess = spawnHappyCLI(args, {
             cwd: directory,
             detached: true,  // Sessions stay alive when daemon stops
@@ -597,6 +605,11 @@ export async function startDaemon(): Promise<void> {
 
           pidToTrackedSession.set(happyProcess.pid, trackedSession);
           persistChildren();
+
+          // Track reactivation in audit trail
+          if (options.claudeSessionId) {
+            trackArchived(happyProcess.pid, options.happySessionId, 'reactivated');
+          }
 
           happyProcess.on('exit', (code, signal) => {
             logger.debug(`[DAEMON RUN] Child PID ${happyProcess.pid} exited with code ${code}, signal ${signal}`);

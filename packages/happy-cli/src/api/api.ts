@@ -3,7 +3,7 @@ import { logger } from '@/ui/logger'
 import type { AgentState, CreateSessionResponse, Metadata, Session, Machine, MachineMetadata, DaemonState } from '@/api/types'
 import { ApiSessionClient } from './apiSession';
 import { ApiMachineClient } from './apiMachine';
-import { decodeBase64, encodeBase64, getRandomBytes, encrypt, decrypt, libsodiumEncryptForPublicKey } from './encryption';
+import { decodeBase64, encodeBase64, getRandomBytes, encrypt, decrypt, libsodiumEncryptForPublicKey, libsodiumDecryptForPrivateKey } from './encryption';
 import { PushNotificationClient } from './pushNotifications';
 import { configuration } from '@/configuration';
 import chalk from 'chalk';
@@ -270,6 +270,76 @@ export class ApiClient {
 
       // For other errors, rethrow
       throw error;
+    }
+  }
+
+  /**
+   * Reconnect to an existing session by ID for session reactivation.
+   * Fetches the session from the server and recovers its encryption key.
+   */
+  async reconnectToSession(sessionId: string): Promise<Session | null> {
+    try {
+      const response = await axios.get<{ session: CreateSessionResponse['session'] }>(
+        `${configuration.serverUrl}/v1/sessions/${sessionId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.credential.token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 30000
+        }
+      );
+
+      const raw = response.data.session;
+      logger.debug(`[API] Reconnecting to session: ${raw.id}`);
+
+      // Recover encryption key
+      let encryptionKey: Uint8Array;
+      let encryptionVariant: 'legacy' | 'dataKey';
+
+      if (raw.dataEncryptionKey && this.credential.encryption.type === 'dataKey') {
+        // Decrypt the per-session data encryption key
+        const encryptedKeyBlob = decodeBase64(raw.dataEncryptionKey);
+        const versionByte = encryptedKeyBlob[0];
+        if (versionByte !== 0) {
+          logger.debug(`[API] Unknown dataEncryptionKey version: ${versionByte}`);
+          return null;
+        }
+        const decryptedKey = libsodiumDecryptForPrivateKey(
+          encryptedKeyBlob.slice(1),
+          this.credential.encryption.machineKey
+        );
+        if (!decryptedKey) {
+          logger.debug('[API] Failed to decrypt session data encryption key');
+          return null;
+        }
+        encryptionKey = decryptedKey;
+        encryptionVariant = 'dataKey';
+      } else if (this.credential.encryption.type === 'legacy') {
+        encryptionKey = this.credential.encryption.secret;
+        encryptionVariant = 'legacy';
+      } else {
+        logger.debug('[API] Cannot recover encryption key for session');
+        return null;
+      }
+
+      const session: Session = {
+        id: raw.id,
+        seq: raw.seq,
+        metadata: decrypt(encryptionKey, encryptionVariant, decodeBase64(raw.metadata)),
+        metadataVersion: raw.metadataVersion,
+        agentState: raw.agentState ? decrypt(encryptionKey, encryptionVariant, decodeBase64(raw.agentState)) : null,
+        agentStateVersion: raw.agentStateVersion,
+        encryptionKey,
+        encryptionVariant
+      };
+      return session;
+    } catch (error) {
+      logger.debug('[API] [ERROR] Failed to reconnect to session:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      return null;
     }
   }
 

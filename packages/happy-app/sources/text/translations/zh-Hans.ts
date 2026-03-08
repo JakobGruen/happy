@@ -306,6 +306,9 @@ export const zhHans: TranslationStructure = {
     session: {
         inputPlaceholder: '输入消息...',
         worktreeBadge: 'Worktree',
+        reactivateSession: '重新激活会话',
+        reactivateSessionSubtitle: '从上次中断的地方继续会话',
+        reactivating: '正在重新激活...',
     },
 
     commandPalette: {
