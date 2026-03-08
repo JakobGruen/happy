@@ -25,7 +25,8 @@ RUN echo '{"name":"@slopus/agent","version":"0.1.0","private":true}' > packages/
 COPY packages/happy-server/prisma packages/happy-server/prisma
 
 # Install with --ignore-scripts, then manually run what we need
-RUN SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines --ignore-scripts
+# NODE_ENV=development ensures devDependencies (typescript etc.) are installed
+RUN NODE_ENV=development SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines --ignore-scripts
 RUN SKIP_HAPPY_WIRE_BUILD=1 node scripts/postinstall.cjs
 RUN cd packages/happy-server && npx prisma generate
 
