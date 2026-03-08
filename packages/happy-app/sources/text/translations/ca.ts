@@ -773,6 +773,21 @@ export const ca: TranslationStructure = {
         }
     },
 
+    // Dynamic permission suggestion labels (from CC permission_suggestions)
+    permissions: {
+        forSession: 'aquesta sessió',
+        forProject: 'aquest projecte',
+        forAllProjects: 'tots els projectes',
+        allowTool: ({ tool, scope }: { tool: string; scope: string }) => `Permetre ${tool} per a ${scope}`,
+        denyTool: ({ tool, scope }: { tool: string; scope: string }) => `Denegar ${tool} per a ${scope}`,
+        acceptAllEdits: ({ scope }: { scope: string }) => `Acceptar totes les edicions per a ${scope}`,
+        bypassPermissions: ({ scope }: { scope: string }) => `Ometre tots els permisos per a ${scope}`,
+        planMode: ({ scope }: { scope: string }) => `Mode de planificació per a ${scope}`,
+        setMode: ({ mode, scope }: { mode: string; scope: string }) => `Establir ${mode} per a ${scope}`,
+        addDirectories: ({ scope }: { scope: string }) => `Afegir directoris per a ${scope}`,
+        applySuggestion: 'Aplicar suggeriment',
+    },
+
     textSelection: {
         // Text selection screen
         selectText: 'Seleccionar rang de text',

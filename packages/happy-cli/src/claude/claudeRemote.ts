@@ -11,7 +11,7 @@ import { PushableAsyncIterable } from "@/utils/PushableAsyncIterable";
 import { getProjectPath } from "./utils/path";
 import { awaitFileExist } from "@/modules/watcher/awaitFileExist";
 import { systemPrompt } from "./utils/systemPrompt";
-import { PermissionResult } from "./sdk/types";
+import { PermissionResult, ToolPermissionContext } from "./sdk/types";
 import type { JsRuntime } from "./runClaude";
 
 export async function claudeRemote(opts: {
@@ -24,7 +24,7 @@ export async function claudeRemote(opts: {
     claudeArgs?: string[],
     allowedTools: string[],
     signal?: AbortSignal,
-    canCallTool: (toolName: string, input: unknown, mode: EnhancedMode, options: { signal: AbortSignal }) => Promise<PermissionResult>,
+    canCallTool: (toolName: string, input: unknown, mode: EnhancedMode, options: ToolPermissionContext) => Promise<PermissionResult>,
     /** Path to temporary settings file with SessionStart hook (required for session tracking) */
     hookSettingsPath: string,
     /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
@@ -126,7 +126,7 @@ export async function claudeRemote(opts: {
         appendSystemPrompt: initial.mode.appendSystemPrompt ? initial.mode.appendSystemPrompt + '\n\n' + systemPrompt : systemPrompt,
         allowedTools: initial.mode.allowedTools ? initial.mode.allowedTools.concat(opts.allowedTools) : opts.allowedTools,
         disallowedTools: initial.mode.disallowedTools,
-        canCallTool: (toolName: string, input: unknown, options: { signal: AbortSignal }) => opts.canCallTool(toolName, input, mode, options),
+        canCallTool: (toolName: string, input: unknown, options: ToolPermissionContext) => opts.canCallTool(toolName, input, mode, options),
         executable: opts.jsRuntime ?? 'node',
         abort: opts.signal,
         pathToClaudeCodeExecutable: (() => {

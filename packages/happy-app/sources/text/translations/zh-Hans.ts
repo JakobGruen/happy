@@ -775,6 +775,21 @@ export const zhHans: TranslationStructure = {
         }
     },
 
+    // Dynamic permission suggestion labels (from CC permission_suggestions)
+    permissions: {
+        forSession: '此会话',
+        forProject: '此项目',
+        forAllProjects: '所有项目',
+        allowTool: ({ tool, scope }: { tool: string; scope: string }) => `允许 ${tool} 用于${scope}`,
+        denyTool: ({ tool, scope }: { tool: string; scope: string }) => `拒绝 ${tool} 用于${scope}`,
+        acceptAllEdits: ({ scope }: { scope: string }) => `接受${scope}的所有编辑`,
+        bypassPermissions: ({ scope }: { scope: string }) => `绕过${scope}的所有权限`,
+        planMode: ({ scope }: { scope: string }) => `${scope}的规划模式`,
+        setMode: ({ mode, scope }: { mode: string; scope: string }) => `为${scope}设置 ${mode}`,
+        addDirectories: ({ scope }: { scope: string }) => `为${scope}添加目录`,
+        applySuggestion: '应用建议',
+    },
+
     textSelection: {
         // Text selection screen
         selectText: '选择文本范围',

@@ -788,6 +788,21 @@ export const en: TranslationStructure = {
         }
     },
 
+    // Dynamic permission suggestion labels (from CC permission_suggestions)
+    permissions: {
+        forSession: 'this session',
+        forProject: 'this project',
+        forAllProjects: 'all projects',
+        allowTool: ({ tool, scope }: { tool: string; scope: string }) => `Allow ${tool} for ${scope}`,
+        denyTool: ({ tool, scope }: { tool: string; scope: string }) => `Deny ${tool} for ${scope}`,
+        acceptAllEdits: ({ scope }: { scope: string }) => `Accept all edits for ${scope}`,
+        bypassPermissions: ({ scope }: { scope: string }) => `Bypass all permissions for ${scope}`,
+        planMode: ({ scope }: { scope: string }) => `Plan mode for ${scope}`,
+        setMode: ({ mode, scope }: { mode: string; scope: string }) => `Set ${mode} for ${scope}`,
+        addDirectories: ({ scope }: { scope: string }) => `Add directories for ${scope}`,
+        applySuggestion: 'Apply suggestion',
+    },
+
     textSelection: {
         // Text selection screen
         selectText: 'Select text range',

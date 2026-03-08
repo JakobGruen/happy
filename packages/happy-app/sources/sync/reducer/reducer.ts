@@ -377,7 +377,10 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         }
                         message.tool.permission = {
                             id: permId,
-                            status: 'pending'
+                            status: 'pending',
+                            permissionSuggestions: request.permissionSuggestions ?? undefined,
+                            decisionReason: request.decisionReason ?? undefined,
+                            description: request.description ?? undefined,
                         };
                         changed.add(existingMessageId);
                     }
@@ -399,7 +402,10 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         result: undefined,
                         permission: {
                             id: permId,
-                            status: 'pending'
+                            status: 'pending',
+                            permissionSuggestions: request.permissionSuggestions ?? undefined,
+                            decisionReason: request.decisionReason ?? undefined,
+                            description: request.description ?? undefined,
                         }
                     };
 
