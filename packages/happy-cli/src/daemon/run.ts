@@ -22,6 +22,7 @@ import { join } from 'path';
 import { projectPath } from '@/projectPath';
 import { getTmuxUtilities, isTmuxAvailable, parseTmuxSessionIdentifier, formatTmuxSessionIdentifier } from '@/utils/tmux';
 import { expandEnvironmentVariables } from '@/utils/expandEnvVars';
+import { findIdleSessions } from './idleTimeout';
 
 // Prepare initial metadata
 export const initialMachineMetadata: MachineMetadata = {
@@ -170,12 +171,21 @@ export async function startDaemon(): Promise<void> {
     // Session spawning awaiter system
     const pidToAwaiter = new Map<number, (session: TrackedSession) => void>();
 
+    // Idle timeout configuration (ms, 0 = disabled)
+    const idleTimeoutMs = parseInt(process.env.HAPPY_DAEMON_IDLE_TIMEOUT || '1800000'); // 30 min default
+    if (idleTimeoutMs > 0) {
+      logger.debug(`[DAEMON RUN] Idle timeout enabled: ${idleTimeoutMs}ms (${Math.round(idleTimeoutMs / 60000)}min)`);
+    } else {
+      logger.debug('[DAEMON RUN] Idle timeout disabled');
+    }
+
     // Helper: serialize current tracked sessions to disk
     const persistChildren = () => {
       const children = Array.from(pidToTrackedSession.values()).map(s => ({
         pid: s.pid,
         sessionId: s.happySessionId,
-        startedAt: s.startedAt
+        startedAt: s.startedAt,
+        lastActivityAt: s.lastActivityAt
       }));
       writeDaemonChildren(children);
     };
@@ -225,6 +235,7 @@ export async function startDaemon(): Promise<void> {
         // Update daemon-spawned session with reported data
         existingSession.happySessionId = sessionId;
         existingSession.happySessionMetadataFromLocalWebhook = sessionMetadata;
+        existingSession.lastActivityAt = Date.now();
         logger.debug(`[DAEMON RUN] Updated daemon-spawned session ${sessionId} with metadata`);
 
         // Resolve any awaiter for this PID
@@ -760,6 +771,25 @@ export async function startDaemon(): Promise<void> {
       }
       if (pruned) {
         persistChildren();
+      }
+
+      // Evict idle sessions
+      if (idleTimeoutMs > 0 && pidToTrackedSession.size > 0) {
+        const sessions = Array.from(pidToTrackedSession.values());
+        const idleResults = findIdleSessions(sessions, idleTimeoutMs, Date.now());
+        for (const { pid, idleMs } of idleResults) {
+          const session = pidToTrackedSession.get(pid);
+          logger.debug(`[DAEMON RUN] Session PID ${pid} idle for ${Math.round(idleMs / 1000 / 60)}min (session: ${session?.happySessionId || 'unknown'}), terminating`);
+          try {
+            process.kill(pid, 'SIGTERM');
+          } catch {
+            // Already dead
+          }
+          pidToTrackedSession.delete(pid);
+        }
+        if (idleResults.length > 0) {
+          persistChildren();
+        }
       }
 
       // Check if daemon needs update

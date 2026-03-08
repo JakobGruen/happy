@@ -21,6 +21,8 @@ export interface TrackedSession {
   tmuxSessionId?: string;
   /** Timestamp when this session was spawned/registered */
   startedAt: number;
+  /** Timestamp of last known activity (webhook, RPC, etc.) */
+  lastActivityAt?: number;
 }
 
 /**
@@ -31,4 +33,5 @@ export interface PersistedChild {
   pid: number;
   sessionId?: string;
   startedAt: number;
+  lastActivityAt?: number;
 }
