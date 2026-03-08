@@ -319,6 +319,9 @@ export const en: TranslationStructure = {
     session: {
         inputPlaceholder: 'Type a message ...',
         worktreeBadge: 'Worktree',
+        reactivateSession: 'Reactivate Session',
+        reactivateSessionSubtitle: 'Resume this session where it left off',
+        reactivating: 'Reactivating...',
     },
 
     commandPalette: {

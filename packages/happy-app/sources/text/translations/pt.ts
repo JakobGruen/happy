@@ -304,6 +304,9 @@ export const pt: TranslationStructure = {
     session: {
         inputPlaceholder: 'Digite uma mensagem ...',
         worktreeBadge: 'Worktree',
+        reactivateSession: 'Reativar sessão',
+        reactivateSessionSubtitle: 'Retomar esta sessão de onde parou',
+        reactivating: 'Reativando...',
     },
 
     commandPalette: {

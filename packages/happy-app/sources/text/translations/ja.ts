@@ -336,6 +336,9 @@ export const ja: TranslationStructure = {
     session: {
         inputPlaceholder: 'メッセージを入力...',
         worktreeBadge: 'Worktree',
+        reactivateSession: 'セッションを再開',
+        reactivateSessionSubtitle: '中断したところからセッションを再開します',
+        reactivating: '再開中...',
     },
 
     commandPalette: {

@@ -494,6 +494,56 @@ export async function sessionKill(sessionId: string): Promise<SessionKillRespons
 }
 
 /**
+ * Reactivate an archived session on a machine — marks it active on the server,
+ * then spawns a CLI process that reconnects to the same happy session and
+ * resumes the Claude conversation via --resume.
+ */
+export async function machineResumeSession(options: {
+    machineId: string;
+    sessionId: string;
+    claudeSessionId: string;
+    directory: string;
+    token?: string;
+    agent?: 'codex' | 'claude' | 'gemini';
+    environmentVariables?: Record<string, string>;
+}): Promise<SpawnSessionResult> {
+    const { machineId, sessionId, claudeSessionId, directory, token, agent, environmentVariables } = options;
+
+    // Mark session active on server immediately
+    apiSocket.send('session-start', { sid: sessionId, time: Date.now() });
+
+    try {
+        const result = await apiSocket.machineRPC<SpawnSessionResult, {
+            type: 'spawn-in-directory';
+            directory: string;
+            happySessionId: string;
+            claudeSessionId: string;
+            approvedNewDirectoryCreation?: boolean;
+            token?: string;
+            agent?: 'codex' | 'claude' | 'gemini';
+            environmentVariables?: Record<string, string>;
+        }>(machineId, 'spawn-happy-session', {
+            type: 'spawn-in-directory',
+            directory,
+            happySessionId: sessionId,
+            claudeSessionId,
+            approvedNewDirectoryCreation: true,
+            token,
+            agent,
+            environmentVariables,
+        });
+        return result;
+    } catch (error) {
+        // Revert: mark session inactive again since spawn failed
+        try { apiSocket.send('session-end', { sid: sessionId, time: Date.now() }); } catch {}
+        return {
+            type: 'error',
+            errorMessage: error instanceof Error ? error.message : 'Failed to reactivate session'
+        };
+    }
+}
+
+/**
  * Archive a session with fallback — if kill RPC fails (session already dead/disconnected),
  * tell the server directly via session-end so it gets marked inactive.
  */

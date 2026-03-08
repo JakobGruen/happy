@@ -396,6 +396,9 @@ export const ru: TranslationStructure = {
     session: {
         inputPlaceholder: 'Введите сообщение...',
         worktreeBadge: 'Worktree',
+        reactivateSession: 'Восстановить сессию',
+        reactivateSessionSubtitle: 'Продолжить сессию с того места, где она остановилась',
+        reactivating: 'Восстановление...',
     },
 
     commandPalette: {

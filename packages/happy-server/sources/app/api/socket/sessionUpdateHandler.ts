@@ -244,6 +244,49 @@ export function sessionUpdateHandler(userId: string, socket: Socket, connection:
         });
     });
 
+    socket.on('session-start', async (data: {
+        sid: string;
+        time: number;
+    }) => {
+        try {
+            const { sid, time } = data;
+            let t = time;
+            if (typeof t !== 'number') {
+                return;
+            }
+            if (t > Date.now()) {
+                t = Date.now();
+            }
+            if (t < Date.now() - 1000 * 60 * 10) {
+                return;
+            }
+
+            // Resolve session
+            const session = await db.session.findUnique({
+                where: { id: sid, accountId: userId }
+            });
+            if (!session) {
+                return;
+            }
+
+            // Mark session as active
+            await db.session.update({
+                where: { id: sid },
+                data: { lastActiveAt: new Date(t), active: true }
+            });
+
+            // Emit session activity update
+            const sessionActivity = buildSessionActivityEphemeral(sid, true, t, false);
+            eventRouter.emitEphemeral({
+                userId,
+                payload: sessionActivity,
+                recipientFilter: { type: 'user-scoped-only' }
+            });
+        } catch (error) {
+            log({ module: 'websocket', level: 'error' }, `Error in session-start: ${error}`);
+        }
+    });
+
     socket.on('session-end', async (data: {
         sid: string;
         time: number;

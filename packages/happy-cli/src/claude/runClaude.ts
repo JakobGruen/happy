@@ -97,6 +97,19 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         metadata: initialMachineMetadata
     });
 
+    // Check for session reactivation env vars (set by daemon for reviving archived sessions)
+    const resumeHappySessionId = process.env.HAPPY_RESUME_SESSION_ID;
+    const resumeClaudeSessionId = process.env.HAPPY_RESUME_CLAUDE_SESSION_ID;
+    if (resumeHappySessionId) {
+        delete process.env.HAPPY_RESUME_SESSION_ID;
+        logger.debug(`[START] Session reactivation: reconnecting to happy session ${resumeHappySessionId}`);
+    }
+    if (resumeClaudeSessionId) {
+        delete process.env.HAPPY_RESUME_CLAUDE_SESSION_ID;
+        options.claudeArgs = [...(options.claudeArgs || []), '--resume', resumeClaudeSessionId];
+        logger.debug(`[START] Session reactivation: will resume Claude session ${resumeClaudeSessionId}`);
+    }
+
     let metadata: Metadata = {
         path: workingDirectory,
         host: os.hostname(),
@@ -121,7 +134,19 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         currentOperatingModeCode: initialPermissionMode,
         ...(options.model ? { currentModelCode: normalizeModelCode(options.model) } : {}),
     };
-    const response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
+
+    // Either reconnect to existing session (reactivation) or create a new one
+    let response: Awaited<ReturnType<typeof api.getOrCreateSession>>;
+    if (resumeHappySessionId) {
+        response = await api.reconnectToSession(resumeHappySessionId);
+        if (response) {
+            // Update metadata on the revived session (new PID, lifecycle state, etc.)
+            metadata = { ...metadata, ...(response.metadata as Metadata) };
+            logger.debug(`[START] Successfully reconnected to session ${resumeHappySessionId}`);
+        }
+    } else {
+        response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
+    }
 
     // Handle server unreachable case - run Claude locally with hot reconnection
     // Note: connectionState.notifyOffline() was already called by api.ts with error details

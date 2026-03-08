@@ -22,6 +22,7 @@ import { useIsTablet } from '@/utils/responsive';
 import { ProjectGitStatus } from './ProjectGitStatus';
 import { useHappyAction } from '@/hooks/useHappyAction';
 import { HappyError } from '@/utils/errors';
+import { useCanReactivateSession } from '@/hooks/useCanReactivateSession';
 import { CompactMemoryBadge } from '@/components/CompactMemoryBadge';
 import { CompactBranchBadge } from '@/components/CompactBranchBadge';
 import { isWorktreePath, formatWorktreeSubtitle } from '@/utils/worktreeUtils';
@@ -142,6 +143,13 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: theme.colors.status.error,
+    },
+    swipeActionReactivate: {
+        width: 112,
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#34C759',
     },
     swipeActionText: {
         marginTop: 4,
@@ -331,6 +339,14 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
         );
     }, [performArchive]);
 
+    // Reactivation — only for archived Claude sessions on an online machine
+    const { canReactivate, reactivating, performReactivate } = useCanReactivateSession(session);
+
+    const handleReactivate = React.useCallback(() => {
+        swipeableRef.current?.close();
+        performReactivate();
+    }, [performReactivate]);
+
     const itemContent = (
         <Pressable
             style={[
@@ -423,25 +439,41 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
         return itemContent;
     }
 
-    const renderRightActions = () => (
-        <Pressable
-            style={styles.swipeAction}
-            onPress={handleArchive}
-            disabled={archivingSession}
-        >
-            <Ionicons name="archive-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.swipeActionText} numberOfLines={2}>
-                {t('sessionInfo.archiveSession')}
-            </Text>
-        </Pressable>
-    );
+    const renderRightActions = () => {
+        if (canReactivate) {
+            return (
+                <Pressable
+                    style={styles.swipeActionReactivate}
+                    onPress={handleReactivate}
+                    disabled={reactivating}
+                >
+                    <Ionicons name="play-circle-outline" size={20} color="#FFFFFF" />
+                    <Text style={styles.swipeActionText} numberOfLines={2}>
+                        {t('session.reactivateSession')}
+                    </Text>
+                </Pressable>
+            );
+        }
+        return (
+            <Pressable
+                style={styles.swipeAction}
+                onPress={handleArchive}
+                disabled={archivingSession}
+            >
+                <Ionicons name="archive-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.swipeActionText} numberOfLines={2}>
+                    {t('sessionInfo.archiveSession')}
+                </Text>
+            </Pressable>
+        );
+    };
 
     return (
         <Swipeable
             ref={swipeableRef}
             renderRightActions={renderRightActions}
             overshootRight={false}
-            enabled={!archivingSession}
+            enabled={!archivingSession && !reactivating}
         >
             {itemContent}
         </Swipeable>
