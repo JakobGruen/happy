@@ -15,17 +15,17 @@ Yarn 1.22 workspaces (no Turborepo/Lerna). Package manager: `yarn` — never use
 | `happy-app` | `happy-app` | React Native / Expo 54 mobile + web client |
 | `happy-cli` | `happy-coder` | CLI wrapper for Claude Code / Codex / Gemini |
 | `happy-server` | `happy-server` | Fastify 5 backend API + Socket.IO relay |
-| `happy-wire` | `@slopus/happy-wire` | Shared Zod schemas — the wire protocol source of truth |
+| `happy-wire` | `@jakobgruen/happy-wire` | Shared Zod schemas — the wire protocol source of truth |
 | `happy-agent` | `@slopus/agent` | Programmatic remote agent control CLI (`auth`, `list`, `create`, `send`, `history`, `status`, `stop`, `wait`) |
 | `happy-voice-agent` | *(Python, not in workspaces)* | LiveKit voice agent (standalone Python package) |
 
-**Dependency graph**: All TS packages depend on `@slopus/happy-wire`. Wire must be built first on clean checkout.
+**Dependency graph**: All TS packages depend on `@jakobgruen/happy-wire`. Wire must be built first on clean checkout.
 
 ## Build & Dev Commands
 
 ```bash
 # Build wire first (required on clean checkout before anything else)
-yarn workspace @slopus/happy-wire build
+yarn workspace @jakobgruen/happy-wire build
 
 # CLI development (from repo root)
 yarn cli                              # dev-run CLI via tsx
@@ -48,7 +48,7 @@ yarn workspace happy-server generate  # Prisma client codegen
 cd packages/happy-cli && yarn dev:local-server
 
 # Tests
-yarn workspace @slopus/happy-wire test   # vitest
+yarn workspace @jakobgruen/happy-wire test   # vitest
 yarn workspace happy-coder test          # builds first, then vitest (daemon integration)
 yarn workspace happy-server test         # vitest
 
@@ -87,7 +87,7 @@ Two message format generations coexist:
 - **Legacy**: `{ role: "user"/"agent", content: {...} }`
 - **Modern**: `{ role: "session", content: SessionEnvelope }` with 9 event types
 
-Feature flag `ENABLE_SESSION_PROTOCOL_SEND` controls which format clients emit. Defined in `@slopus/happy-wire`'s `sessionProtocol.ts`.
+Feature flag `ENABLE_SESSION_PROTOCOL_SEND` controls which format clients emit. Defined in `@jakobgruen/happy-wire`'s `sessionProtocol.ts`.
 
 ### Optimistic Concurrency
 State updates (session metadata, agent state, machine daemon state) use `expectedVersion`. Version mismatch → client gets current version and can retry.
@@ -120,7 +120,7 @@ Per-user credentials stored encrypted in `serviceAccountToken` table (vendor=`li
 
 ## Critical Gotchas
 
-1. **Build order**: `@slopus/happy-wire` must be built before other packages (distributes from `dist/`, not `src/`)
+1. **Build order**: `@jakobgruen/happy-wire` must be built before other packages (distributes from `dist/`, not `src/`)
 2. **pglite patch**: `patches/pglite-prisma-adapter+0.7.2.patch` fixes bytea serialization — applied by `scripts/postinstall.cjs`. **Never add `Buffer.from()` workarounds**
 3. **Database migrations**: NEVER run migrations yourself. Only run `yarn generate` for new Prisma types. Migrations are human-only
 4. **`--resume` creates new session ID**: When Claude resumes, all historical messages get re-stamped with the new session ID
@@ -166,9 +166,11 @@ Each package has its own `CLAUDE.md` with package-specific conventions, patterns
 
 `docs/` contains detailed architecture references. Check these before reading source code for these topics:
 
+- `docs/README.md` — Index of all docs, start here
 - `docs/protocol.md` — WebSocket payload formats, sequencing, concurrency rules
 - `docs/encryption.md` — Encryption boundaries and on-wire encoding
 - `docs/session-protocol.md` — Unified encrypted chat event protocol (9 event types)
+- `docs/session-protocol-claude.md` — Claude launcher session protocol emit paths and deduplication
 - `docs/permission-resolution.md` — Permission mode resolution (sandbox, auto, manual)
 - `docs/backend-architecture.md` — Internal backend data flow and key subsystems
 - `docs/cli-architecture.md` — CLI and daemon architecture

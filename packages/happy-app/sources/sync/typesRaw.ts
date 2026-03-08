@@ -37,6 +37,9 @@ const agentEventSchema = z.discriminatedUnion('type', [z.object({
     endsAt: z.number(),
 }), z.object({
     type: z.literal('ready'),
+    durationMs: z.number().optional(),
+    numTurns: z.number().optional(),
+    costUsd: z.number().optional(),
 }), z.object({
     type: z.literal('permission-mode-changed'),
     mode: z.string(),
@@ -92,6 +95,9 @@ const sessionStartEventSchema = z.object({
 const sessionTurnEndEventSchema = z.object({
     t: z.literal('turn-end'),
     status: z.enum(['completed', 'failed', 'cancelled']),
+    durationMs: z.number().optional(),
+    numTurns: z.number().optional(),
+    costUsd: z.number().optional(),
 });
 
 const sessionStopEventSchema = z.object({
@@ -629,7 +635,12 @@ function normalizeSessionEnvelope(
             createdAt: messageCreatedAt,
             role: 'event',
             isSidechain: false,
-            content: { type: 'ready' },
+            content: {
+                type: 'ready' as const,
+                ...(envelope.ev.durationMs != null ? { durationMs: envelope.ev.durationMs } : {}),
+                ...(envelope.ev.numTurns != null ? { numTurns: envelope.ev.numTurns } : {}),
+                ...(envelope.ev.costUsd != null ? { costUsd: envelope.ev.costUsd } : {}),
+            },
             meta
         } satisfies NormalizedMessage;
     }

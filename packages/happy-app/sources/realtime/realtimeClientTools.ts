@@ -135,6 +135,42 @@ export const realtimeClientTools = {
     },
 
     /**
+     * Switch the model for the active session.
+     * Routes directly to the CLI via RPC — no pending permission required.
+     */
+    switchModel: async (parameters: unknown) => {
+        const schema = z.object({
+            model: z.string()
+        });
+        const parsed = schema.safeParse(parameters);
+
+        if (!parsed.success) {
+            console.error('❌ Invalid switchModel parameter:', parsed.error);
+            return "error (invalid model parameter, expected a string)";
+        }
+
+        const { model } = parsed.data;
+        const sessionId = getCurrentRealtimeSessionId();
+
+        if (!sessionId) {
+            console.error('❌ No active session');
+            return "error (no active session)";
+        }
+
+        console.log('🔍 switchModel called with:', model);
+
+        try {
+            // Send RPC to CLI first — only update local state on success
+            await apiSocket.sessionRPC(sessionId, 'switch-model', { model });
+            storage.getState().updateSessionModelMode(sessionId, model);
+            return `Model switched to ${model}. Briefly confirm to the user.`;
+        } catch (error) {
+            console.error('❌ Failed to switch model:', error);
+            return `error (failed to switch model to ${model})`;
+        }
+    },
+
+    /**
      * Abort/interrupt the current Claude Code operation
      */
     abortClaudeCode: async () => {

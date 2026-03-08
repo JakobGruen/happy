@@ -548,6 +548,49 @@ export async function clearDaemonState(): Promise<void> {
   }
 }
 
+// --- Daemon children persistence ---
+// Tracks spawned child PIDs to disk so daemon restarts can adopt/kill orphans.
+
+import type { PersistedChild } from '@/daemon/types';
+
+/**
+ * Read persisted children from disk.
+ * Returns empty array if file doesn't exist or is corrupted.
+ */
+export function readDaemonChildren(): PersistedChild[] {
+  try {
+    if (!existsSync(configuration.daemonChildrenFile)) {
+      return [];
+    }
+    const content = readFileSync(configuration.daemonChildrenFile, 'utf-8');
+    const parsed = JSON.parse(content);
+    if (!Array.isArray(parsed)) return [];
+    return parsed as PersistedChild[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Write the full children list to disk (synchronous for atomicity with process lifecycle).
+ */
+export function writeDaemonChildren(children: PersistedChild[]): void {
+  writeFileSync(configuration.daemonChildrenFile, JSON.stringify(children, null, 2), 'utf-8');
+}
+
+/**
+ * Remove the children file (e.g. on clean daemon shutdown with no children left).
+ */
+export function clearDaemonChildren(): void {
+  if (existsSync(configuration.daemonChildrenFile)) {
+    try {
+      unlinkSync(configuration.daemonChildrenFile);
+    } catch {
+      // Best effort
+    }
+  }
+}
+
 /**
  * Acquire an exclusive lock file for the daemon.
  * The lock file proves the daemon is running and prevents multiple instances.

@@ -9,7 +9,8 @@ import { Future } from "@/utils/future";
 import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "./sdk";
 import { formatClaudeMessageForInk } from "@/ui/messageFormatterInk";
 import { logger } from "@/ui/logger";
-import { SDKToLogConverter } from "./utils/sdkToLogConverter";
+import { SDKToLogConverter, getGitBranchAsync } from "./utils/sdkToLogConverter";
+import { normalizeModelCode } from "@jakobgruen/happy-wire";
 import { PLAN_FAKE_REJECT, PLAN_FAKE_RESTART } from "./sdk/prompts";
 import { EnhancedMode, PermissionMode } from "./loop";
 import { RawJSONLines } from "@/claude/types";
@@ -120,8 +121,25 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                 }
             }
 
+            // Sync metadata so app shows correct mode on reload
+            session.client.updateMetadata((m) => ({ ...m, currentOperatingModeCode: mode }));
+
             // Notify app that mode was applied
             session.client.sendSessionEvent({ type: 'permission-mode-changed', mode });
+        }
+    );
+
+    // Switch model directly (from voice agent or app)
+    session.client.rpcHandlerManager.registerHandler<{ model: string }, void>(
+        'switch-model', async (data) => {
+            const { model } = data;
+            logger.debug(`[remote]: Model switch → ${model}`);
+
+            // Sync metadata so app shows correct model
+            session.client.updateMetadata((m) => ({
+                ...m,
+                currentModelCode: model,
+            }));
         }
     );
 
@@ -150,10 +168,12 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     });
 
     // Create SDK to Log converter (pass responses from permissions)
+    const gitBranch = await getGitBranchAsync(session.path);
     const sdkToLogConverter = new SDKToLogConverter({
         sessionId: session.sessionId || 'unknown',
         cwd: session.path,
-        version: process.env.npm_package_version
+        version: process.env.npm_package_version,
+        gitBranch,
     }, permissionHandler.getResponses());
 
 
@@ -409,6 +429,21 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                         sdkToLogConverter.updateSessionId(sessionId);
                         session.onSessionFound(sessionId);
                     },
+                    onModelDetected: (model) => {
+                        const normalized = normalizeModelCode(model);
+                        session.client.updateMetadata((metadata) => {
+                            const models = metadata.models ?? [];
+                            const alreadyKnown = models.some(m => m.code === normalized);
+                            return {
+                                ...metadata,
+                                currentModelCode: normalized,
+                                // Auto-add unknown models (future CC models work automatically)
+                                ...(!alreadyKnown ? {
+                                    models: [...models, { code: normalized, value: normalized, description: 'Detected from session' }],
+                                } : {}),
+                            };
+                        });
+                    },
                     onThinkingChange: session.onThinkingChange,
                     claudeEnvVars: session.claudeEnvVars,
                     claudeArgs: session.claudeArgs,
@@ -421,8 +456,8 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                         logger.debug('[remote]: Session reset');
                         session.clearSessionId();
                     },
-                    onReady: () => {
-                        session.client.closeClaudeSessionTurn('completed');
+                    onReady: (stats) => {
+                        session.client.closeClaudeSessionTurn('completed', stats);
                         if (!pending && session.queue.size() === 0) {
                             session.api.push().sendToAllDevices(
                                 'It\'s ready!',

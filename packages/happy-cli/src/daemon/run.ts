@@ -13,7 +13,7 @@ import { startCaffeinate, stopCaffeinate } from '@/utils/caffeinate';
 import packageJson from '../../package.json';
 import { getEnvironmentInfo } from '@/ui/doctor';
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
-import { writeDaemonState, DaemonLocallyPersistedState, readDaemonState, acquireDaemonLock, releaseDaemonLock, readSettings, getActiveProfile, getEnvironmentVariables, validateProfileForAgent, getProfileEnvironmentVariables } from '@/persistence';
+import { writeDaemonState, DaemonLocallyPersistedState, readDaemonState, acquireDaemonLock, releaseDaemonLock, readSettings, getActiveProfile, getEnvironmentVariables, validateProfileForAgent, getProfileEnvironmentVariables, readDaemonChildren, writeDaemonChildren, clearDaemonChildren } from '@/persistence';
 
 import { cleanupDaemonState, isDaemonRunningCurrentlyInstalledHappyVersion, stopDaemon } from './controlClient';
 import { startDaemonControlServer } from './controlServer';
@@ -170,6 +170,38 @@ export async function startDaemon(): Promise<void> {
     // Session spawning awaiter system
     const pidToAwaiter = new Map<number, (session: TrackedSession) => void>();
 
+    // Helper: serialize current tracked sessions to disk
+    const persistChildren = () => {
+      const children = Array.from(pidToTrackedSession.values()).map(s => ({
+        pid: s.pid,
+        sessionId: s.happySessionId,
+        startedAt: s.startedAt
+      }));
+      writeDaemonChildren(children);
+    };
+
+    // On startup: kill orphaned children from previous daemon runs
+    const previousChildren = readDaemonChildren();
+    if (previousChildren.length > 0) {
+      logger.debug(`[DAEMON RUN] Found ${previousChildren.length} persisted children from previous run`);
+      for (const child of previousChildren) {
+        try {
+          process.kill(child.pid, 0); // Check if alive
+          // Process is alive but we have no ChildProcess handle — kill it
+          logger.debug(`[DAEMON RUN] Killing orphaned child PID ${child.pid} (session: ${child.sessionId || 'unknown'})`);
+          try {
+            process.kill(child.pid, 'SIGTERM');
+          } catch {
+            // Already dead between check and kill — fine
+          }
+        } catch {
+          // Process doesn't exist — already cleaned up
+          logger.debug(`[DAEMON RUN] Orphaned child PID ${child.pid} already dead`);
+        }
+      }
+      clearDaemonChildren();
+    }
+
     // Helper functions
     const getCurrentChildren = () => Array.from(pidToTrackedSession.values());
 
@@ -208,9 +240,11 @@ export async function startDaemon(): Promise<void> {
           startedBy: 'happy directly - likely by user from terminal',
           happySessionId: sessionId,
           happySessionMetadataFromLocalWebhook: sessionMetadata,
-          pid
+          pid,
+          startedAt: Date.now()
         };
         pidToTrackedSession.set(pid, trackedSession);
+        persistChildren();
         logger.debug(`[DAEMON RUN] Registered externally-started session ${sessionId}`);
       }
     };
@@ -428,6 +462,7 @@ export async function startDaemon(): Promise<void> {
               pid: tmuxResult.pid, // Real PID from tmux -P flag
               tmuxSessionId: tmuxResult.sessionId,
               directoryCreated,
+              startedAt: Date.now(),
               message: directoryCreated
                 ? `The path '${directory}' did not exist. We created a new folder and spawned a new session in tmux session '${tmuxSessionName}'. Use 'tmux attach -t ${tmuxSessionName}' to view the session.`
                 : `Spawned new session in tmux session '${tmuxSessionName}'. Use 'tmux attach -t ${tmuxSessionName}' to view the session.`
@@ -435,6 +470,7 @@ export async function startDaemon(): Promise<void> {
 
             // Add to tracking map so webhook can find it later
             pidToTrackedSession.set(tmuxResult.pid, trackedSession);
+            persistChildren();
 
             // Wait for webhook to populate session with happySessionId (exact same as regular flow)
             logger.debug(`[DAEMON RUN] Waiting for session webhook for PID ${tmuxResult.pid} (tmux)`);
@@ -532,10 +568,12 @@ export async function startDaemon(): Promise<void> {
             pid: happyProcess.pid,
             childProcess: happyProcess,
             directoryCreated,
+            startedAt: Date.now(),
             message: directoryCreated ? `The path '${directory}' did not exist. We created a new folder and spawned a new session there.` : undefined
           };
 
           pidToTrackedSession.set(happyProcess.pid, trackedSession);
+          persistChildren();
 
           happyProcess.on('exit', (code, signal) => {
             logger.debug(`[DAEMON RUN] Child PID ${happyProcess.pid} exited with code ${code}, signal ${signal}`);
@@ -621,6 +659,7 @@ export async function startDaemon(): Promise<void> {
           }
 
           pidToTrackedSession.delete(pid);
+          persistChildren();
           logger.debug(`[DAEMON RUN] Removed session ${sessionId} from tracking`);
           return true;
         }
@@ -634,6 +673,7 @@ export async function startDaemon(): Promise<void> {
     const onChildExited = (pid: number) => {
       logger.debug(`[DAEMON RUN] Removing exited process PID ${pid} from tracking`);
       pidToTrackedSession.delete(pid);
+      persistChildren();
     };
 
     // Start control server
@@ -706,6 +746,7 @@ export async function startDaemon(): Promise<void> {
       }
 
       // Prune stale sessions
+      let pruned = false;
       for (const [pid, _] of pidToTrackedSession.entries()) {
         try {
           // Check if process is still alive (signal 0 doesn't kill, just checks)
@@ -714,7 +755,11 @@ export async function startDaemon(): Promise<void> {
           // Process is dead, remove from tracking
           logger.debug(`[DAEMON RUN] Removing stale session with PID ${pid} (process no longer exists)`);
           pidToTrackedSession.delete(pid);
+          pruned = true;
         }
+      }
+      if (pruned) {
+        persistChildren();
       }
 
       // Check if daemon needs update
@@ -785,6 +830,21 @@ export async function startDaemon(): Promise<void> {
       if (restartOnStaleVersionAndHeartbeat) {
         clearInterval(restartOnStaleVersionAndHeartbeat);
         logger.debug('[DAEMON RUN] Health check interval cleared');
+      }
+
+      // SIGTERM all tracked children so they don't become orphans
+      if (pidToTrackedSession.size > 0) {
+        logger.debug(`[DAEMON RUN] Terminating ${pidToTrackedSession.size} tracked children`);
+        for (const [pid, session] of pidToTrackedSession.entries()) {
+          try {
+            process.kill(pid, 'SIGTERM');
+            logger.debug(`[DAEMON RUN] Sent SIGTERM to child PID ${pid} (session: ${session.happySessionId || 'unknown'})`);
+          } catch {
+            // Process already dead — fine
+          }
+        }
+        pidToTrackedSession.clear();
+        clearDaemonChildren();
       }
 
       // Update daemon state before shutting down

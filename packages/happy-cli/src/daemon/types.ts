@@ -19,4 +19,16 @@ export interface TrackedSession {
   message?: string;
   /** tmux session identifier (format: session:window) */
   tmuxSessionId?: string;
+  /** Timestamp when this session was spawned/registered */
+  startedAt: number;
+}
+
+/**
+ * Minimal session info persisted to disk so the daemon can
+ * adopt or kill orphaned children after a restart.
+ */
+export interface PersistedChild {
+  pid: number;
+  sessionId?: string;
+  startedAt: number;
 }

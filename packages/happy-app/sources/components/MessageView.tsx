@@ -124,6 +124,29 @@ function AgentEventBlock(props: {
       </View>
     );
   }
+  if (props.event.type === 'ready') {
+    const { durationMs, numTurns, costUsd } = props.event;
+    // Don't render anything if no stats available
+    if (durationMs == null && numTurns == null && costUsd == null) return null;
+
+    const parts: string[] = [];
+    if (durationMs != null) {
+      const seconds = durationMs / 1000;
+      parts.push(seconds >= 60 ? `${(seconds / 60).toFixed(1)}m` : `${seconds.toFixed(1)}s`);
+    }
+    if (numTurns != null) {
+      parts.push(`${numTurns} ${numTurns === 1 ? 'turn' : 'turns'}`);
+    }
+    if (costUsd != null) {
+      parts.push(`$${costUsd.toFixed(3)}`);
+    }
+
+    return (
+      <View style={statsStyles.container}>
+        <Text style={statsStyles.text}>{parts.join(' · ')}</Text>
+      </View>
+    );
+  }
   if (props.event.type === 'limit-reached') {
     const formatTime = (timestamp: number): string => {
       try {
@@ -218,5 +241,18 @@ const styles = StyleSheet.create((theme) => ({
   debugText: {
     color: theme.colors.agentEventText,
     fontSize: 12,
+  },
+}));
+
+const statsStyles = StyleSheet.create((theme) => ({
+  container: {
+    paddingVertical: 4,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  text: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    opacity: 0.7,
   },
 }));

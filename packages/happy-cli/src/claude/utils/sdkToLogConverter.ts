@@ -4,13 +4,12 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { execSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import type {
     SDKMessage,
     SDKUserMessage,
     SDKAssistantMessage,
     SDKSystemMessage,
-    SDKResultMessage
 } from '@/claude/sdk'
 import type { RawJSONLines } from '@/claude/types'
 
@@ -26,19 +25,19 @@ export interface ConversionContext {
 }
 
 /**
- * Get current git branch for the working directory
+ * Get current git branch for the working directory (async, non-blocking)
  */
-function getGitBranch(cwd: string): string | undefined {
-    try {
-        const branch = execSync('git rev-parse --abbrev-ref HEAD', {
-            cwd,
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'ignore']
-        }).trim()
-        return branch || undefined
-    } catch {
-        return undefined
-    }
+export function getGitBranchAsync(cwd: string): Promise<string | undefined> {
+    return new Promise((resolve) => {
+        execFile('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd }, (error, stdout) => {
+            if (error) {
+                resolve(undefined)
+                return
+            }
+            const branch = stdout.trim()
+            resolve(branch || undefined)
+        })
+    })
 }
 
 /**
@@ -57,7 +56,6 @@ export class SDKToLogConverter {
     ) {
         this.context = {
             ...context,
-            gitBranch: context.gitBranch ?? getGitBranch(context.cwd),
             version: context.version ?? process.env.npm_package_version ?? '0.0.0',
             parentUuid: null
         }
@@ -178,35 +176,6 @@ export class SDKToLogConverter {
                 // Result messages are not converted to log messages
                 // They're SDK-specific messages that indicate session completion
                 // Not part of the actual conversation log
-                break
-            }
-
-            // Handle tool use results (often comes as user messages)
-            case 'tool_result': {
-                const toolMsg = sdkMessage as any
-                const baseLogMessage: any = {
-                    ...baseFields,
-                    type: 'user',
-                    message: {
-                        role: 'user',
-                        content: [{
-                            type: 'tool_result',
-                            tool_use_id: toolMsg.tool_use_id,
-                            content: toolMsg.content
-                        }]
-                    },
-                    toolUseResult: toolMsg.content
-                }
-
-                // Add mode if available from responses
-                if (toolMsg.tool_use_id && this.responses?.has(toolMsg.tool_use_id)) {
-                    const response = this.responses.get(toolMsg.tool_use_id)
-                    if (response?.mode) {
-                        baseLogMessage.mode = response.mode
-                    }
-                }
-
-                logMessage = baseLogMessage
                 break
             }
 

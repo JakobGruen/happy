@@ -15,8 +15,9 @@ export function resolveMessageModeMeta(
             ? session.permissionMode
             : (sandboxEnabled ? 'bypassPermissions' : 'default');
 
-    const modelMode = session.modelMode || 'default';
-    const model = modelMode !== 'default' ? modelMode : null;
+    // Always send the selected model code (sonnet, opus, haiku, etc.)
+    // Filter out legacy 'default' values from old persisted state
+    const model = (session.modelMode && session.modelMode !== 'default') ? session.modelMode : null;
 
     return {
         permissionMode,
