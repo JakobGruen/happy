@@ -2,11 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import { registerGlobals } from '@livekit/react-native';
 import { registerVoiceSession } from './RealtimeSession';
 import { realtimeClientTools } from './realtimeClientTools';
+import { SimpleMediaManager } from './PipecatMediaManager';
 import { storage } from '@/sync/storage';
 import { VOICE_CONFIG } from './voiceConfig';
 import type { VoiceSession, VoiceSessionConfig } from './types';
 
-// Polyfill WebRTC APIs (RTCPeerConnection, navigator.mediaDevices) required by SmallWebRTCTransport on React Native
+// Polyfill WebRTC APIs (RTCPeerConnection, navigator.mediaDevices) required by RNSmallWebRTCTransport on React Native
 registerGlobals();
 
 // Pipecat client types — dynamically imported to avoid bundling when not used
@@ -62,19 +63,16 @@ async function fetchIceServers(pipecatUrl: string): Promise<RTCIceServer[]> {
 async function createPipecatClient(config: VoiceSessionConfig): Promise<PipecatClientType> {
     // Dynamic imports to avoid bundling Pipecat when not selected
     const { PipecatClient } = await import('@pipecat-ai/client-js');
-    const { SmallWebRTCTransport } = await import('@pipecat-ai/small-webrtc-transport');
+    const { RNSmallWebRTCTransport } = await import('@pipecat-ai/react-native-small-webrtc-transport');
 
     const iceServers = config.pipecatUrl
         ? await fetchIceServers(config.pipecatUrl)
         : DEFAULT_ICE_SERVERS;
 
-    const transport = new SmallWebRTCTransport({
+    const transport = new RNSmallWebRTCTransport({
         iceServers,
+        mediaManager: new SimpleMediaManager(),
     });
-    // Patch: DailyMediaManager._startRecording calls _userAudioCallback without null
-    // check (bug in @pipecat-ai/small-webrtc-transport). Set a no-op to prevent
-    // TypeError until setUserAudioCallback() is called during connect().
-    (transport as any).mediaManager._userAudioCallback = () => {};
 
     const client = new PipecatClient({
         transport,

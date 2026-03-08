@@ -20,4 +20,19 @@ config.transformer.getTransformOptions = async () => ({
   },
 });
 
+// Alias @daily-co/react-native-webrtc → @livekit/react-native-webrtc
+// Both are forks of react-native-webrtc providing the same native module (WebRTCModule).
+// The Pipecat RN transport may transitively reference Daily's fork, but we already
+// ship LiveKit's. This alias prevents a duplicate native module conflict.
+const originalResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+    if (moduleName === '@daily-co/react-native-webrtc') {
+        return context.resolveRequest(context, '@livekit/react-native-webrtc', platform);
+    }
+    if (originalResolveRequest) {
+        return originalResolveRequest(context, moduleName, platform);
+    }
+    return context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = config;

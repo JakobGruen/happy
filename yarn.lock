@@ -3063,7 +3063,7 @@
   resolved "https://registry.yarnpkg.com/@pinojs/redact/-/redact-0.4.0.tgz#c3de060dd12640dcc838516aa2a6803cc7b2e9d6"
   integrity sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==
 
-"@pipecat-ai/client-js@^1.6.0":
+"@pipecat-ai/client-js@^1.5.0", "@pipecat-ai/client-js@^1.6.0":
   version "1.6.0"
   resolved "https://registry.yarnpkg.com/@pipecat-ai/client-js/-/client-js-1.6.0.tgz#e987bd1ab6d5ee6325a4171c5312b3d32b6422cc"
   integrity sha512-riG/p9MDhy/mVo8x3ZGRdE55cgVgIcqkWsJcXb11CtG4j7xAszwcMdv7IOzRtTMSCD/2s7rwuv7Yi/D8bpDzNA==
@@ -3074,6 +3074,14 @@
     events "^3.3.0"
     typed-emitter "^2.1.0"
     uuid "^10.0.0"
+
+"@pipecat-ai/react-native-small-webrtc-transport@^1.5.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@pipecat-ai/react-native-small-webrtc-transport/-/react-native-small-webrtc-transport-1.5.0.tgz#251b3badaac1955efdf0bd2c3e7b9cc39ace8226"
+  integrity sha512-XaPsEtNNl6kB2CfrYDJlI7SQvTMvn8+NCV9pDdrYooxUmMN20wA1vfYH13GZ2AK9D5bpxhuZonBn6iZ7aGTELA==
+  dependencies:
+    "@pipecat-ai/client-js" "^1.5.0"
+    lodash "^4.17.21"
 
 "@pipecat-ai/small-webrtc-transport@^1.9.0":
   version "1.9.0"

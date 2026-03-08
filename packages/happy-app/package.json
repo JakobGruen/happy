@@ -57,6 +57,7 @@
     "@more-tech/react-native-libsodium": "^1.5.5",
     "@peoplesgrocers/seti-ui-file-icons": "1.11.3",
     "@pipecat-ai/client-js": "^1.6.0",
+    "@pipecat-ai/react-native-small-webrtc-transport": "^1.5.0",
     "@pipecat-ai/small-webrtc-transport": "^1.9.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
