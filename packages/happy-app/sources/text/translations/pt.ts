@@ -510,6 +510,7 @@ export const pt: TranslationStructure = {
             applyChanges: 'Atualizar arquivo',
             viewDiff: 'Alterações do arquivo atual',
             question: 'Pergunta',
+            skill: 'Skill',
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `Terminal(cmd: ${cmd})`,
@@ -527,6 +528,7 @@ export const pt: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `Modificando ${count} arquivos`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} e ${count} mais`,
             showingDiff: 'Mostrando alterações',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         },
         askUserQuestion: {
             submit: 'Enviar resposta',

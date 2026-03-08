@@ -549,6 +549,7 @@ export const ja: TranslationStructure = {
             applyChanges: 'ファイルを更新',
             viewDiff: '現在のファイル変更',
             question: '質問',
+            skill: 'Skill',
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `ターミナル(cmd: ${cmd})`,
@@ -566,6 +567,7 @@ export const ja: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `${count}ファイルを変更中`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} 他${count}件`,
             showingDiff: '変更を表示中',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         }
     },
 

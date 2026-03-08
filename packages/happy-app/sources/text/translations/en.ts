@@ -525,6 +525,7 @@ export const en: TranslationStructure = {
             applyChanges: 'Update file',
             viewDiff: 'Current file changes',
             question: 'Question',
+            skill: 'Skill',
         },
         askUserQuestion: {
             submit: 'Submit Answer',
@@ -549,6 +550,7 @@ export const en: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `Modifying ${count} files`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} and ${count} more`,
             showingDiff: 'Showing changes',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         }
     },
 

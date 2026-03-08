@@ -17,6 +17,7 @@ const ICON_EXIT = (size: number = 24, color: string = '#000') => <Ionicons name=
 const ICON_TODO = (size: number = 24, color: string = '#000') => <Ionicons name="bulb-outline" size={size} color={color} />;
 const ICON_REASONING = (size: number = 24, color: string = '#000') => <Octicons name="light-bulb" size={size} color={color} />;
 const ICON_QUESTION = (size: number = 24, color: string = '#000') => <Ionicons name="help-circle-outline" size={size} color={color} />;
+const ICON_SKILL = (size: number = 24, color: string = '#000') => <Ionicons name="sparkles-outline" size={size} color={color} />;
 
 export const knownTools = {
     'Task': {
@@ -935,6 +936,25 @@ export const knownTools = {
             }
             return null;
         }
+    },
+    // Plugin skill invocations (slash commands like /commit, /review-pr)
+    'Skill': {
+        title: (opts: { metadata: Metadata | null, tool: ToolCall }) => {
+            if (typeof opts.tool.input?.skill === 'string') {
+                return t('tools.desc.skillInvoke', { skill: opts.tool.input.skill });
+            }
+            return t('tools.names.skill');
+        },
+        icon: ICON_SKILL,
+        minimal: true,
+        noStatus: true,
+        extractSubtitle: (opts: { metadata: Metadata | null, tool: ToolCall }) => {
+            if (typeof opts.tool.input?.args === 'string' && opts.tool.input.args.length > 0) {
+                const args = opts.tool.input.args as string;
+                return args.length > 60 ? args.substring(0, 60) + '…' : args;
+            }
+            return null;
+        },
     },
     // Internal Claude Code tool for loading deferred tools - no user-visible output
     'ToolSearch': {

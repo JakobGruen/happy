@@ -75,11 +75,25 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     // Handle optional title and function type
     let toolTitle = tool.name;
     
-    // Special handling for MCP tools
+    // Special handling for MCP tools — compact summary with key params
     if (tool.name.startsWith('mcp__')) {
         toolTitle = formatMCPTitle(tool.name);
-        icon = <Ionicons name="extension-puzzle-outline" size={18} color={theme.colors.textSecondary} />;
-        minimal = true;
+        icon = <Ionicons name="extension-puzzle-outline" size={18} color={theme.colors.text} />;
+        // Extract 1-2 key string params as inline subtitle
+        if (tool.input && typeof tool.input === 'object') {
+            const stringParams = Object.entries(tool.input)
+                .filter(([_, v]) => typeof v === 'string' && (v as string).length > 0)
+                .slice(0, 2);
+            if (stringParams.length > 0) {
+                description = stringParams
+                    .map(([k, v]) => {
+                        const val = String(v);
+                        const truncated = val.length > 30 ? val.substring(0, 30) + '…' : val;
+                        return `${k}=${truncated}`;
+                    })
+                    .join('  ');
+            }
+        }
     } else if (knownTool?.title) {
         if (typeof knownTool.title === 'function') {
             toolTitle = knownTool.title({ tool, metadata: props.metadata });

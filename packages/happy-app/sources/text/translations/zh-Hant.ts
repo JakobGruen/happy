@@ -511,6 +511,7 @@ export const zhHant: TranslationStructure = {
             applyChanges: '更新檔案',
             viewDiff: '目前檔案更改',
             question: '問題',
+            skill: 'Skill',
         },
         askUserQuestion: {
             submit: '提交答案',
@@ -535,6 +536,7 @@ export const zhHant: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `正在修改 ${count} 個檔案`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} 和其他 ${count} 個`,
             showingDiff: '顯示更改',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         }
     },
 

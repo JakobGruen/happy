@@ -510,6 +510,7 @@ export const ca: TranslationStructure = {
             applyChanges: 'Actualitza fitxer',
             viewDiff: 'Canvis del fitxer actual',
             question: 'Pregunta',
+            skill: 'Skill',
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `Terminal(cmd: ${cmd})`,
@@ -527,6 +528,7 @@ export const ca: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `Modificant ${count} fitxers`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} i ${count} més`,
             showingDiff: 'Mostrant canvis',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         },
         askUserQuestion: {
             submit: 'Envia resposta',
