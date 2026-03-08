@@ -781,6 +781,17 @@ export const ja: TranslationStructure = {
         metadataVersion: 'メタデータバージョン',
         untitledSession: '無題のセッション',
         back: '戻る',
+        memory: 'メモリ',
+        systemMemory: 'システムメモリ',
+        freeMemory: '空きメモリ',
+        sessionMemoryTotal: 'セッションメモリ',
+        lowMemoryWarning: 'メモリ不足',
+        lowMemoryHint: '空きRAMが1 GB未満です。アイドルセッションの停止を検討してください。',
+        recentlyClosed: '最近閉じたセッション',
+        archivedIdle: 'アイドルタイムアウト',
+        archivedManual: '手動停止',
+        archivedCrash: '終了',
+        archivedOrphan: '孤立プロセスの整理',
     },
 
     message: {

@@ -154,7 +154,32 @@ export const DaemonStateSchema = z.object({
     z.union([
       z.enum(['mobile-app', 'cli', 'os-signal', 'unknown']),
       z.string() // Forward compatibility
-    ]).optional()
+    ]).optional(),
+  startTime: z.number().optional(),
+  startedWithCliVersion: z.string().optional(),
+  memoryStats: z.object({
+    system: z.object({
+      totalBytes: z.number(),
+      freeBytes: z.number(),
+      usedBytes: z.number(),
+    }),
+    sessions: z.array(z.object({
+      pid: z.number(),
+      sessionId: z.string().optional(),
+      rssBytes: z.number().nullable(),
+    })),
+    totalSessionBytes: z.number(),
+    collectedAt: z.number(),
+  }).optional(),
+  recentlyArchived: z.array(z.object({
+    sessionId: z.string().optional(),
+    pid: z.number(),
+    reason: z.union([
+      z.enum(['idle', 'manual', 'crash', 'orphan']),
+      z.string(),
+    ]),
+    archivedAt: z.number(),
+  })).optional(),
 })
 
 export type DaemonState = z.infer<typeof DaemonStateSchema>

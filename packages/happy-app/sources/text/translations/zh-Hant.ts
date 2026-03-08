@@ -750,6 +750,17 @@ export const zhHant: TranslationStructure = {
         metadataVersion: '中繼資料版本',
         untitledSession: '無標題工作階段',
         back: '返回',
+        memory: '記憶體',
+        systemMemory: '系統記憶體',
+        freeMemory: '可用記憶體',
+        sessionMemoryTotal: '工作階段記憶體',
+        lowMemoryWarning: '記憶體不足',
+        lowMemoryHint: '可用記憶體低於 1 GB。請考慮停止閒置的工作階段。',
+        recentlyClosed: '最近關閉',
+        archivedIdle: '閒置逾時',
+        archivedManual: '手動停止',
+        archivedCrash: '已結束',
+        archivedOrphan: '孤立程序清理',
     },
 
     message: {

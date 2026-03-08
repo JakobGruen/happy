@@ -749,6 +749,17 @@ export const es: TranslationStructure = {
         metadataVersion: 'Versión de metadatos',
         untitledSession: 'Sesión sin título',
         back: 'Atrás',
+        memory: 'Memoria',
+        systemMemory: 'Memoria del sistema',
+        freeMemory: 'Memoria libre',
+        sessionMemoryTotal: 'Memoria de sesiones',
+        lowMemoryWarning: 'Poca memoria',
+        lowMemoryHint: 'La RAM libre es inferior a 1 GB. Considere detener las sesiones inactivas.',
+        recentlyClosed: 'Cerradas recientemente',
+        archivedIdle: 'Tiempo de inactividad',
+        archivedManual: 'Detenida manualmente',
+        archivedCrash: 'Finalizada',
+        archivedOrphan: 'Limpieza de huérfanas',
     },
 
     message: {

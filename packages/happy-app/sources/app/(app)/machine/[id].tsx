@@ -62,6 +62,16 @@ const styles = StyleSheet.create((theme) => ({
     },
 }));
 
+const LOW_MEMORY_THRESHOLD_BYTES = 1 * 1024 * 1024 * 1024; // 1 GB
+
+function formatGB(bytes: number): string {
+    return (bytes / (1024 * 1024 * 1024)).toFixed(1);
+}
+
+function formatMB(bytes: number): string {
+    return Math.round(bytes / (1024 * 1024)).toString();
+}
+
 export default function MachineDetailScreen() {
     const { theme } = useUnistyles();
     const { id: machineId } = useLocalSearchParams<{ id: string }>();
@@ -486,6 +496,93 @@ export default function MachineDetailScreen() {
                             subtitle={String(machine.daemonStateVersion)}
                         />
                 </ItemGroup>
+
+                {/* Memory */}
+                {machine.daemonState?.memoryStats && (() => {
+                    const mem = machine.daemonState.memoryStats;
+                    const isLowMemory = mem.system.freeBytes < LOW_MEMORY_THRESHOLD_BYTES;
+                    return (
+                        <ItemGroup title={t('machine.memory')}>
+                            {isLowMemory && (
+                                <Item
+                                    title={t('machine.lowMemoryWarning')}
+                                    subtitle={t('machine.lowMemoryHint')}
+                                    subtitleLines={0}
+                                    leftElement={<Ionicons name="warning" size={20} color="#FF9500" />}
+                                    showChevron={false}
+                                    titleStyle={{ color: '#FF9500' }}
+                                />
+                            )}
+                            <Item
+                                title={t('machine.systemMemory')}
+                                detail={`${formatGB(mem.system.usedBytes)} / ${formatGB(mem.system.totalBytes)} GB`}
+                                showChevron={false}
+                            />
+                            <Item
+                                title={t('machine.freeMemory')}
+                                detail={`${formatGB(mem.system.freeBytes)} GB`}
+                                detailStyle={isLowMemory ? { color: '#FF3B30' } : undefined}
+                                showChevron={false}
+                            />
+                            {mem.totalSessionBytes > 0 && (
+                                <Item
+                                    title={t('machine.sessionMemoryTotal')}
+                                    detail={`${formatMB(mem.totalSessionBytes)} MB`}
+                                    showChevron={false}
+                                />
+                            )}
+                            {[...mem.sessions]
+                                .filter((s: any) => s.rssBytes != null)
+                                .sort((a: any, b: any) => (b.rssBytes ?? 0) - (a.rssBytes ?? 0))
+                                .map((s: any) => {
+                                    const matchedSession = s.sessionId
+                                        ? machineSessions.find(ms => ms.id === s.sessionId)
+                                        : undefined;
+                                    const title = matchedSession
+                                        ? getSessionName(matchedSession)
+                                        : `PID ${s.pid}`;
+                                    const subtitle = matchedSession
+                                        ? `PID ${s.pid}`
+                                        : s.sessionId ? s.sessionId.slice(0, 8) : undefined;
+                                    return (
+                                        <Item
+                                            key={s.pid}
+                                            title={title}
+                                            subtitle={subtitle}
+                                            subtitleStyle={{ fontFamily: 'Menlo', fontSize: 11 }}
+                                            detail={`${formatMB(s.rssBytes)} MB`}
+                                            showChevron={false}
+                                        />
+                                    );
+                                })}
+                        </ItemGroup>
+                    );
+                })()}
+
+                {/* Recently Closed audit log */}
+                {machine.daemonState?.recentlyArchived?.length > 0 && (
+                    <ItemGroup title={t('machine.recentlyClosed')}>
+                        {[...machine.daemonState.recentlyArchived].reverse().map((entry: any, i: number) => {
+                            const reasonMap: Record<string, string> = {
+                                idle: t('machine.archivedIdle'),
+                                manual: t('machine.archivedManual'),
+                                crash: t('machine.archivedCrash'),
+                                orphan: t('machine.archivedOrphan'),
+                            };
+                            const reasonLabel = reasonMap[entry.reason] ?? entry.reason;
+                            return (
+                                <Item
+                                    key={`${entry.pid}-${entry.archivedAt}-${i}`}
+                                    title={`PID ${entry.pid}`}
+                                    subtitle={entry.sessionId ? entry.sessionId.slice(0, 8) : undefined}
+                                    subtitleStyle={{ fontFamily: 'Menlo', fontSize: 11 }}
+                                    detail={reasonLabel}
+                                    showChevron={false}
+                                />
+                            );
+                        })}
+                    </ItemGroup>
+                )}
 
                 {/* Previous Sessions (debug view) */}
                 {previousSessions.length > 0 && (

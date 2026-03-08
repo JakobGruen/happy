@@ -748,6 +748,17 @@ export const en = {
         metadataVersion: 'Metadata Version',
         untitledSession: 'Untitled Session',
         back: 'Back',
+        memory: 'Memory',
+        systemMemory: 'System Memory',
+        freeMemory: 'Free Memory',
+        sessionMemoryTotal: 'Session Memory',
+        lowMemoryWarning: 'Low Memory',
+        lowMemoryHint: 'Free RAM is below 1 GB. Consider stopping idle sessions.',
+        recentlyClosed: 'Recently Closed',
+        archivedIdle: 'Idle timeout',
+        archivedManual: 'Manually stopped',
+        archivedCrash: 'Exited',
+        archivedOrphan: 'Orphan cleanup',
     },
 
     message: {

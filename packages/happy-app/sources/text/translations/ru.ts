@@ -747,6 +747,17 @@ export const ru: TranslationStructure = {
         metadataVersion: 'Версия метаданных',
         untitledSession: 'Безымянная сессия',
         back: 'Назад',
+        memory: 'Память',
+        systemMemory: 'Системная память',
+        freeMemory: 'Свободная память',
+        sessionMemoryTotal: 'Память сессий',
+        lowMemoryWarning: 'Мало памяти',
+        lowMemoryHint: 'Свободная RAM менее 1 ГБ. Рассмотрите остановку неактивных сессий.',
+        recentlyClosed: 'Недавно закрытые',
+        archivedIdle: 'Тайм-аут бездействия',
+        archivedManual: 'Остановлено вручную',
+        archivedCrash: 'Завершилось',
+        archivedOrphan: 'Очистка сирот',
     },
 
     message: {

@@ -749,6 +749,17 @@ export const ca: TranslationStructure = {
         metadataVersion: 'Versió de les metadades',
         untitledSession: 'Sessió sense títol',
         back: 'Enrere',
+        memory: 'Memòria',
+        systemMemory: 'Memòria del sistema',
+        freeMemory: 'Memòria lliure',
+        sessionMemoryTotal: 'Memòria de sessions',
+        lowMemoryWarning: 'Poca memòria',
+        lowMemoryHint: 'La RAM lliure és inferior a 1 GB. Considereu aturar les sessions inactives.',
+        recentlyClosed: 'Tancades recentment',
+        archivedIdle: 'Temps d\'inactivitat',
+        archivedManual: 'Aturada manualment',
+        archivedCrash: 'Finalitzada',
+        archivedOrphan: 'Neteja d\'òrfenes',
     },
 
     message: {

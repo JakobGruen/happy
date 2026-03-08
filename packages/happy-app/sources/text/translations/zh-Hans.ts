@@ -751,6 +751,17 @@ export const zhHans: TranslationStructure = {
         metadataVersion: '元数据版本',
         untitledSession: '无标题会话',
         back: '返回',
+        memory: '内存',
+        systemMemory: '系统内存',
+        freeMemory: '可用内存',
+        sessionMemoryTotal: '会话内存',
+        lowMemoryWarning: '内存不足',
+        lowMemoryHint: '可用内存低于1 GB。请考虑停止闲置会话。',
+        recentlyClosed: '最近关闭',
+        archivedIdle: '空闲超时',
+        archivedManual: '手动停止',
+        archivedCrash: '已退出',
+        archivedOrphan: '孤立进程清理',
     },
 
     message: {

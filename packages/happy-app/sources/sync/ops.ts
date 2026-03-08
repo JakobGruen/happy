@@ -493,6 +493,24 @@ export async function sessionKill(sessionId: string): Promise<SessionKillRespons
 }
 
 /**
+ * Archive a session with fallback — if kill RPC fails (session already dead/disconnected),
+ * tell the server directly via session-end so it gets marked inactive.
+ */
+export async function sessionArchive(sessionId: string): Promise<SessionKillResponse> {
+    const killResult = await sessionKill(sessionId);
+    if (killResult.success) {
+        return killResult;
+    }
+    // Kill failed (session likely dead/disconnected) — tell server directly
+    try {
+        apiSocket.send('session-end', { sid: sessionId, time: Date.now() });
+    } catch {
+        // Best-effort
+    }
+    return { success: true, message: 'Session archived (process already exited)' };
+}
+
+/**
  * Permanently delete a session from the server
  * This will remove the session and all its associated data (messages, usage reports, access keys)
  * The session should be inactive/archived before deletion

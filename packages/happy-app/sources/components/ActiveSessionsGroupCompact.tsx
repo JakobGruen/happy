@@ -12,7 +12,7 @@ import { StatusDot } from './StatusDot';
 import { useAllMachines, useSetting, useRealtimeSessionId, useRealtimeStatus } from '@/sync/storage';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { isMachineOnline } from '@/utils/machineUtils';
-import { machineSpawnNewSession, sessionKill } from '@/sync/ops';
+import { machineSpawnNewSession, sessionArchive } from '@/sync/ops';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { storage } from '@/sync/storage';
 import { Modal } from '@/modal';
@@ -22,6 +22,7 @@ import { useIsTablet } from '@/utils/responsive';
 import { ProjectGitStatus } from './ProjectGitStatus';
 import { useHappyAction } from '@/hooks/useHappyAction';
 import { HappyError } from '@/utils/errors';
+import { CompactMemoryBadge } from '@/components/CompactMemoryBadge';
 
 const stylesheet = StyleSheet.create((theme, runtime) => ({
     container: {
@@ -304,7 +305,7 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
         && (realtimeStatus === 'connected' || realtimeStatus === 'connecting');
 
     const [archivingSession, performArchive] = useHappyAction(async () => {
-        const result = await sessionKill(session.id);
+        const result = await sessionArchive(session.id);
         if (!result.success) {
             throw new HappyError(result.message || t('sessionInfo.failedToArchiveSession'), false);
         }
@@ -407,6 +408,7 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
                     >
                         {sessionName}
                     </Text>
+                    <CompactMemoryBadge sessionId={session.id} machineId={session.metadata?.machineId} />
                 </View>
             </View>
         </Pressable>
