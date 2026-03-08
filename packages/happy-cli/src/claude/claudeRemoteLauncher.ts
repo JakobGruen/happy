@@ -11,7 +11,7 @@ import { formatClaudeMessageForInk } from "@/ui/messageFormatterInk";
 import { logger } from "@/ui/logger";
 import { SDKToLogConverter, getGitBranchAsync } from "./utils/sdkToLogConverter";
 import { normalizeModelCode } from "@jakobgruen/happy-wire";
-import { PLAN_FAKE_REJECT, PLAN_FAKE_RESTART } from "./sdk/prompts";
+import { PLAN_FAKE_REJECT } from "./sdk/prompts";
 import { EnhancedMode, PermissionMode } from "./loop";
 import { RawJSONLines } from "@/claude/types";
 import { OutgoingMessageQueue } from "./utils/OutgoingMessageQueue";
@@ -97,29 +97,14 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     session.client.rpcHandlerManager.registerHandler('switch', doSwitch); // When switch clicked
 
     // Switch permission mode directly (from voice agent or app)
+    // Mode takes effect on the next user message via mode hash mismatch → CC restart.
+    // No queue injection — switching modes while CC is idle should NOT trigger a turn.
     session.client.rpcHandlerManager.registerHandler<{ mode: PermissionMode }, void>(
         'switch-permission-mode', async (data) => {
             const { mode } = data;
             const previousMode = permissionHandler.getPermissionMode();
             logger.debug(`[remote]: Permission mode switch: ${previousMode} → ${mode}`);
             permissionHandler.handleModeChange(mode);
-
-            // If plan dimension changed, inject a queue message to trigger SDK restart
-            const wasPlan = previousMode === 'plan';
-            const isPlan = mode === 'plan';
-
-            if (wasPlan !== isPlan) {
-                if (isPlan) {
-                    // Entering plan mode — inject instruction for Claude
-                    session.queue.unshift(
-                        'Enter plan mode. Use the EnterPlanMode tool.',
-                        { permissionMode: 'plan' } as EnhancedMode
-                    );
-                } else {
-                    // Leaving plan mode — use same restart pattern as plan approval
-                    session.queue.unshift(PLAN_FAKE_RESTART, { permissionMode: mode } as EnhancedMode);
-                }
-            }
 
             // Sync metadata so app shows correct mode on reload
             session.client.updateMetadata((m) => ({ ...m, currentOperatingModeCode: mode }));
