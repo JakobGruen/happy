@@ -28,7 +28,7 @@ import { claudeLocal } from '@/claude/claudeLocal';
 import { createSessionScanner } from '@/claude/utils/sessionScanner';
 import { Session } from './session';
 import { applySandboxPermissionPolicy, resolveInitialClaudePermissionMode } from './utils/permissionMode';
-import { getClaudeModels, getClaudeOperatingModes, normalizeModelCode } from '@slopus/happy-wire';
+import { getClaudeModels, getClaudeOperatingModes, normalizeModelCode } from '@jakobgruen/happy-wire';
 
 /** JavaScript runtime to use for spawning Claude Code */
 export type JsRuntime = 'node' | 'bun'

@@ -11,7 +11,7 @@ import { AsyncLock } from '@/utils/lock';
 import { RpcHandlerManager } from './rpc/RpcHandlerManager';
 import { registerCommonHandlers } from '../modules/common/registerCommonHandlers';
 import { calculateCost } from '@/utils/pricing';
-import { type SessionEnvelope, type SessionTurnEndStatus, type TurnEndStats } from '@slopus/happy-wire';
+import { type SessionEnvelope, type SessionTurnEndStatus, type TurnEndStats } from '@jakobgruen/happy-wire';
 import {
     closeClaudeTurnWithStatus,
     mapClaudeLogMessageToSessionEnvelopes,

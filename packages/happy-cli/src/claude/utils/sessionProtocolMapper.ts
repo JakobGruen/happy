@@ -5,7 +5,7 @@ import {
     type SessionEnvelope,
     type SessionTurnEndStatus,
     type TurnEndStats,
-} from '@slopus/happy-wire';
+} from '@jakobgruen/happy-wire';
 
 export type ClaudeSessionProtocolState = {
     currentTurnId: string | null;

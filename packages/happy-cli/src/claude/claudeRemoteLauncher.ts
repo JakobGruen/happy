@@ -10,7 +10,7 @@ import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "./sdk";
 import { formatClaudeMessageForInk } from "@/ui/messageFormatterInk";
 import { logger } from "@/ui/logger";
 import { SDKToLogConverter, getGitBranchAsync } from "./utils/sdkToLogConverter";
-import { normalizeModelCode } from "@slopus/happy-wire";
+import { normalizeModelCode } from "@jakobgruen/happy-wire";
 import { PLAN_FAKE_REJECT, PLAN_FAKE_RESTART } from "./sdk/prompts";
 import { EnhancedMode, PermissionMode } from "./loop";
 import { RawJSONLines } from "@/claude/types";
