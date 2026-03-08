@@ -2,6 +2,7 @@ import { ApiClient, ApiSessionClient } from "@/lib";
 import { MessageQueue2 } from "@/utils/MessageQueue2";
 import { EnhancedMode } from "./loop";
 import { logger } from "@/ui/logger";
+import { notifyDaemonSessionActivity } from "@/daemon/controlClient";
 import type { JsRuntime } from "./runClaude";
 import type { SandboxConfig } from "@/persistence";
 
@@ -31,6 +32,10 @@ export class Session {
     
     /** Keep alive interval reference for cleanup */
     private keepAliveInterval: NodeJS.Timeout;
+
+    /** Timestamp of last daemon activity report (throttled to once per 5 minutes) */
+    private lastDaemonActivityReport: number = 0;
+    private static readonly DAEMON_ACTIVITY_THROTTLE_MS = 5 * 60 * 1000;
 
     constructor(opts: {
         api: ApiClient,
@@ -69,6 +74,10 @@ export class Session {
         this.client.keepAlive(this.thinking, this.mode);
         this.keepAliveInterval = setInterval(() => {
             this.client.keepAlive(this.thinking, this.mode);
+            // When agent is actively thinking, report activity to daemon
+            if (this.thinking) {
+                this.reportActivityToDaemon();
+            }
         }, 2000);
     }
     
@@ -81,9 +90,23 @@ export class Session {
         logger.debug('[Session] Cleaned up resources');
     }
 
+    /**
+     * Notify the daemon that this session is actively working.
+     * Throttled to once per 5 minutes to avoid overhead.
+     */
+    private reportActivityToDaemon(): void {
+        const now = Date.now();
+        if (now - this.lastDaemonActivityReport < Session.DAEMON_ACTIVITY_THROTTLE_MS) return;
+        this.lastDaemonActivityReport = now;
+        notifyDaemonSessionActivity();
+    }
+
     onThinkingChange = (thinking: boolean) => {
         this.thinking = thinking;
         this.client.keepAlive(thinking, this.mode);
+        if (thinking) {
+            this.reportActivityToDaemon();
+        }
     }
 
     onModeChange = (mode: 'local' | 'remote') => {
