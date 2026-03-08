@@ -310,7 +310,9 @@ export const ja: TranslationStructure = {
         sessionType: {
             title: 'セッションタイプ',
             simple: 'シンプル',
+            simpleDesc: '現在のディレクトリで実行',
             worktree: 'ワークツリー',
+            worktreeDesc: '独立したgitブランチ — メインに影響を与えません',
             comingSoon: '近日公開',
         },
         worktree: {
@@ -333,6 +335,7 @@ export const ja: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'メッセージを入力...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -792,6 +795,11 @@ export const ja: TranslationStructure = {
         archivedManual: '手動停止',
         archivedCrash: '終了',
         archivedOrphan: '孤立プロセスの整理',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: 'このworktreeを削除しますか？',
+            deleteWarning: 'アクティブなセッションがこのworktreeを使用しています。先にセッションを停止してください。',
+        },
     },
 
     message: {

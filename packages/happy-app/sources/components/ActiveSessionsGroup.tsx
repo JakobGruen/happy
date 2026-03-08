@@ -17,6 +17,8 @@ import { storage } from '@/sync/storage';
 import { Modal } from '@/modal';
 import { CompactGitStatus } from './CompactGitStatus';
 import { CompactMemoryBadge } from '@/components/CompactMemoryBadge';
+import { CompactBranchBadge } from '@/components/CompactBranchBadge';
+import { isWorktreePath, formatWorktreeSubtitle } from '@/utils/worktreeUtils';
 import { ProjectGitStatus } from './ProjectGitStatus';
 import { t } from '@/text';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
@@ -247,7 +249,9 @@ export function ActiveSessionsGroup({ sessions, selectedSessionId }: ActiveSessi
             // Get or create project group
             let projectGroup = groups.get(projectPath);
             if (!projectGroup) {
-                const displayPath = formatPathRelativeToHome(projectPath, session.metadata?.homeDir);
+                const displayPath = isWorktreePath(projectPath)
+                    ? formatWorktreeSubtitle(projectPath, null, session.metadata?.homeDir)
+                    : formatPathRelativeToHome(projectPath, session.metadata?.homeDir);
                 projectGroup = {
                     path: projectPath,
                     displayPath,
@@ -458,6 +462,9 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
                                 />
                             </View>
                         )}
+
+                        {/* Branch badge */}
+                        <CompactBranchBadge sessionId={session.id} sessionPath={session.metadata?.path} />
 
                         {/* Memory badge */}
                         <CompactMemoryBadge sessionId={session.id} machineId={session.metadata?.machineId} />

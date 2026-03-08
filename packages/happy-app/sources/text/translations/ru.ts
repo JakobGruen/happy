@@ -260,7 +260,9 @@ export const ru: TranslationStructure = {
         sessionType: {
             title: 'Тип сессии',
             simple: 'Простая',
+            simpleDesc: 'Запуск в текущей директории',
             worktree: 'Worktree',
+            worktreeDesc: 'Изолированная ветка git — изменения не затрагивают основную',
             comingSoon: 'Скоро будет доступно',
         },
         worktree: {
@@ -393,6 +395,7 @@ export const ru: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Введите сообщение...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -758,6 +761,11 @@ export const ru: TranslationStructure = {
         archivedManual: 'Остановлено вручную',
         archivedCrash: 'Завершилось',
         archivedOrphan: 'Очистка сирот',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: 'Удалить этот worktree?',
+            deleteWarning: 'Активная сессия использует этот worktree. Сначала остановите сессию.',
+        },
     },
 
     message: {

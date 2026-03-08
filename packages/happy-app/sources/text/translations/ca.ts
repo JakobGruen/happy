@@ -278,7 +278,9 @@ export const ca: TranslationStructure = {
         sessionType: {
             title: 'Tipus de sessió',
             simple: 'Simple',
+            simpleDesc: 'Executa al directori actual',
             worktree: 'Worktree',
+            worktreeDesc: 'Branca git aïllada — els canvis no afecten la principal',
             comingSoon: 'Properament',
         },
         worktree: {
@@ -301,6 +303,7 @@ export const ca: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Escriu un missatge...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -760,6 +763,11 @@ export const ca: TranslationStructure = {
         archivedManual: 'Aturada manualment',
         archivedCrash: 'Finalitzada',
         archivedOrphan: 'Neteja d\'òrfenes',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: 'Eliminar aquest worktree?',
+            deleteWarning: 'Una sessió activa està utilitzant aquest worktree. Atura la sessió primer.',
+        },
     },
 
     message: {

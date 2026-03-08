@@ -280,7 +280,9 @@ export const zhHans: TranslationStructure = {
         sessionType: {
             title: '会话类型',
             simple: '简单',
+            simpleDesc: '在当前目录中运行',
             worktree: 'Worktree',
+            worktreeDesc: '独立的 git 分支 — 更改不影响主分支',
             comingSoon: '即将推出',
         },
         worktree: {
@@ -303,6 +305,7 @@ export const zhHans: TranslationStructure = {
 
     session: {
         inputPlaceholder: '输入消息...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -762,6 +765,11 @@ export const zhHans: TranslationStructure = {
         archivedManual: '手动停止',
         archivedCrash: '已退出',
         archivedOrphan: '孤立进程清理',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: '删除此 worktree？',
+            deleteWarning: '有活跃会话正在使用此 worktree。请先停止会话。',
+        },
     },
 
     message: {

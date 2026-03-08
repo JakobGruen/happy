@@ -19,6 +19,7 @@ import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { machineSpawnNewSession } from '@/sync/ops';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { MultiTextInput, type MultiTextInputHandle } from '@/components/MultiTextInput';
+import { WorktreeListSection } from '@/components/WorktreeListSection';
 
 const styles = StyleSheet.create((theme) => ({
     pathInputContainer: {
@@ -558,6 +559,9 @@ export default function MachineDetailScreen() {
                         </ItemGroup>
                     );
                 })()}
+
+                {/* Worktrees */}
+                <WorktreeListSection machineId={machineId!} isOnline={isMachineOnline(machine)} />
 
                 {/* Recently Closed audit log */}
                 {machine.daemonState?.recentlyArchived?.length > 0 && (

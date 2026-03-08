@@ -279,7 +279,9 @@ export const zhHant: TranslationStructure = {
         sessionType: {
             title: '工作階段類型',
             simple: '簡單',
+            simpleDesc: '在目前目錄中執行',
             worktree: 'Worktree',
+            worktreeDesc: '獨立的 git 分支 — 更改不影響主分支',
             comingSoon: '即將推出',
         },
         worktree: {
@@ -302,6 +304,7 @@ export const zhHant: TranslationStructure = {
 
     session: {
         inputPlaceholder: '輸入訊息...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -761,6 +764,11 @@ export const zhHant: TranslationStructure = {
         archivedManual: '手動停止',
         archivedCrash: '已結束',
         archivedOrphan: '孤立程序清理',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: '刪除此 worktree？',
+            deleteWarning: '有活躍工作階段正在使用此 worktree。請先停止工作階段。',
+        },
     },
 
     message: {

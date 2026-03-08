@@ -277,7 +277,9 @@ export const en = {
         sessionType: {
             title: 'Session Type',
             simple: 'Simple',
+            simpleDesc: 'Run in the current directory',
             worktree: 'Worktree',
+            worktreeDesc: 'Isolated git branch — changes don\'t affect main',
             comingSoon: 'Coming soon',
         },
         worktree: {
@@ -300,6 +302,7 @@ export const en = {
 
     session: {
         inputPlaceholder: 'Type a message ...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -759,6 +762,11 @@ export const en = {
         archivedManual: 'Manually stopped',
         archivedCrash: 'Exited',
         archivedOrphan: 'Orphan cleanup',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: 'Delete this worktree?',
+            deleteWarning: 'An active session is using this worktree. Stop the session first.',
+        },
     },
 
     message: {

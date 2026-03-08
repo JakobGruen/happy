@@ -293,7 +293,9 @@ export const en: TranslationStructure = {
         sessionType: {
             title: 'Session Type',
             simple: 'Simple',
+            simpleDesc: 'Run in the current directory',
             worktree: 'Worktree',
+            worktreeDesc: 'Isolated git branch — changes don\'t affect main',
             comingSoon: 'Coming soon',
         },
         worktree: {
@@ -316,6 +318,7 @@ export const en: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Type a message ...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -775,6 +778,11 @@ export const en: TranslationStructure = {
         archivedManual: 'Manually stopped',
         archivedCrash: 'Exited',
         archivedOrphan: 'Orphan cleanup',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: 'Delete this worktree?',
+            deleteWarning: 'An active session is using this worktree. Stop the session first.',
+        },
     },
 
     message: {
