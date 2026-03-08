@@ -166,9 +166,11 @@ Each package has its own `CLAUDE.md` with package-specific conventions, patterns
 
 `docs/` contains detailed architecture references. Check these before reading source code for these topics:
 
+- `docs/README.md` — Index of all docs, start here
 - `docs/protocol.md` — WebSocket payload formats, sequencing, concurrency rules
 - `docs/encryption.md` — Encryption boundaries and on-wire encoding
 - `docs/session-protocol.md` — Unified encrypted chat event protocol (9 event types)
+- `docs/session-protocol-claude.md` — Claude launcher session protocol emit paths and deduplication
 - `docs/permission-resolution.md` — Permission mode resolution (sandbox, auto, manual)
 - `docs/backend-architecture.md` — Internal backend data flow and key subsystems
 - `docs/cli-architecture.md` — CLI and daemon architecture

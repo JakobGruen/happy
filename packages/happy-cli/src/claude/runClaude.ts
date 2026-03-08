@@ -28,6 +28,7 @@ import { claudeLocal } from '@/claude/claudeLocal';
 import { createSessionScanner } from '@/claude/utils/sessionScanner';
 import { Session } from './session';
 import { applySandboxPermissionPolicy, resolveInitialClaudePermissionMode } from './utils/permissionMode';
+import { getClaudeModels, normalizeModelCode } from '@slopus/happy-wire';
 
 /** JavaScript runtime to use for spawning Claude Code */
 export type JsRuntime = 'node' | 'bun'
@@ -115,6 +116,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         flavor: 'claude',
         sandbox: sandboxConfig?.enabled ? sandboxConfig : null,
         dangerouslySkipPermissions,
+        models: getClaudeModels(),
+        currentOperatingModeCode: initialPermissionMode,
+        ...(options.model ? { currentModelCode: normalizeModelCode(options.model) } : {}),
     };
     const response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
 
@@ -270,6 +274,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         if (message.meta?.permissionMode) {
             messagePermissionMode = applySandboxPermissionPolicy(message.meta.permissionMode, sandboxEnabled);
             currentPermissionMode = messagePermissionMode;
+            session.updateMetadata((m) => ({ ...m, currentOperatingModeCode: currentPermissionMode }));
             logger.debug(`[loop] Permission mode updated from user message to: ${currentPermissionMode}`);
         } else {
             logger.debug(`[loop] User message received with no permission mode override, using current: ${currentPermissionMode}`);
@@ -280,6 +285,10 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         if (message.meta?.hasOwnProperty('model')) {
             messageModel = message.meta.model || undefined; // null becomes undefined
             currentModel = messageModel;
+            session.updateMetadata((m) => ({
+                ...m,
+                currentModelCode: currentModel ? normalizeModelCode(currentModel) : 'default',
+            }));
             logger.debug(`[loop] Model updated from user message: ${messageModel || 'reset to default'}`);
         } else {
             logger.debug(`[loop] User message received with no model override, using current: ${currentModel || 'default'}`);

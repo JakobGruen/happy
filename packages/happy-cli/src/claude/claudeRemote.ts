@@ -1,5 +1,6 @@
 import { EnhancedMode } from "./loop";
-import { query, type QueryOptions, type SDKMessage, type SDKSystemMessage, AbortError, SDKUserMessage } from '@/claude/sdk'
+import { query, type QueryOptions, type SDKMessage, type SDKSystemMessage, type SDKResultMessage, AbortError, SDKUserMessage } from '@/claude/sdk'
+import type { TurnEndStats } from '@slopus/happy-wire';
 import { mapToClaudeMode } from "./utils/permissionMode";
 import { claudeCheckSession } from "./utils/claudeCheckSession";
 import { join, resolve } from 'node:path';
@@ -31,11 +32,12 @@ export async function claudeRemote(opts: {
 
     // Dynamic parameters
     nextMessage: () => Promise<{ message: string, mode: EnhancedMode } | null>,
-    onReady: () => void,
+    onReady: (stats?: TurnEndStats) => void,
     isAborted: (toolCallId: string) => boolean,
 
     // Callbacks
     onSessionFound: (id: string) => void,
+    onModelDetected?: (model: string) => void,
     onThinkingChange?: (thinking: boolean) => void,
     onMessage: (message: SDKMessage) => void,
     onCompletionEvent?: (message: string) => void,
@@ -178,6 +180,11 @@ export async function claudeRemote(opts: {
 
                 const systemInit = message as SDKSystemMessage;
 
+                // Notify active model from SDK init
+                if (systemInit.model && opts.onModelDetected) {
+                    opts.onModelDetected(systemInit.model);
+                }
+
                 // Session id is still in memory, wait until session file is written to disk
                 // Start a watcher for to detect the session id
                 if (systemInit.session_id) {
@@ -203,8 +210,13 @@ export async function claudeRemote(opts: {
                     isCompactCommand = false;
                 }
 
-                // Send ready event
-                opts.onReady();
+                // Send ready event with result stats
+                const resultMsg = message as SDKResultMessage;
+                opts.onReady({
+                    durationMs: resultMsg.duration_ms,
+                    numTurns: resultMsg.num_turns,
+                    costUsd: resultMsg.total_cost_usd,
+                });
 
                 // Push next message
                 const next = await opts.nextMessage();

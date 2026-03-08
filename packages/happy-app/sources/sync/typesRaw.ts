@@ -92,6 +92,9 @@ const sessionStartEventSchema = z.object({
 const sessionTurnEndEventSchema = z.object({
     t: z.literal('turn-end'),
     status: z.enum(['completed', 'failed', 'cancelled']),
+    durationMs: z.number().optional(),
+    numTurns: z.number().optional(),
+    costUsd: z.number().optional(),
 });
 
 const sessionStopEventSchema = z.object({

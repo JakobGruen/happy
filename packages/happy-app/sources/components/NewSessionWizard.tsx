@@ -1627,7 +1627,6 @@ export function NewSessionWizard({ onComplete, onCancel, initialPrompt = '' }: N
                         <ItemGroup title="Model Mode">
                             {(agentType === 'claude' ? [
                                 { value: 'default', label: 'Default', description: 'Balanced performance', icon: 'cube-outline' },
-                                { value: 'adaptiveUsage', label: 'Adaptive Usage', description: 'Automatically choose model', icon: 'analytics-outline' },
                                 { value: 'sonnet', label: 'Sonnet', description: 'Fast and efficient', icon: 'speedometer-outline' },
                                 { value: 'opus', label: 'Opus', description: 'Most capable model', icon: 'diamond-outline' },
                             ] as const : [

@@ -71,7 +71,6 @@ export function getGeminiPermissionModes(translate: Translate): PermissionMode[]
 export function getClaudeModelModes(): ModelMode[] {
     return [
         { key: 'default', name: 'Default', description: 'Use CLI settings' },
-        { key: 'adaptiveUsage', name: 'Adaptive Usage', description: 'Balanced model routing' },
         { key: 'sonnet', name: 'Sonnet', description: 'Fast and capable' },
         { key: 'opus', name: 'Opus', description: 'Most capable' },
     ];

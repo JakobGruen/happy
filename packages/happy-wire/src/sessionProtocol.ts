@@ -58,7 +58,15 @@ export type SessionTurnEndStatus = z.infer<typeof sessionTurnEndStatusSchema>;
 export const sessionTurnEndEventSchema = z.object({
   t: z.literal('turn-end'),
   status: sessionTurnEndStatusSchema,
+  durationMs: z.number().optional(),
+  numTurns: z.number().optional(),
+  costUsd: z.number().optional(),
 });
+
+export type TurnEndStats = Pick<
+  z.infer<typeof sessionTurnEndEventSchema>,
+  'durationMs' | 'numTurns' | 'costUsd'
+>;
 
 export const sessionStopEventSchema = z.object({
   t: z.literal('stop'),

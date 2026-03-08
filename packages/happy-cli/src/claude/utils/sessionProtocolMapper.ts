@@ -4,6 +4,7 @@ import {
     createEnvelope,
     type SessionEnvelope,
     type SessionTurnEndStatus,
+    type TurnEndStats,
 } from '@slopus/happy-wire';
 
 export type ClaudeSessionProtocolState = {
@@ -386,12 +387,13 @@ function closeTurn(
     state: ClaudeSessionProtocolState,
     status: SessionTurnEndStatus,
     envelopes: SessionEnvelope[],
+    stats?: TurnEndStats,
 ): void {
     if (!state.currentTurnId) {
         return;
     }
 
-    envelopes.push(createEnvelope('agent', { t: 'turn-end', status }, { turn: state.currentTurnId }));
+    envelopes.push(createEnvelope('agent', { t: 'turn-end', status, ...stats }, { turn: state.currentTurnId }));
     state.currentTurnId = null;
     clearSubagentTracking(state);
 }
@@ -419,9 +421,10 @@ function toToolArgs(input: unknown): Record<string, unknown> {
 export function closeClaudeTurnWithStatus(
     state: ClaudeSessionProtocolState,
     status: SessionTurnEndStatus,
+    stats?: TurnEndStats,
 ): ClaudeMapperResult {
     const envelopes: SessionEnvelope[] = [];
-    closeTurn(state, status, envelopes);
+    closeTurn(state, status, envelopes, stats);
     return {
         currentTurnId: state.currentTurnId,
         envelopes,
