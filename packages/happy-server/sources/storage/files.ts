@@ -36,7 +36,11 @@ export async function loadFiles() {
         fs.mkdirSync(localFilesDir, { recursive: true });
         return;
     }
-    await s3client.bucketExists(s3bucket);
+    try {
+        await s3client.bucketExists(s3bucket);
+    } catch (error) {
+        console.warn(`S3 connectivity check failed for bucket "${s3bucket}" — server will start but file uploads may fail:`, error);
+    }
 }
 
 export function getPublicUrl(filePath: string) {
