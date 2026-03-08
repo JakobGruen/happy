@@ -32,6 +32,8 @@ export type UserTextMessage = {
     createdAt: number;
     text: string;
     displayText?: string; // Optional text to display in UI instead of actual text
+    commandName?: string; // Detected skill/command name, e.g. "/feature-dev"
+    commandBody?: string; // Full prompt body for collapsible display
     meta?: MessageMeta;
 }
 

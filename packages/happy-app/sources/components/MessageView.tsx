@@ -1,6 +1,7 @@
 import * as React from "react";
-import { View, Text } from "react-native";
+import { View, Text, Pressable, Platform } from "react-native";
 import { StyleSheet } from 'react-native-unistyles';
+import { Ionicons } from '@expo/vector-icons';
 import { MarkdownView } from "./markdown/MarkdownView";
 import { t } from '@/text';
 import { Message, UserTextMessage, AgentTextMessage, ToolCallMessage } from "@/sync/typesMessage";
@@ -73,6 +74,10 @@ function UserTextBlock(props: {
     sync.sendMessage(props.sessionId, option.title);
   }, [props.sessionId]);
 
+  if (props.message.commandName) {
+    return <CommandMessageBlock message={props.message} />;
+  }
+
   return (
     <View style={styles.userMessageContainer}>
       <View style={styles.userMessageBubble}>
@@ -81,6 +86,38 @@ function UserTextBlock(props: {
           <Text style={styles.debugText}>{JSON.stringify(props.message.meta)}</Text>
         )} */}
       </View>
+    </View>
+  );
+}
+
+function CommandMessageBlock(props: {
+  message: UserTextMessage;
+}) {
+  const [expanded, setExpanded] = React.useState(false);
+
+  return (
+    <View style={commandStyles.container}>
+      <Pressable
+        onPress={() => setExpanded(v => !v)}
+        style={commandStyles.header}
+      >
+        <View style={commandStyles.headerLeft}>
+          <Ionicons name="sparkles-outline" size={18} style={commandStyles.icon} />
+          <Text style={commandStyles.title} numberOfLines={1}>
+            {props.message.commandName}
+          </Text>
+        </View>
+        <Ionicons
+          name={expanded ? 'chevron-down' : 'chevron-forward'}
+          size={18}
+          style={commandStyles.chevron}
+        />
+      </Pressable>
+      {expanded && props.message.commandBody && (
+        <View style={commandStyles.body}>
+          <MarkdownView markdown={props.message.commandBody} />
+        </View>
+      )}
     </View>
   );
 }
@@ -254,5 +291,43 @@ const statsStyles = StyleSheet.create((theme) => ({
     fontSize: 12,
     color: theme.colors.textSecondary,
     opacity: 0.7,
+  },
+}));
+
+const commandStyles = StyleSheet.create((theme) => ({
+  container: {
+    marginHorizontal: 8,
+    marginVertical: 4,
+    borderRadius: 8,
+    backgroundColor: theme.colors.surfaceHigh,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: theme.colors.surfaceHighest,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  icon: {
+    color: theme.colors.text,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.text,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+  },
+  chevron: {
+    color: theme.colors.textSecondary,
+  },
+  body: {
+    padding: 12,
   },
 }));
