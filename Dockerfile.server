@@ -25,11 +25,8 @@ COPY packages/happy-cli/tools packages/happy-cli/tools
 
 # Install without running workspace postinstall scripts (happy-app needs patch-package which isn't available here)
 RUN SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines --ignore-scripts
-# Rebuild native modules (sharp etc.) that need compilation
-RUN npm rebuild
-# Run only the root postinstall (applies patches, skips wire build via SKIP_HAPPY_WIRE_BUILD)
+# Apply patches and generate Prisma client (skipped by --ignore-scripts)
 RUN SKIP_HAPPY_WIRE_BUILD=1 node scripts/postinstall.cjs
-# Generate Prisma client (skipped by --ignore-scripts)
 RUN cd packages/happy-server && npx prisma generate
 
 # Stage 2: build the server
