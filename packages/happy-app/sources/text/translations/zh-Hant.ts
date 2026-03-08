@@ -795,6 +795,21 @@ export const zhHant: TranslationStructure = {
         }
     },
 
+    // Dynamic permission suggestion labels (from CC permission_suggestions)
+    permissions: {
+        forSession: '此工作階段',
+        forProject: '此專案',
+        forAllProjects: '所有專案',
+        allowTool: ({ tool, scope }: { tool: string; scope: string }) => `允許 ${tool} 用於${scope}`,
+        denyTool: ({ tool, scope }: { tool: string; scope: string }) => `拒絕 ${tool} 用於${scope}`,
+        acceptAllEdits: ({ scope }: { scope: string }) => `接受${scope}的所有編輯`,
+        bypassPermissions: ({ scope }: { scope: string }) => `繞過${scope}的所有權限`,
+        planMode: ({ scope }: { scope: string }) => `${scope}的規劃模式`,
+        setMode: ({ mode, scope }: { mode: string; scope: string }) => `為${scope}設定 ${mode}`,
+        addDirectories: ({ scope }: { scope: string }) => `為${scope}新增目錄`,
+        applySuggestion: '套用建議',
+    },
+
     textSelection: {
         // Text selection screen
         selectText: '選擇文字範圍',

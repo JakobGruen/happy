@@ -826,6 +826,21 @@ export const ja: TranslationStructure = {
         }
     },
 
+    // Dynamic permission suggestion labels (from CC permission_suggestions)
+    permissions: {
+        forSession: 'このセッション',
+        forProject: 'このプロジェクト',
+        forAllProjects: 'すべてのプロジェクト',
+        allowTool: ({ tool, scope }: { tool: string; scope: string }) => `${scope}で${tool}を許可`,
+        denyTool: ({ tool, scope }: { tool: string; scope: string }) => `${scope}で${tool}を拒否`,
+        acceptAllEdits: ({ scope }: { scope: string }) => `${scope}のすべての編集を承認`,
+        bypassPermissions: ({ scope }: { scope: string }) => `${scope}のすべての権限をバイパス`,
+        planMode: ({ scope }: { scope: string }) => `${scope}のプランモード`,
+        setMode: ({ mode, scope }: { mode: string; scope: string }) => `${scope}で${mode}を設定`,
+        addDirectories: ({ scope }: { scope: string }) => `${scope}にディレクトリを追加`,
+        applySuggestion: '提案を適用',
+    },
+
     textSelection: {
         // Text selection screen
         selectText: 'テキスト範囲を選択',

@@ -804,6 +804,21 @@ export const pl: TranslationStructure = {
         }
     },
 
+    // Dynamic permission suggestion labels (from CC permission_suggestions)
+    permissions: {
+        forSession: 'tę sesję',
+        forProject: 'ten projekt',
+        forAllProjects: 'wszystkie projekty',
+        allowTool: ({ tool, scope }: { tool: string; scope: string }) => `Zezwól na ${tool} dla ${scope}`,
+        denyTool: ({ tool, scope }: { tool: string; scope: string }) => `Odmów ${tool} dla ${scope}`,
+        acceptAllEdits: ({ scope }: { scope: string }) => `Akceptuj wszystkie edycje dla ${scope}`,
+        bypassPermissions: ({ scope }: { scope: string }) => `Pomiń wszystkie uprawnienia dla ${scope}`,
+        planMode: ({ scope }: { scope: string }) => `Tryb planowania dla ${scope}`,
+        setMode: ({ mode, scope }: { mode: string; scope: string }) => `Ustaw ${mode} dla ${scope}`,
+        addDirectories: ({ scope }: { scope: string }) => `Dodaj katalogi dla ${scope}`,
+        applySuggestion: 'Zastosuj sugestię',
+    },
+
     textSelection: {
         // Text selection screen
         selectText: 'Wybierz zakres tekstu',

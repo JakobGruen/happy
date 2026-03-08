@@ -1,6 +1,6 @@
 /**
  * Permission Handler for canCallTool integration
- * 
+ *
  * Replaces the MCP permission server with direct SDK integration.
  * Handles tool permission requests, responses, and state management.
  */
@@ -8,7 +8,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { logger } from "@/lib";
 import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "../sdk";
-import { PermissionResult } from "../sdk/types";
+import { PermissionResult, PermissionUpdate, ToolPermissionContext } from "../sdk/types";
 import { PLAN_FAKE_REJECT, PLAN_FAKE_RESTART } from "../sdk/prompts";
 import { Session } from "../session";
 import { getToolName } from "./getToolName";
@@ -24,6 +24,7 @@ interface PermissionResponse {
     allowTools?: string[];
     receivedAt?: number;
     answers?: Record<string, string>;
+    updatedPermissions?: PermissionUpdate[];
 }
 
 
@@ -32,6 +33,13 @@ interface PendingRequest {
     reject: (error: Error) => void;
     toolName: string;
     input: unknown;
+}
+
+/** Extra context from CC's permission request, threaded to agent state */
+interface PermissionRequestContext {
+    permissionSuggestions?: PermissionUpdate[];
+    decisionReason?: string;
+    description?: string;
 }
 
 export class PermissionHandler {
@@ -49,7 +57,7 @@ export class PermissionHandler {
         this.session = session;
         this.setupClientHandler();
     }
-    
+
     /**
      * Set callback to trigger when permission request is made
      */
@@ -89,7 +97,7 @@ export class PermissionHandler {
             this.permissionMode = response.mode;
         }
 
-        // Handle 
+        // Handle
         if (pending.toolName === 'exit_plan_mode' || pending.toolName === 'ExitPlanMode') {
             // Handle exit_plan_mode specially
             logger.debug('Plan mode result received', response);
@@ -131,7 +139,12 @@ export class PermissionHandler {
                 const updatedInput = response.answers
                     ? { ...baseInput, answers: response.answers }
                     : baseInput;
-                pending.resolve({ behavior: 'allow', updatedInput });
+                const result: PermissionResult = { behavior: 'allow', updatedInput };
+                // Thread updatedPermissions from app back to CC so it persists the permission change
+                if (response.updatedPermissions?.length) {
+                    (result as { updatedPermissions?: PermissionUpdate[] }).updatedPermissions = response.updatedPermissions;
+                }
+                pending.resolve(result);
             } else {
                 pending.resolve({ behavior: 'deny', message: response.reason || `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.` });
             }
@@ -141,7 +154,7 @@ export class PermissionHandler {
     /**
      * Creates the canCallTool callback for the SDK
      */
-    handleToolCall = async (toolName: string, input: unknown, mode: EnhancedMode, options: { signal: AbortSignal }): Promise<PermissionResult> => {
+    handleToolCall = async (toolName: string, input: unknown, mode: EnhancedMode, options: ToolPermissionContext): Promise<PermissionResult> => {
 
         // Check if tool is explicitly allowed
         if (toolName === 'Bash') {
@@ -181,7 +194,8 @@ export class PermissionHandler {
         // Approval flow
         //
 
-        let toolCallId = this.resolveToolCallId(toolName, input);
+        // Use tool_use_id directly from CC when available (eliminates fragile ID matching)
+        let toolCallId = options.toolUseId ?? this.resolveToolCallId(toolName, input);
         if (!toolCallId) { // What if we got permission before tool call
             await delay(1000);
             toolCallId = this.resolveToolCallId(toolName, input);
@@ -189,7 +203,14 @@ export class PermissionHandler {
                 throw new Error(`Could not resolve tool call ID for ${toolName}`);
             }
         }
-        return this.handlePermissionRequest(toolCallId, toolName, input, options.signal);
+
+        const context: PermissionRequestContext = {
+            permissionSuggestions: options.permissionSuggestions,
+            decisionReason: options.decisionReason,
+            description: options.description,
+        };
+
+        return this.handlePermissionRequest(toolCallId, toolName, input, options.signal, context);
     }
 
     /**
@@ -199,7 +220,8 @@ export class PermissionHandler {
         id: string,
         toolName: string,
         input: unknown,
-        signal: AbortSignal
+        signal: AbortSignal,
+        context?: PermissionRequestContext
     ): Promise<PermissionResult> {
         return new Promise<PermissionResult>((resolve, reject) => {
             // Set up abort signal handling
@@ -227,7 +249,7 @@ export class PermissionHandler {
             if (this.onPermissionRequestCallback) {
                 this.onPermissionRequestCallback(id);
             }
-            
+
             // Send push notification
             this.session.api.push().sendToAllDevices(
                 'Permission Request',
@@ -240,7 +262,7 @@ export class PermissionHandler {
                 }
             );
 
-            // Update agent state
+            // Update agent state with CC's permission suggestions and context
             this.session.client.updateAgentState((currentState) => ({
                 ...currentState,
                 requests: {
@@ -248,7 +270,10 @@ export class PermissionHandler {
                     [id]: {
                         tool: toolName,
                         arguments: input,
-                        createdAt: Date.now()
+                        createdAt: Date.now(),
+                        permissionSuggestions: context?.permissionSuggestions,
+                        decisionReason: context?.decisionReason,
+                        description: context?.description,
                     }
                 }
             }));
@@ -270,13 +295,13 @@ export class PermissionHandler {
         // Match Bash(command) or Bash(command:*)
         const bashPattern = /^Bash\((.+?)\)$/;
         const match = permission.match(bashPattern);
-        
+
         if (!match) {
             return;
         }
 
         const command = match[1];
-        
+
         // Check if it's a prefix pattern (ends with :*)
         if (command.endsWith(':*')) {
             const prefix = command.slice(0, -2); // Remove :*
@@ -439,7 +464,8 @@ export class PermissionHandler {
                             status: message.approved ? 'approved' : 'denied',
                             reason: message.reason,
                             mode: message.mode,
-                            allowTools: message.allowTools
+                            allowTools: message.allowTools,
+                            updatedPermissions: message.updatedPermissions,
                         }
                     }
                 };
