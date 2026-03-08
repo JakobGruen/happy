@@ -30,6 +30,7 @@ import { isRunningOnMac } from '@/utils/platform';
 import { useDeviceType, useHeaderHeight, useIsLandscape, useIsTablet } from '@/utils/responsive';
 import { formatPathRelativeToHome, getSessionAvatarId, getSessionName, useSessionStatus } from '@/utils/sessionUtils';
 import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
+import { useCanReactivateSession } from '@/hooks/useCanReactivateSession';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as React from 'react';
@@ -176,6 +177,9 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     const isAcknowledged = machineId && acknowledgedCliVersions[machineId] === cliVersion;
     const shouldShowCliWarning = isCliOutdated && !isAcknowledged;
     const flavor = session.metadata?.flavor;
+
+    // Session reactivation — show banner when session is archived but can be revived
+    const { canReactivate, reactivating, performReactivate } = useCanReactivateSession(session);
     const availableModels = React.useMemo(() => (
         getAvailableModels(flavor, session.metadata, t)
     ), [flavor, session.metadata]);
@@ -387,6 +391,45 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                         {t('sessionInfo.cliVersionOutdated')}
                     </Text>
                     <Ionicons name="close" size={14} color="#856404" style={{ marginLeft: 8 }} />
+                </Pressable>
+            )}
+
+            {/* Reactivate banner — shown when session is archived and can be revived */}
+            {canReactivate && !(isLandscape && deviceType === 'phone') && (
+                <Pressable
+                    onPress={performReactivate}
+                    disabled={reactivating}
+                    style={{
+                        position: 'absolute',
+                        top: 8,
+                        alignSelf: 'center',
+                        backgroundColor: reactivating ? '#D4EDDA' : '#34C759',
+                        borderRadius: 100,
+                        paddingHorizontal: 14,
+                        paddingVertical: 7,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        zIndex: 998,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 4,
+                        elevation: 4,
+                        opacity: reactivating ? 0.7 : 1,
+                    }}
+                >
+                    {reactivating ? (
+                        <ActivityIndicator size="small" color="#fff" style={{ marginRight: 6 }} />
+                    ) : (
+                        <Ionicons name="play-circle-outline" size={14} color="#fff" style={{ marginRight: 6 }} />
+                    )}
+                    <Text style={{
+                        fontSize: 12,
+                        color: '#fff',
+                        fontWeight: '600'
+                    }}>
+                        {reactivating ? t('session.reactivating') : t('session.reactivateSession')}
+                    </Text>
                 </Pressable>
             )}
 

@@ -18,6 +18,7 @@ interface SessionPermissionRequest {
     allowTools?: string[];
     decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort';
     answers?: Record<string, string>;
+    updatedPermissions?: any[];
 }
 
 // Mode change operation types
@@ -312,8 +313,8 @@ export async function sessionAbort(sessionId: string): Promise<void> {
 /**
  * Allow a permission request
  */
-export async function sessionAllow(sessionId: string, id: string, mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan', allowedTools?: string[], decision?: 'approved' | 'approved_for_session', answers?: Record<string, string>): Promise<void> {
-    const request: SessionPermissionRequest = { id, approved: true, mode, allowTools: allowedTools, decision, answers };
+export async function sessionAllow(sessionId: string, id: string, mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan', allowedTools?: string[], decision?: 'approved' | 'approved_for_session', answers?: Record<string, string>, updatedPermissions?: any[]): Promise<void> {
+    const request: SessionPermissionRequest = { id, approved: true, mode, allowTools: allowedTools, decision, answers, updatedPermissions };
     await apiSocket.sessionRPC(sessionId, 'permission', request);
 }
 
@@ -488,6 +489,56 @@ export async function sessionKill(sessionId: string): Promise<SessionKillRespons
         return {
             success: false,
             message: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+}
+
+/**
+ * Reactivate an archived session on a machine — marks it active on the server,
+ * then spawns a CLI process that reconnects to the same happy session and
+ * resumes the Claude conversation via --resume.
+ */
+export async function machineResumeSession(options: {
+    machineId: string;
+    sessionId: string;
+    claudeSessionId: string;
+    directory: string;
+    token?: string;
+    agent?: 'codex' | 'claude' | 'gemini';
+    environmentVariables?: Record<string, string>;
+}): Promise<SpawnSessionResult> {
+    const { machineId, sessionId, claudeSessionId, directory, token, agent, environmentVariables } = options;
+
+    // Mark session active on server immediately
+    apiSocket.send('session-start', { sid: sessionId, time: Date.now() });
+
+    try {
+        const result = await apiSocket.machineRPC<SpawnSessionResult, {
+            type: 'spawn-in-directory';
+            directory: string;
+            happySessionId: string;
+            claudeSessionId: string;
+            approvedNewDirectoryCreation?: boolean;
+            token?: string;
+            agent?: 'codex' | 'claude' | 'gemini';
+            environmentVariables?: Record<string, string>;
+        }>(machineId, 'spawn-happy-session', {
+            type: 'spawn-in-directory',
+            directory,
+            happySessionId: sessionId,
+            claudeSessionId,
+            approvedNewDirectoryCreation: true,
+            token,
+            agent,
+            environmentVariables,
+        });
+        return result;
+    } catch (error) {
+        // Revert: mark session inactive again since spawn failed
+        try { apiSocket.send('session-end', { sid: sessionId, time: Date.now() }); } catch {}
+        return {
+            type: 'error',
+            errorMessage: error instanceof Error ? error.message : 'Failed to reactivate session'
         };
     }
 }

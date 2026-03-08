@@ -24,6 +24,7 @@ import { getTmuxUtilities, isTmuxAvailable, parseTmuxSessionIdentifier, formatTm
 import { expandEnvironmentVariables } from '@/utils/expandEnvVars';
 import { findIdleSessions } from './idleTimeout';
 import { collectMemoryStats } from './memoryStats';
+import { detectActiveProcesses } from './processActivity';
 
 // Prepare initial metadata
 export const initialMachineMetadata: MachineMetadata = {
@@ -417,6 +418,16 @@ export async function startDaemon(): Promise<void> {
           };
         }
 
+        // Pass resume env vars for session reactivation (before tmux/regular spawn paths)
+        if (options.claudeSessionId) {
+          extraEnv.HAPPY_RESUME_CLAUDE_SESSION_ID = options.claudeSessionId;
+          logger.debug(`[DAEMON RUN] Setting HAPPY_RESUME_CLAUDE_SESSION_ID for Claude --resume`);
+        }
+        if (options.happySessionId) {
+          extraEnv.HAPPY_RESUME_SESSION_ID = options.happySessionId;
+          logger.debug(`[DAEMON RUN] Setting HAPPY_RESUME_SESSION_ID for session revival: ${options.happySessionId}`);
+        }
+
         // Check if tmux is available and should be used
         const tmuxAvailable = await isTmuxAvailable();
         let useTmux = tmuxAvailable;
@@ -554,8 +565,6 @@ export async function startDaemon(): Promise<void> {
             '--started-by', 'daemon'
           ];
 
-          // TODO: In future, sessionId could be used with --resume to continue existing sessions
-          // For now, we ignore it - each spawn creates a new session
           const happyProcess = spawnHappyCLI(args, {
             cwd: directory,
             detached: true,  // Sessions stay alive when daemon stops
@@ -597,6 +606,11 @@ export async function startDaemon(): Promise<void> {
 
           pidToTrackedSession.set(happyProcess.pid, trackedSession);
           persistChildren();
+
+          // Track reactivation in audit trail
+          if (options.claudeSessionId) {
+            trackArchived(happyProcess.pid, options.happySessionId, 'reactivated');
+          }
 
           happyProcess.on('exit', (code, signal) => {
             logger.debug(`[DAEMON RUN] Child PID ${happyProcess.pid} exited with code ${code}, signal ${signal}`);
@@ -708,7 +722,15 @@ export async function startDaemon(): Promise<void> {
       stopSession,
       spawnSession,
       requestShutdown: () => requestShutdown('happy-cli'),
-      onHappySessionWebhook
+      onHappySessionWebhook,
+      onSessionActivity: (pid: number) => {
+        const session = pidToTrackedSession.get(pid);
+        if (session) {
+          session.lastActivityAt = Date.now();
+          logger.debug(`[DAEMON RUN] Activity reported for PID ${pid} (session: ${session.happySessionId || 'unknown'})`);
+          persistChildren();
+        }
+      }
     });
 
     // Write initial daemon state (no lock needed for state file)
@@ -760,7 +782,9 @@ export async function startDaemon(): Promise<void> {
     // 3. If outdated, restart with latest version
     // 4. Write heartbeat
     const heartbeatIntervalMs = parseInt(process.env.HAPPY_DAEMON_HEARTBEAT_INTERVAL || '60000');
-    let heartbeatRunning = false
+    let heartbeatRunning = false;
+    /** Tracks last known CPU ticks per PID for detecting active processes */
+    let lastKnownCpuTicks = new Map<number, number>();
     const restartOnStaleVersionAndHeartbeat = setInterval(async () => {
       if (heartbeatRunning) {
         return;
@@ -787,6 +811,25 @@ export async function startDaemon(): Promise<void> {
       }
       if (pruned) {
         persistChildren();
+      }
+
+      // Refresh lastActivityAt for processes that consumed CPU since last check
+      if (pidToTrackedSession.size > 0) {
+        const pids = Array.from(pidToTrackedSession.keys());
+        const { updatedTicks, activePids } = detectActiveProcesses(pids, lastKnownCpuTicks);
+        lastKnownCpuTicks = updatedTicks;
+
+        if (activePids.size > 0) {
+          const now = Date.now();
+          for (const pid of activePids) {
+            const session = pidToTrackedSession.get(pid);
+            if (session) {
+              session.lastActivityAt = now;
+              logger.debug(`[DAEMON RUN] CPU activity detected for PID ${pid} (session: ${session.happySessionId || 'unknown'})`);
+            }
+          }
+          persistChildren();
+        }
       }
 
       // Evict idle sessions

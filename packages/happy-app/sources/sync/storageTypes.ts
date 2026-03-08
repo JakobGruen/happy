@@ -51,7 +51,10 @@ export const AgentStateSchema = z.object({
     requests: z.record(z.string(), z.object({
         tool: z.string(),
         arguments: z.any(),
-        createdAt: z.number().nullish()
+        createdAt: z.number().nullish(),
+        permissionSuggestions: z.array(z.any()).nullish(),
+        decisionReason: z.string().nullish(),
+        description: z.string().nullish(),
     })).nullish(),
     completedRequests: z.record(z.string(), z.object({
         tool: z.string(),
@@ -62,7 +65,8 @@ export const AgentStateSchema = z.object({
         reason: z.string().nullish(),
         mode: z.string().nullish(),
         allowedTools: z.array(z.string()).nullish(),
-        decision: z.enum(['approved', 'approved_for_session', 'denied', 'abort']).nullish()
+        decision: z.enum(['approved', 'approved_for_session', 'denied', 'abort']).nullish(),
+        updatedPermissions: z.array(z.any()).nullish(),
     })).nullish()
 });
 

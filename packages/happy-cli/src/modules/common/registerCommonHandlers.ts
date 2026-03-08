@@ -122,6 +122,10 @@ export interface SpawnSessionOptions {
     approvedNewDirectoryCreation?: boolean;
     agent?: 'claude' | 'codex' | 'gemini';
     token?: string;
+    /** Claude Code session UUID for --resume (local session file) */
+    claudeSessionId?: string;
+    /** Existing happy session ID to reconnect to (revive archived session) */
+    happySessionId?: string;
     environmentVariables?: {
         // Anthropic Claude API configuration
         ANTHROPIC_BASE_URL?: string;        // Custom API endpoint (overrides default)

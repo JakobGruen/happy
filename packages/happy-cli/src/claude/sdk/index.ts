@@ -18,5 +18,10 @@ export type {
     InterruptRequest,
     SDKControlRequest,
     CanCallToolCallback,
-    PermissionResult
+    PermissionResult,
+    ToolPermissionContext,
+    PermissionUpdate,
+    PermissionRuleValue,
+    PermissionBehavior,
+    PermissionUpdateDestination
 } from './types'

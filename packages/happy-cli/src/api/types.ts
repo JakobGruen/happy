@@ -223,7 +223,8 @@ export const CreateSessionResponseSchema = z.object({
     metadata: z.string(),
     metadataVersion: z.number(),
     agentState: z.string().nullable(),
-    agentStateVersion: z.number()
+    agentStateVersion: z.number(),
+    dataEncryptionKey: z.string().nullable().optional()
   })
 })
 
@@ -303,7 +304,13 @@ export type AgentState = {
     [id: string]: {
       tool: string,
       arguments: any,
-      createdAt: number
+      createdAt: number,
+      /** CC's suggested permission updates (dynamic "always allow" options) */
+      permissionSuggestions?: any[],
+      /** Why this permission request was triggered */
+      decisionReason?: string,
+      /** Human-readable description of the tool action */
+      description?: string,
     }
   }
   completedRequests?: {
@@ -316,7 +323,8 @@ export type AgentState = {
       reason?: string,
       mode?: PermissionMode,
       decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort',
-      allowTools?: string[]
+      allowTools?: string[],
+      updatedPermissions?: any[],
     }
   }
 }

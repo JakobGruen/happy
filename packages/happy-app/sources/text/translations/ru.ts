@@ -396,6 +396,9 @@ export const ru: TranslationStructure = {
     session: {
         inputPlaceholder: 'Введите сообщение...',
         worktreeBadge: 'Worktree',
+        reactivateSession: 'Восстановить сессию',
+        reactivateSessionSubtitle: 'Продолжить сессию с того места, где она остановилась',
+        reactivating: 'Восстановление...',
     },
 
     commandPalette: {
@@ -790,6 +793,21 @@ export const ru: TranslationStructure = {
             yesForTool: 'Да, больше не спрашивать для этого инструмента',
             noTellClaude: 'Нет, дать обратную связь',
         }
+    },
+
+    // Dynamic permission suggestion labels (from CC permission_suggestions)
+    permissions: {
+        forSession: 'эту сессию',
+        forProject: 'этот проект',
+        forAllProjects: 'все проекты',
+        allowTool: ({ tool, scope }: { tool: string; scope: string }) => `Разрешить ${tool} для ${scope}`,
+        denyTool: ({ tool, scope }: { tool: string; scope: string }) => `Запретить ${tool} для ${scope}`,
+        acceptAllEdits: ({ scope }: { scope: string }) => `Принять все правки для ${scope}`,
+        bypassPermissions: ({ scope }: { scope: string }) => `Обойти все разрешения для ${scope}`,
+        planMode: ({ scope }: { scope: string }) => `Режим планирования для ${scope}`,
+        setMode: ({ mode, scope }: { mode: string; scope: string }) => `Установить ${mode} для ${scope}`,
+        addDirectories: ({ scope }: { scope: string }) => `Добавить директории для ${scope}`,
+        applySuggestion: 'Применить предложение',
     },
 
     settingsLanguage: {

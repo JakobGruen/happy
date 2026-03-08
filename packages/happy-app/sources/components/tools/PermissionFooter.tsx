@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { sessionAllow, sessionDeny } from '@/sync/ops';
 import { useUnistyles } from 'react-native-unistyles';
 import { storage } from '@/sync/storage';
@@ -14,6 +13,9 @@ interface PermissionFooterProps {
         mode?: string;
         allowedTools?: string[];
         decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort';
+        permissionSuggestions?: any[];
+        decisionReason?: string;
+        description?: string;
     };
     sessionId: string;
     toolName: string;
@@ -21,22 +23,81 @@ interface PermissionFooterProps {
     metadata?: any;
 }
 
+/**
+ * Derives a human-readable label from a CC permission suggestion.
+ * Inspects the shape of the opaque suggestion object to generate contextual labels.
+ */
+function getSuggestionLabel(suggestion: any): string {
+    const destination = suggestion.destination as string | undefined;
+    const destinationLabel = destination === 'session'
+        ? t('permissions.forSession')
+        : destination === 'projectSettings'
+            ? t('permissions.forProject')
+            : destination === 'userSettings'
+                ? t('permissions.forAllProjects')
+                : '';
+
+    if (suggestion.type === 'addRules' && Array.isArray(suggestion.rules)) {
+        const rule = suggestion.rules[0];
+        if (rule) {
+            const toolLabel = rule.prefix
+                ? `${rule.tool_name}(${rule.prefix}*)`
+                : rule.tool_name || 'tool';
+            if (rule.behavior === 'allow') {
+                return t('permissions.allowTool', { tool: toolLabel, scope: destinationLabel });
+            }
+            if (rule.behavior === 'deny') {
+                return t('permissions.denyTool', { tool: toolLabel, scope: destinationLabel });
+            }
+        }
+    }
+
+    if (suggestion.type === 'setMode') {
+        const mode = suggestion.mode as string;
+        if (mode === 'acceptEdits') {
+            return t('permissions.acceptAllEdits', { scope: destinationLabel });
+        }
+        if (mode === 'bypassPermissions') {
+            return t('permissions.bypassPermissions', { scope: destinationLabel });
+        }
+        if (mode === 'plan') {
+            return t('permissions.planMode', { scope: destinationLabel });
+        }
+        return t('permissions.setMode', { mode, scope: destinationLabel });
+    }
+
+    if (suggestion.type === 'addDirectories') {
+        return t('permissions.addDirectories', { scope: destinationLabel });
+    }
+
+    // Fallback for unknown suggestion shapes
+    return t('permissions.applySuggestion');
+}
+
 export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, sessionId, toolName, toolInput, metadata }) => {
     const { theme } = useUnistyles();
-    const [loadingButton, setLoadingButton] = useState<'allow' | 'deny' | 'abort' | null>(null);
-    const [loadingAllEdits, setLoadingAllEdits] = useState(false);
-    const [loadingForSession, setLoadingForSession] = useState(false);
-    
-    // Check if this is a Codex session - check both metadata.flavor and tool name prefix
+    // Loading state: 'allow-once', 'deny', or 'suggestion-{index}' for dynamic suggestions
+    const [loadingKey, setLoadingKey] = useState<string | null>(null);
+
+    // Check if this is a Codex session
     const isCodex = metadata?.flavor === 'codex' || toolName.startsWith('Codex');
 
-    const handleApprove = async () => {
-        if (permission.status !== 'pending' || loadingButton !== null || loadingAllEdits || loadingForSession) return;
+    // Whether CC sent dynamic permission suggestions
+    const hasSuggestions = !isCodex
+        && Array.isArray(permission.permissionSuggestions)
+        && permission.permissionSuggestions.length > 0;
 
-        setLoadingButton('allow');
+    const isPending = permission.status === 'pending';
+    const isApproved = permission.status === 'approved';
+    const isDenied = permission.status === 'denied';
+    const isAnyLoading = loadingKey !== null;
+
+    // --- Handlers ---
+
+    const handleAllowOnce = async () => {
+        if (!isPending || isAnyLoading) return;
+        setLoadingKey('allow-once');
         try {
-            // ExitPlanMode: explicitly send mode='default' and update local state
-            // so the UI correctly reflects exiting plan mode
             const isExitPlan = toolName === 'exit_plan_mode' || toolName === 'ExitPlanMode';
             await sessionAllow(sessionId, permission.id, isExitPlan ? 'default' : undefined);
             if (isExitPlan) {
@@ -45,124 +106,124 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
         } catch (error) {
             console.error('Failed to approve permission:', error);
         } finally {
-            setLoadingButton(null);
+            setLoadingKey(null);
         }
     };
 
-    const handleApproveAllEdits = async () => {
-        if (permission.status !== 'pending' || loadingButton !== null || loadingAllEdits || loadingForSession) return;
-
-        setLoadingAllEdits(true);
+    const handleSuggestion = async (index: number, suggestion: any) => {
+        if (!isPending || isAnyLoading) return;
+        setLoadingKey(`suggestion-${index}`);
         try {
-            await sessionAllow(sessionId, permission.id, 'acceptEdits');
-            // Update the session permission mode to 'acceptEdits' for future permissions
-            storage.getState().updateSessionPermissionMode(sessionId, 'acceptEdits');
-        } catch (error) {
-            console.error('Failed to approve all edits:', error);
-        } finally {
-            setLoadingAllEdits(false);
-        }
-    };
-
-    const handleApproveForSession = async () => {
-        if (permission.status !== 'pending' || loadingButton !== null || loadingAllEdits || loadingForSession || !toolName) return;
-
-        setLoadingForSession(true);
-        try {
-            // Special handling for Bash tool - include exact command
-            let toolIdentifier = toolName;
-            if (toolName === 'Bash' && toolInput?.command) {
-                const command = toolInput.command;
-                toolIdentifier = `Bash(${command})`;
+            // If suggestion is setMode with acceptEdits, also update local permission mode
+            if (suggestion.type === 'setMode' && suggestion.mode === 'acceptEdits') {
+                storage.getState().updateSessionPermissionMode(sessionId, 'acceptEdits');
             }
-            
-            await sessionAllow(sessionId, permission.id, undefined, [toolIdentifier]);
+            await sessionAllow(sessionId, permission.id, undefined, undefined, undefined, undefined, [suggestion]);
         } catch (error) {
-            console.error('Failed to approve for session:', error);
+            console.error('Failed to approve with suggestion:', error);
         } finally {
-            setLoadingForSession(false);
+            setLoadingKey(null);
         }
     };
 
     const handleDeny = async () => {
-        if (permission.status !== 'pending' || loadingButton !== null || loadingAllEdits || loadingForSession) return;
-
-        setLoadingButton('deny');
+        if (!isPending || isAnyLoading) return;
+        setLoadingKey('deny');
         try {
             await sessionDeny(sessionId, permission.id);
         } catch (error) {
             console.error('Failed to deny permission:', error);
         } finally {
-            setLoadingButton(null);
+            setLoadingKey(null);
         }
     };
-    
-    // Codex-specific handlers
+
+    // --- Legacy hardcoded handlers (fallback mode) ---
+
+    const handleApproveAllEdits = async () => {
+        if (!isPending || isAnyLoading) return;
+        setLoadingKey('all-edits');
+        try {
+            await sessionAllow(sessionId, permission.id, 'acceptEdits');
+            storage.getState().updateSessionPermissionMode(sessionId, 'acceptEdits');
+        } catch (error) {
+            console.error('Failed to approve all edits:', error);
+        } finally {
+            setLoadingKey(null);
+        }
+    };
+
+    const handleApproveForSession = async () => {
+        if (!isPending || isAnyLoading) return;
+        setLoadingKey('for-session');
+        try {
+            let toolIdentifier = toolName;
+            if (toolName === 'Bash' && toolInput?.command) {
+                toolIdentifier = `Bash(${toolInput.command})`;
+            }
+            await sessionAllow(sessionId, permission.id, undefined, [toolIdentifier]);
+        } catch (error) {
+            console.error('Failed to approve for session:', error);
+        } finally {
+            setLoadingKey(null);
+        }
+    };
+
+    // --- Codex handlers ---
+
     const handleCodexApprove = async () => {
-        if (permission.status !== 'pending' || loadingButton !== null || loadingForSession) return;
-        
-        setLoadingButton('allow');
+        if (!isPending || isAnyLoading) return;
+        setLoadingKey('allow-once');
         try {
             await sessionAllow(sessionId, permission.id, undefined, undefined, 'approved');
         } catch (error) {
             console.error('Failed to approve permission:', error);
         } finally {
-            setLoadingButton(null);
+            setLoadingKey(null);
         }
     };
-    
+
     const handleCodexApproveForSession = async () => {
-        if (permission.status !== 'pending' || loadingButton !== null || loadingForSession) return;
-        
-        setLoadingForSession(true);
+        if (!isPending || isAnyLoading) return;
+        setLoadingKey('for-session');
         try {
             await sessionAllow(sessionId, permission.id, undefined, undefined, 'approved_for_session');
         } catch (error) {
             console.error('Failed to approve for session:', error);
         } finally {
-            setLoadingForSession(false);
+            setLoadingKey(null);
         }
     };
-    
+
     const handleCodexAbort = async () => {
-        if (permission.status !== 'pending' || loadingButton !== null || loadingForSession) return;
-        
-        setLoadingButton('abort');
+        if (!isPending || isAnyLoading) return;
+        setLoadingKey('abort');
         try {
             await sessionDeny(sessionId, permission.id, undefined, undefined, 'abort');
         } catch (error) {
             console.error('Failed to abort permission:', error);
         } finally {
-            setLoadingButton(null);
+            setLoadingKey(null);
         }
     };
 
-    const isApproved = permission.status === 'approved';
-    const isDenied = permission.status === 'denied';
-    const isPending = permission.status === 'pending';
+    // --- Status detection for completed states ---
 
-    // Helper function to check if tool matches allowed pattern
-    const isToolAllowed = (toolName: string, toolInput: any, allowedTools: string[] | undefined): boolean => {
+    const isToolAllowed = (name: string, input: any, allowedTools: string[] | undefined): boolean => {
         if (!allowedTools) return false;
-        
-        // Direct match for non-Bash tools
-        if (allowedTools.includes(toolName)) return true;
-        
-        // For Bash, check exact command match
-        if (toolName === 'Bash' && toolInput?.command) {
-            const command = toolInput.command;
-            return allowedTools.includes(`Bash(${command})`);
+        if (allowedTools.includes(name)) return true;
+        if (name === 'Bash' && input?.command) {
+            return allowedTools.includes(`Bash(${input.command})`);
         }
-        
         return false;
     };
 
-    // Detect which button was used based on mode (for Claude) or decision (for Codex)
+    // Claude status detection
     const isApprovedViaAllow = isApproved && permission.mode !== 'acceptEdits' && !isToolAllowed(toolName, toolInput, permission.allowedTools);
     const isApprovedViaAllEdits = isApproved && permission.mode === 'acceptEdits';
     const isApprovedForSession = isApproved && isToolAllowed(toolName, toolInput, permission.allowedTools);
-    
-    // Codex-specific status detection with fallback
+
+    // Codex status detection
     const isCodexApproved = isCodex && isApproved && (permission.decision === 'approved' || !permission.decision);
     const isCodexApprovedForSession = isCodex && isApproved && permission.decision === 'approved_for_session';
     const isCodexAborted = isCodex && isDenied && permission.decision === 'abort';
@@ -212,9 +273,6 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
             gap: 4,
             minHeight: 20,
         },
-        icon: {
-            marginRight: 2,
-        },
         buttonText: {
             fontSize: 14,
             fontWeight: '400',
@@ -243,243 +301,178 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
             color: theme.colors.permissionButton.allowAll.background,
             fontWeight: '500',
         },
-        loadingIndicatorAllow: {
-            color: theme.colors.permissionButton.allow.background,
-        },
-        loadingIndicatorDeny: {
-            color: theme.colors.permissionButton.deny.background,
-        },
-        loadingIndicatorAllowAll: {
-            color: theme.colors.permissionButton.allowAll.background,
-        },
-        loadingIndicatorForSession: {
-            color: theme.colors.permissionButton.allowAll.background,
-        },
-        iconApproved: {
-            color: theme.colors.permissionButton.allow.background,
-        },
-        iconDenied: {
-            color: theme.colors.permissionButton.deny.background,
+        contextText: {
+            fontSize: 12,
+            color: theme.colors.textSecondary,
+            paddingHorizontal: 12,
+            paddingBottom: 4,
+            fontStyle: 'italic',
         },
     });
 
-    // Render Codex buttons if this is a Codex session
+    const renderButton = (
+        key: string,
+        label: string,
+        onPress: () => void,
+        colorStyle: any,
+        isSelected: boolean,
+        isOtherSelected: boolean,
+    ) => (
+        <TouchableOpacity
+            key={key}
+            style={[
+                styles.button,
+                isPending && styles.buttonAllow,
+                isSelected && styles.buttonSelected,
+                isOtherSelected && styles.buttonInactive,
+            ]}
+            onPress={onPress}
+            disabled={!isPending || isAnyLoading}
+            activeOpacity={isPending ? 0.7 : 1}
+        >
+            {loadingKey === key && isPending ? (
+                <View style={[styles.buttonContent, { width: 40, height: 20, justifyContent: 'center' }]}>
+                    <ActivityIndicator
+                        size={Platform.OS === 'ios' ? 'small' : 14 as any}
+                        color={colorStyle.color}
+                    />
+                </View>
+            ) : (
+                <View style={styles.buttonContent}>
+                    <Text
+                        style={[
+                            styles.buttonText,
+                            isPending && colorStyle,
+                            isSelected && styles.buttonTextSelected,
+                        ]}
+                        numberOfLines={2}
+                        ellipsizeMode="tail"
+                    >
+                        {label}
+                    </Text>
+                </View>
+            )}
+        </TouchableOpacity>
+    );
+
+    // --- Codex rendering (unchanged) ---
     if (isCodex) {
         return (
             <View style={styles.container}>
                 <View style={styles.buttonContainer}>
-                    {/* Codex: Yes button */}
-                    <TouchableOpacity
-                        style={[
-                            styles.button,
-                            isPending && styles.buttonAllow,
-                            isCodexApproved && styles.buttonSelected,
-                            (isCodexAborted || isCodexApprovedForSession) && styles.buttonInactive
-                        ]}
-                        onPress={handleCodexApprove}
-                        disabled={!isPending || loadingButton !== null || loadingForSession}
-                        activeOpacity={isPending ? 0.7 : 1}
-                    >
-                        {loadingButton === 'allow' && isPending ? (
-                            <View style={[styles.buttonContent, { width: 40, height: 20, justifyContent: 'center' }]}>
-                                <ActivityIndicator size={Platform.OS === 'ios' ? "small" : 14 as any} color={styles.loadingIndicatorAllow.color} />
-                            </View>
-                        ) : (
-                            <View style={styles.buttonContent}>
-                                <Text style={[
-                                    styles.buttonText,
-                                    isPending && styles.buttonTextAllow,
-                                    isCodexApproved && styles.buttonTextSelected
-                                ]} numberOfLines={1} ellipsizeMode="tail">
-                                    {t('common.yes')}
-                                </Text>
-                            </View>
-                        )}
-                    </TouchableOpacity>
-
-                    {/* Codex: Yes, and don't ask for a session button */}
-                    <TouchableOpacity
-                        style={[
-                            styles.button,
-                            isPending && styles.buttonForSession,
-                            isCodexApprovedForSession && styles.buttonSelected,
-                            (isCodexAborted || isCodexApproved) && styles.buttonInactive
-                        ]}
-                        onPress={handleCodexApproveForSession}
-                        disabled={!isPending || loadingButton !== null || loadingForSession}
-                        activeOpacity={isPending ? 0.7 : 1}
-                    >
-                        {loadingForSession && isPending ? (
-                            <View style={[styles.buttonContent, { width: 40, height: 20, justifyContent: 'center' }]}>
-                                <ActivityIndicator size={Platform.OS === 'ios' ? "small" : 14 as any} color={styles.loadingIndicatorForSession.color} />
-                            </View>
-                        ) : (
-                            <View style={styles.buttonContent}>
-                                <Text style={[
-                                    styles.buttonText,
-                                    isPending && styles.buttonTextForSession,
-                                    isCodexApprovedForSession && styles.buttonTextSelected
-                                ]} numberOfLines={1} ellipsizeMode="tail">
-                                    {t('codex.permissions.yesForSession')}
-                                </Text>
-                            </View>
-                        )}
-                    </TouchableOpacity>
-
-                    {/* Codex: Stop, and explain what to do button */}
-                    <TouchableOpacity
-                        style={[
-                            styles.button,
-                            isPending && styles.buttonDeny,
-                            isCodexAborted && styles.buttonSelected,
-                            (isCodexApproved || isCodexApprovedForSession) && styles.buttonInactive
-                        ]}
-                        onPress={handleCodexAbort}
-                        disabled={!isPending || loadingButton !== null || loadingForSession}
-                        activeOpacity={isPending ? 0.7 : 1}
-                    >
-                        {loadingButton === 'abort' && isPending ? (
-                            <View style={[styles.buttonContent, { width: 40, height: 20, justifyContent: 'center' }]}>
-                                <ActivityIndicator size={Platform.OS === 'ios' ? "small" : 14 as any} color={styles.loadingIndicatorDeny.color} />
-                            </View>
-                        ) : (
-                            <View style={styles.buttonContent}>
-                                <Text style={[
-                                    styles.buttonText,
-                                    isPending && styles.buttonTextDeny,
-                                    isCodexAborted && styles.buttonTextSelected
-                                ]} numberOfLines={1} ellipsizeMode="tail">
-                                    {t('codex.permissions.stopAndExplain')}
-                                </Text>
-                            </View>
-                        )}
-                    </TouchableOpacity>
+                    {renderButton(
+                        'allow-once',
+                        t('common.yes'),
+                        handleCodexApprove,
+                        styles.buttonTextAllow,
+                        isCodexApproved,
+                        isCodexAborted || isCodexApprovedForSession,
+                    )}
+                    {renderButton(
+                        'for-session',
+                        t('codex.permissions.yesForSession'),
+                        handleCodexApproveForSession,
+                        styles.buttonTextForSession,
+                        isCodexApprovedForSession,
+                        isCodexAborted || isCodexApproved,
+                    )}
+                    {renderButton(
+                        'abort',
+                        t('codex.permissions.stopAndExplain'),
+                        handleCodexAbort,
+                        styles.buttonTextDeny,
+                        isCodexAborted,
+                        isCodexApproved || isCodexApprovedForSession,
+                    )}
                 </View>
             </View>
         );
     }
 
-    // Render Claude buttons (existing behavior)
+    // --- Dynamic Claude rendering (when CC sends permission_suggestions) ---
+    if (hasSuggestions) {
+        const suggestions = permission.permissionSuggestions!;
+        return (
+            <View style={styles.container}>
+                {/* Show decision reason as context when available */}
+                {permission.decisionReason && isPending && (
+                    <Text style={styles.contextText} numberOfLines={2}>
+                        {permission.decisionReason}
+                    </Text>
+                )}
+                <View style={styles.buttonContainer}>
+                    {/* Allow once */}
+                    {renderButton(
+                        'allow-once',
+                        t('common.yes'),
+                        handleAllowOnce,
+                        styles.buttonTextAllow,
+                        isApprovedViaAllow && !isApprovedForSession && !isApprovedViaAllEdits,
+                        isDenied || isApprovedForSession || isApprovedViaAllEdits,
+                    )}
+                    {/* Dynamic suggestion buttons */}
+                    {suggestions.map((suggestion, index) => renderButton(
+                        `suggestion-${index}`,
+                        getSuggestionLabel(suggestion),
+                        () => handleSuggestion(index, suggestion),
+                        styles.buttonTextAllowAll,
+                        // When approved, we can't easily tell which suggestion was picked,
+                        // so we just show the "allow once" as selected for approved state
+                        false,
+                        isDenied || isApproved,
+                    ))}
+                    {/* Deny */}
+                    {renderButton(
+                        'deny',
+                        t('claude.permissions.noTellClaude'),
+                        handleDeny,
+                        styles.buttonTextDeny,
+                        isDenied,
+                        isApproved,
+                    )}
+                </View>
+            </View>
+        );
+    }
+
+    // --- Fallback Claude rendering (no suggestions — backward compat) ---
+    const isEditTool = toolName === 'Edit' || toolName === 'MultiEdit' || toolName === 'Write' || toolName === 'NotebookEdit' || toolName === 'exit_plan_mode' || toolName === 'ExitPlanMode';
+
     return (
         <View style={styles.container}>
             <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                    style={[
-                        styles.button,
-                        isPending && styles.buttonAllow,
-                        isApprovedViaAllow && styles.buttonSelected,
-                        (isDenied || isApprovedViaAllEdits || isApprovedForSession) && styles.buttonInactive
-                    ]}
-                    onPress={handleApprove}
-                    disabled={!isPending || loadingButton !== null || loadingAllEdits || loadingForSession}
-                    activeOpacity={isPending ? 0.7 : 1}
-                >
-                    {loadingButton === 'allow' && isPending ? (
-                        <View style={[styles.buttonContent, { width: 40, height: 20, justifyContent: 'center' }]}>
-                            <ActivityIndicator size={Platform.OS === 'ios' ? "small" : 14 as any} color={styles.loadingIndicatorAllow.color} />
-                        </View>
-                    ) : (
-                        <View style={styles.buttonContent}>
-                            <Text style={[
-                                styles.buttonText,
-                                isPending && styles.buttonTextAllow,
-                                isApprovedViaAllow && styles.buttonTextSelected
-                            ]} numberOfLines={1} ellipsizeMode="tail">
-                                {t('common.yes')}
-                            </Text>
-                        </View>
-                    )}
-                </TouchableOpacity>
-
-                {/* Allow All Edits button - only show for Edit and MultiEdit tools */}
-                {(toolName === 'Edit' || toolName === 'MultiEdit' || toolName === 'Write' || toolName === 'NotebookEdit' || toolName === 'exit_plan_mode' || toolName === 'ExitPlanMode') && (
-                    <TouchableOpacity
-                        style={[
-                            styles.button,
-                            isPending && styles.buttonAllowAll,
-                            isApprovedViaAllEdits && styles.buttonSelected,
-                            (isDenied || isApprovedViaAllow || isApprovedForSession) && styles.buttonInactive
-                        ]}
-                        onPress={handleApproveAllEdits}
-                        disabled={!isPending || loadingButton !== null || loadingAllEdits || loadingForSession}
-                        activeOpacity={isPending ? 0.7 : 1}
-                    >
-                        {loadingAllEdits && isPending ? (
-                            <View style={[styles.buttonContent, { width: 40, height: 20, justifyContent: 'center' }]}>
-                                <ActivityIndicator size={Platform.OS === 'ios' ? "small" : 14 as any} color={styles.loadingIndicatorAllowAll.color} />
-                            </View>
-                        ) : (
-                            <View style={styles.buttonContent}>
-                                <Text style={[
-                                    styles.buttonText,
-                                    isPending && styles.buttonTextAllowAll,
-                                    isApprovedViaAllEdits && styles.buttonTextSelected
-                                ]} numberOfLines={1} ellipsizeMode="tail">
-                                    {t('claude.permissions.yesAllowAllEdits')}
-                                </Text>
-                            </View>
-                        )}
-                    </TouchableOpacity>
+                {renderButton(
+                    'allow-once',
+                    t('common.yes'),
+                    handleAllowOnce,
+                    styles.buttonTextAllow,
+                    isApprovedViaAllow,
+                    isDenied || isApprovedViaAllEdits || isApprovedForSession,
                 )}
-
-                {/* Allow for session button - only show for non-edit, non-exit-plan tools */}
-                {toolName && toolName !== 'Edit' && toolName !== 'MultiEdit' && toolName !== 'Write' && toolName !== 'NotebookEdit' && toolName !== 'exit_plan_mode' && toolName !== 'ExitPlanMode' && (
-                    <TouchableOpacity
-                        style={[
-                            styles.button,
-                            isPending && styles.buttonForSession,
-                            isApprovedForSession && styles.buttonSelected,
-                            (isDenied || isApprovedViaAllow || isApprovedViaAllEdits) && styles.buttonInactive
-                        ]}
-                        onPress={handleApproveForSession}
-                        disabled={!isPending || loadingButton !== null || loadingAllEdits || loadingForSession}
-                        activeOpacity={isPending ? 0.7 : 1}
-                    >
-                        {loadingForSession && isPending ? (
-                            <View style={[styles.buttonContent, { width: 40, height: 20, justifyContent: 'center' }]}>
-                                <ActivityIndicator size={Platform.OS === 'ios' ? "small" : 14 as any} color={styles.loadingIndicatorForSession.color} />
-                            </View>
-                        ) : (
-                            <View style={styles.buttonContent}>
-                                <Text style={[
-                                    styles.buttonText,
-                                    isPending && styles.buttonTextForSession,
-                                    isApprovedForSession && styles.buttonTextSelected
-                                ]} numberOfLines={1} ellipsizeMode="tail">
-                                    {t('claude.permissions.yesForTool')}
-                                </Text>
-                            </View>
-                        )}
-                    </TouchableOpacity>
+                {isEditTool && renderButton(
+                    'all-edits',
+                    t('claude.permissions.yesAllowAllEdits'),
+                    handleApproveAllEdits,
+                    styles.buttonTextAllowAll,
+                    isApprovedViaAllEdits,
+                    isDenied || isApprovedViaAllow || isApprovedForSession,
                 )}
-
-                <TouchableOpacity
-                    style={[
-                        styles.button,
-                        isPending && styles.buttonDeny,
-                        isDenied && styles.buttonSelected,
-                        (isApproved) && styles.buttonInactive
-                    ]}
-                    onPress={handleDeny}
-                    disabled={!isPending || loadingButton !== null || loadingAllEdits || loadingForSession}
-                    activeOpacity={isPending ? 0.7 : 1}
-                >
-                    {loadingButton === 'deny' && isPending ? (
-                        <View style={[styles.buttonContent, { width: 40, height: 20, justifyContent: 'center' }]}>
-                            <ActivityIndicator size={Platform.OS === 'ios' ? "small" : 14 as any} color={styles.loadingIndicatorDeny.color} />
-                        </View>
-                    ) : (
-                        <View style={styles.buttonContent}>
-                            <Text style={[
-                                styles.buttonText,
-                                isPending && styles.buttonTextDeny,
-                                isDenied && styles.buttonTextSelected
-                            ]} numberOfLines={1} ellipsizeMode="tail">
-                                {t('claude.permissions.noTellClaude')}
-                            </Text>
-                        </View>
-                    )}
-                </TouchableOpacity>
+                {!isEditTool && toolName && renderButton(
+                    'for-session',
+                    t('claude.permissions.yesForTool'),
+                    handleApproveForSession,
+                    styles.buttonTextForSession,
+                    isApprovedForSession,
+                    isDenied || isApprovedViaAllow || isApprovedViaAllEdits,
+                )}
+                {renderButton(
+                    'deny',
+                    t('claude.permissions.noTellClaude'),
+                    handleDeny,
+                    styles.buttonTextDeny,
+                    isDenied,
+                    isApproved,
+                )}
             </View>
         </View>
     );

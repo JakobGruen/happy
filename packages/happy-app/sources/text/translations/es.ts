@@ -304,6 +304,9 @@ export const es: TranslationStructure = {
     session: {
         inputPlaceholder: 'Escriba un mensaje ...',
         worktreeBadge: 'Worktree',
+        reactivateSession: 'Reactivar sesión',
+        reactivateSessionSubtitle: 'Reanudar esta sesión donde se quedó',
+        reactivating: 'Reactivando...',
     },
 
     commandPalette: {
@@ -792,6 +795,21 @@ export const es: TranslationStructure = {
             yesForTool: 'Sí, no volver a preguntar para esta herramienta',
             noTellClaude: 'No, proporcionar comentarios',
         }
+    },
+
+    // Dynamic permission suggestion labels (from CC permission_suggestions)
+    permissions: {
+        forSession: 'esta sesión',
+        forProject: 'este proyecto',
+        forAllProjects: 'todos los proyectos',
+        allowTool: ({ tool, scope }: { tool: string; scope: string }) => `Permitir ${tool} para ${scope}`,
+        denyTool: ({ tool, scope }: { tool: string; scope: string }) => `Denegar ${tool} para ${scope}`,
+        acceptAllEdits: ({ scope }: { scope: string }) => `Aceptar todas las ediciones para ${scope}`,
+        bypassPermissions: ({ scope }: { scope: string }) => `Omitir todos los permisos para ${scope}`,
+        planMode: ({ scope }: { scope: string }) => `Modo de planificación para ${scope}`,
+        setMode: ({ mode, scope }: { mode: string; scope: string }) => `Establecer ${mode} para ${scope}`,
+        addDirectories: ({ scope }: { scope: string }) => `Agregar directorios para ${scope}`,
+        applySuggestion: 'Aplicar sugerencia',
     },
 
     textSelection: {

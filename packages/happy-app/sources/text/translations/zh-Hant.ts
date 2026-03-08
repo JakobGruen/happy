@@ -305,6 +305,9 @@ export const zhHant: TranslationStructure = {
     session: {
         inputPlaceholder: '輸入訊息...',
         worktreeBadge: 'Worktree',
+        reactivateSession: '重新啟動工作階段',
+        reactivateSessionSubtitle: '從上次中斷的地方繼續工作階段',
+        reactivating: '正在重新啟動...',
     },
 
     commandPalette: {
@@ -793,6 +796,21 @@ export const zhHant: TranslationStructure = {
             yesForTool: '是，不再詢問此工具',
             noTellClaude: '否，並告訴 Claude 該如何不同地操作',
         }
+    },
+
+    // Dynamic permission suggestion labels (from CC permission_suggestions)
+    permissions: {
+        forSession: '此工作階段',
+        forProject: '此專案',
+        forAllProjects: '所有專案',
+        allowTool: ({ tool, scope }: { tool: string; scope: string }) => `允許 ${tool} 用於${scope}`,
+        denyTool: ({ tool, scope }: { tool: string; scope: string }) => `拒絕 ${tool} 用於${scope}`,
+        acceptAllEdits: ({ scope }: { scope: string }) => `接受${scope}的所有編輯`,
+        bypassPermissions: ({ scope }: { scope: string }) => `繞過${scope}的所有權限`,
+        planMode: ({ scope }: { scope: string }) => `${scope}的規劃模式`,
+        setMode: ({ mode, scope }: { mode: string; scope: string }) => `為${scope}設定 ${mode}`,
+        addDirectories: ({ scope }: { scope: string }) => `為${scope}新增目錄`,
+        applySuggestion: '套用建議',
     },
 
     textSelection: {

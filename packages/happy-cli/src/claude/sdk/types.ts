@@ -100,10 +100,37 @@ export interface InterruptRequest extends ControlRequest {
     subtype: 'interrupt'
 }
 
+/**
+ * Permission update types — CC sends these as suggestions for how to
+ * persist permission decisions (e.g., "always allow this tool for this project").
+ */
+export interface PermissionRuleValue {
+    toolName: string
+    ruleContent?: string
+}
+
+export type PermissionBehavior = 'allow' | 'deny' | 'ask'
+
+export type PermissionUpdateDestination = 'userSettings' | 'projectSettings' | 'localSettings' | 'session' | 'cliArg'
+
+export type PermissionUpdate =
+    | { type: 'addRules'; rules: PermissionRuleValue[]; behavior: PermissionBehavior; destination: PermissionUpdateDestination }
+    | { type: 'replaceRules'; rules: PermissionRuleValue[]; behavior: PermissionBehavior; destination: PermissionUpdateDestination }
+    | { type: 'removeRules'; rules: PermissionRuleValue[]; behavior: PermissionBehavior; destination: PermissionUpdateDestination }
+    | { type: 'setMode'; mode: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'; destination: PermissionUpdateDestination }
+    | { type: 'addDirectories'; directories: string[]; destination: PermissionUpdateDestination }
+    | { type: 'removeDirectories'; directories: string[]; destination: PermissionUpdateDestination }
+
 export interface CanUseToolRequest extends ControlRequest {
     subtype: 'can_use_tool'
     tool_name: string
     input: unknown
+    permission_suggestions?: PermissionUpdate[]
+    blocked_path?: string
+    decision_reason?: string
+    tool_use_id?: string
+    agent_id?: string
+    description?: string
 }
 
 export interface CanUseToolControlRequest {
@@ -138,17 +165,40 @@ export interface SDKControlRequest {
  */
 export type PermissionResult = {
     behavior: 'allow'
-    updatedInput: Record<string, unknown>
+    updatedInput?: Record<string, unknown>
+    updatedPermissions?: PermissionUpdate[]
+    toolUseID?: string
 } | {
     behavior: 'deny'
     message: string
+    interrupt?: boolean
+    toolUseID?: string
+}
+
+/**
+ * Context passed to the canCallTool callback with each permission request.
+ */
+export interface ToolPermissionContext {
+    signal: AbortSignal
+    /** CC's suggested permission updates (the dynamic "always allow" options) */
+    permissionSuggestions?: PermissionUpdate[]
+    /** File path that triggered the permission request */
+    blockedPath?: string
+    /** Why this permission request was triggered */
+    decisionReason?: string
+    /** Direct tool use ID from CC (eliminates fragile ID matching) */
+    toolUseId?: string
+    /** Sub-agent ID if running in a sub-agent context */
+    agentId?: string
+    /** Human-readable description of what the tool will do */
+    description?: string
 }
 
 /**
  * Callback function for tool permission checks
  */
 export interface CanCallToolCallback {
-    (toolName: string, input: unknown, options: { signal: AbortSignal }): Promise<PermissionResult>
+    (toolName: string, input: unknown, options: ToolPermissionContext): Promise<PermissionResult>
 }
 
 /**

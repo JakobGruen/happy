@@ -20,6 +20,7 @@ import { CodeView } from '@/components/CodeView';
 import { Session } from '@/sync/storageTypes';
 import { useHappyAction } from '@/hooks/useHappyAction';
 import { HappyError } from '@/utils/errors';
+import { useCanReactivateSession } from '@/hooks/useCanReactivateSession';
 
 // Animated status dot component
 function StatusDot({ color, isPulsing, size = 8 }: { color: string; isPulsing?: boolean; size?: number }) {
@@ -126,7 +127,7 @@ function SessionInfoContent({ session }: { session: Session }) {
     const devModeEnabled = __DEV__;
     const sessionName = getSessionName(session);
     const sessionStatus = useSessionStatus(session);
-    
+
     // Check if CLI version is outdated
     const isCliOutdated = session.metadata?.version && !isVersionSupported(session.metadata.version, MINIMUM_CLI_VERSION);
 
@@ -199,6 +200,11 @@ function SessionInfoContent({ session }: { session: Session }) {
             ]
         );
     }, [performDelete]);
+
+    // Reactivate archived session
+    const { canReactivate, reactivating, performReactivate } = useCanReactivateSession(session, {
+        onSuccess: () => router.back(),
+    });
 
     const formatDate = useCallback((timestamp: number) => {
         return new Date(timestamp).toLocaleString();
@@ -315,6 +321,15 @@ function SessionInfoContent({ session }: { session: Session }) {
                             subtitle={t('sessionInfo.viewMachineSubtitle')}
                             icon={<Ionicons name="server-outline" size={29} color="#007AFF" />}
                             onPress={() => router.push(`/machine/${session.metadata?.machineId}`)}
+                        />
+                    )}
+                    {canReactivate && (
+                        <Item
+                            title={t('session.reactivateSession')}
+                            subtitle={t('session.reactivateSessionSubtitle')}
+                            icon={<Ionicons name="play-circle-outline" size={29} color="#34C759" />}
+                            onPress={performReactivate}
+                            loading={reactivating}
                         />
                     )}
                     {sessionStatus.isConnected && (

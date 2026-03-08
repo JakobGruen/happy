@@ -116,6 +116,7 @@ import { createTracer, traceMessages, TracerState } from "./reducerTracer";
 import { AgentState } from "../storageTypes";
 import { MessageMeta } from "../typesMessageMeta";
 import { parseMessageAsEvent } from "./messageToEvent";
+import { parseCommandMessage } from "@/utils/parseCommandMessage";
 
 type ReducerMessage = {
     id: string;
@@ -127,6 +128,8 @@ type ReducerMessage = {
     event: AgentEvent | null;
     tool: ToolCall | null;
     meta?: MessageMeta;
+    commandName?: string;
+    commandBody?: string;
 }
 
 type StoredPermission = {
@@ -377,7 +380,10 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         }
                         message.tool.permission = {
                             id: permId,
-                            status: 'pending'
+                            status: 'pending',
+                            permissionSuggestions: request.permissionSuggestions ?? undefined,
+                            decisionReason: request.decisionReason ?? undefined,
+                            description: request.description ?? undefined,
                         };
                         changed.add(existingMessageId);
                     }
@@ -399,7 +405,10 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         result: undefined,
                         permission: {
                             id: permId,
-                            status: 'pending'
+                            status: 'pending',
+                            permissionSuggestions: request.permissionSuggestions ?? undefined,
+                            decisionReason: request.decisionReason ?? undefined,
+                            description: request.description ?? undefined,
                         }
                     };
 
@@ -613,6 +622,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
 
             // Create a new message
             let mid = allocateId();
+            const parsedCommand = msg.content.text ? parseCommandMessage(msg.content.text) : null;
             state.messages.set(mid, {
                 id: mid,
                 realID: msg.id,
@@ -622,6 +632,10 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                 tool: null,
                 event: null,
                 meta: msg.meta,
+                ...(parsedCommand && {
+                    commandName: parsedCommand.commandName,
+                    commandBody: parsedCommand.commandBody,
+                }),
             });
 
             // Track both localId and messageId
@@ -1160,6 +1174,10 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
             kind: 'user-text',
             text: reducerMsg.text,
             ...(reducerMsg.meta?.displayText && { displayText: reducerMsg.meta.displayText }),
+            ...(reducerMsg.commandName && {
+                commandName: reducerMsg.commandName,
+                commandBody: reducerMsg.commandBody,
+            }),
             meta: reducerMsg.meta
         };
     } else if (reducerMsg.role === 'agent' && reducerMsg.text !== null) {
