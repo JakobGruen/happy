@@ -260,7 +260,9 @@ export const ru: TranslationStructure = {
         sessionType: {
             title: 'Тип сессии',
             simple: 'Простая',
+            simpleDesc: 'Запуск в текущей директории',
             worktree: 'Worktree',
+            worktreeDesc: 'Изолированная ветка git — изменения не затрагивают основную',
             comingSoon: 'Скоро будет доступно',
         },
         worktree: {
@@ -393,6 +395,7 @@ export const ru: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Введите сообщение...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -520,6 +523,7 @@ export const ru: TranslationStructure = {
             applyChanges: 'Обновить файл',
             viewDiff: 'Текущие изменения файла',
             question: 'Вопрос',
+            skill: 'Skill',
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `Терминал(команда: ${cmd})`,
@@ -537,6 +541,7 @@ export const ru: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `Изменение ${count} ${plural({ count, one: 'файла', few: 'файлов', many: 'файлов' })}`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} и ещё ${count}`,
             showingDiff: 'Показ изменений',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         },
         askUserQuestion: {
             submit: 'Отправить ответ',
@@ -745,6 +750,22 @@ export const ru: TranslationStructure = {
         metadataVersion: 'Версия метаданных',
         untitledSession: 'Безымянная сессия',
         back: 'Назад',
+        memory: 'Память',
+        systemMemory: 'Системная память',
+        freeMemory: 'Свободная память',
+        sessionMemoryTotal: 'Память сессий',
+        lowMemoryWarning: 'Мало памяти',
+        lowMemoryHint: 'Свободная RAM менее 1 ГБ. Рассмотрите остановку неактивных сессий.',
+        recentlyClosed: 'Недавно закрытые',
+        archivedIdle: 'Тайм-аут бездействия',
+        archivedManual: 'Остановлено вручную',
+        archivedCrash: 'Завершилось',
+        archivedOrphan: 'Очистка сирот',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: 'Удалить этот worktree?',
+            deleteWarning: 'Активная сессия использует этот worktree. Сначала остановите сессию.',
+        },
     },
 
     message: {

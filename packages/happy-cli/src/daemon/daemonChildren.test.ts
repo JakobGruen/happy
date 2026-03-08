@@ -78,6 +78,20 @@ describe('daemon children persistence', () => {
         });
     });
 
+
+    describe('lastActivityAt round-trip', () => {
+        it('persists and reads lastActivityAt correctly', () => {
+            const children: PersistedChild[] = [
+                { pid: 100, startedAt: 1000, lastActivityAt: 5000 },
+                { pid: 200, startedAt: 2000 } // no lastActivityAt
+            ];
+            writeDaemonChildren(children);
+
+            const result = readDaemonChildren();
+            expect(result[0].lastActivityAt).toBe(5000);
+            expect(result[1].lastActivityAt).toBeUndefined();
+        });
+    });
     describe('clearDaemonChildren', () => {
         it('removes the file', () => {
             writeDaemonChildren([{ pid: 1, startedAt: 1 }]);

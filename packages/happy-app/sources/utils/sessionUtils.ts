@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Session } from '@/sync/storageTypes';
 import { t } from '@/text';
+import { isWorktreePath, formatWorktreeSubtitle } from '@/utils/worktreeUtils';
 
 export type SessionState = 'disconnected' | 'thinking' | 'waiting' | 'permission_required';
 
@@ -134,10 +135,15 @@ export function formatPathRelativeToHome(path: string, homeDir?: string): string
 
 /**
  * Returns the session path for the subtitle.
+ * For worktree sessions, shows "repo-name (branch)" instead of the full worktree path.
  */
-export function getSessionSubtitle(session: Session): string {
+export function getSessionSubtitle(session: Session, branch?: string | null): string {
     if (session.metadata) {
-        return formatPathRelativeToHome(session.metadata.path, session.metadata.homeDir);
+        const path = session.metadata.path;
+        if (isWorktreePath(path)) {
+            return formatWorktreeSubtitle(path, branch ?? null, session.metadata.homeDir);
+        }
+        return formatPathRelativeToHome(path, session.metadata.homeDir);
     }
     return t('status.unknown');
 }

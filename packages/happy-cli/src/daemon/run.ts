@@ -22,6 +22,8 @@ import { join } from 'path';
 import { projectPath } from '@/projectPath';
 import { getTmuxUtilities, isTmuxAvailable, parseTmuxSessionIdentifier, formatTmuxSessionIdentifier } from '@/utils/tmux';
 import { expandEnvironmentVariables } from '@/utils/expandEnvVars';
+import { findIdleSessions } from './idleTimeout';
+import { collectMemoryStats } from './memoryStats';
 
 // Prepare initial metadata
 export const initialMachineMetadata: MachineMetadata = {
@@ -170,14 +172,33 @@ export async function startDaemon(): Promise<void> {
     // Session spawning awaiter system
     const pidToAwaiter = new Map<number, (session: TrackedSession) => void>();
 
+    // Idle timeout configuration (ms, 0 = disabled)
+    const idleTimeoutMs = parseInt(process.env.HAPPY_DAEMON_IDLE_TIMEOUT || '1800000'); // 30 min default
+    if (idleTimeoutMs > 0) {
+      logger.debug(`[DAEMON RUN] Idle timeout enabled: ${idleTimeoutMs}ms (${Math.round(idleTimeoutMs / 60000)}min)`);
+    } else {
+      logger.debug('[DAEMON RUN] Idle timeout disabled');
+    }
+
     // Helper: serialize current tracked sessions to disk
     const persistChildren = () => {
       const children = Array.from(pidToTrackedSession.values()).map(s => ({
         pid: s.pid,
         sessionId: s.happySessionId,
-        startedAt: s.startedAt
+        startedAt: s.startedAt,
+        lastActivityAt: s.lastActivityAt
       }));
       writeDaemonChildren(children);
+    };
+
+    // Recently archived sessions audit log (last 10)
+    const MAX_ARCHIVED_LOG = 10;
+    const recentlyArchived: Array<{ sessionId?: string; pid: number; reason: string; archivedAt: number }> = [];
+    const trackArchived = (pid: number, sessionId: string | undefined, reason: string) => {
+      recentlyArchived.push({ pid, sessionId, reason, archivedAt: Date.now() });
+      if (recentlyArchived.length > MAX_ARCHIVED_LOG) {
+        recentlyArchived.shift();
+      }
     };
 
     // On startup: kill orphaned children from previous daemon runs
@@ -189,6 +210,7 @@ export async function startDaemon(): Promise<void> {
           process.kill(child.pid, 0); // Check if alive
           // Process is alive but we have no ChildProcess handle — kill it
           logger.debug(`[DAEMON RUN] Killing orphaned child PID ${child.pid} (session: ${child.sessionId || 'unknown'})`);
+          trackArchived(child.pid, child.sessionId, 'orphan');
           try {
             process.kill(child.pid, 'SIGTERM');
           } catch {
@@ -225,6 +247,7 @@ export async function startDaemon(): Promise<void> {
         // Update daemon-spawned session with reported data
         existingSession.happySessionId = sessionId;
         existingSession.happySessionMetadataFromLocalWebhook = sessionMetadata;
+        existingSession.lastActivityAt = Date.now();
         logger.debug(`[DAEMON RUN] Updated daemon-spawned session ${sessionId} with metadata`);
 
         // Resolve any awaiter for this PID
@@ -658,6 +681,7 @@ export async function startDaemon(): Promise<void> {
             }
           }
 
+          trackArchived(pid, session.happySessionId, 'manual');
           pidToTrackedSession.delete(pid);
           persistChildren();
           logger.debug(`[DAEMON RUN] Removed session ${sessionId} from tracking`);
@@ -672,6 +696,8 @@ export async function startDaemon(): Promise<void> {
     // Handle child process exit
     const onChildExited = (pid: number) => {
       logger.debug(`[DAEMON RUN] Removing exited process PID ${pid} from tracking`);
+      const session = pidToTrackedSession.get(pid);
+      trackArchived(pid, session?.happySessionId, 'crash');
       pidToTrackedSession.delete(pid);
       persistChildren();
     };
@@ -747,19 +773,58 @@ export async function startDaemon(): Promise<void> {
 
       // Prune stale sessions
       let pruned = false;
-      for (const [pid, _] of pidToTrackedSession.entries()) {
+      for (const [pid, session] of pidToTrackedSession.entries()) {
         try {
           // Check if process is still alive (signal 0 doesn't kill, just checks)
           process.kill(pid, 0);
         } catch (error) {
           // Process is dead, remove from tracking
           logger.debug(`[DAEMON RUN] Removing stale session with PID ${pid} (process no longer exists)`);
+          trackArchived(pid, session.happySessionId, 'crash');
           pidToTrackedSession.delete(pid);
           pruned = true;
         }
       }
       if (pruned) {
         persistChildren();
+      }
+
+      // Evict idle sessions
+      if (idleTimeoutMs > 0 && pidToTrackedSession.size > 0) {
+        const sessions = Array.from(pidToTrackedSession.values());
+        const idleResults = findIdleSessions(sessions, idleTimeoutMs, Date.now());
+        for (const { pid, idleMs } of idleResults) {
+          const session = pidToTrackedSession.get(pid);
+          logger.debug(`[DAEMON RUN] Session PID ${pid} idle for ${Math.round(idleMs / 1000 / 60)}min (session: ${session?.happySessionId || 'unknown'}), terminating`);
+          try {
+            process.kill(pid, 'SIGTERM');
+          } catch {
+            // Already dead
+          }
+          trackArchived(pid, session?.happySessionId, 'idle');
+          pidToTrackedSession.delete(pid);
+        }
+        if (idleResults.length > 0) {
+          persistChildren();
+        }
+      }
+
+      // Collect and emit memory stats
+      try {
+        const memStats = collectMemoryStats(
+          Array.from(pidToTrackedSession.entries()).map(([pid, s]) => ({
+            pid,
+            sessionId: s.happySessionId,
+          }))
+        );
+        apiMachine.updateDaemonState((state: DaemonState | null) => ({
+          ...state,
+          status: 'running',
+          memoryStats: memStats,
+          recentlyArchived: recentlyArchived.length > 0 ? [...recentlyArchived] : undefined,
+        }));
+      } catch (err) {
+        logger.debug('[DAEMON RUN] Failed to collect/emit memory stats', err);
       }
 
       // Check if daemon needs update

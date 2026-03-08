@@ -278,7 +278,9 @@ export const ca: TranslationStructure = {
         sessionType: {
             title: 'Tipus de sessió',
             simple: 'Simple',
+            simpleDesc: 'Executa al directori actual',
             worktree: 'Worktree',
+            worktreeDesc: 'Branca git aïllada — els canvis no afecten la principal',
             comingSoon: 'Properament',
         },
         worktree: {
@@ -301,6 +303,7 @@ export const ca: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Escriu un missatge...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -510,6 +513,7 @@ export const ca: TranslationStructure = {
             applyChanges: 'Actualitza fitxer',
             viewDiff: 'Canvis del fitxer actual',
             question: 'Pregunta',
+            skill: 'Skill',
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `Terminal(cmd: ${cmd})`,
@@ -527,6 +531,7 @@ export const ca: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `Modificant ${count} fitxers`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} i ${count} més`,
             showingDiff: 'Mostrant canvis',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         },
         askUserQuestion: {
             submit: 'Envia resposta',
@@ -747,6 +752,22 @@ export const ca: TranslationStructure = {
         metadataVersion: 'Versió de les metadades',
         untitledSession: 'Sessió sense títol',
         back: 'Enrere',
+        memory: 'Memòria',
+        systemMemory: 'Memòria del sistema',
+        freeMemory: 'Memòria lliure',
+        sessionMemoryTotal: 'Memòria de sessions',
+        lowMemoryWarning: 'Poca memòria',
+        lowMemoryHint: 'La RAM lliure és inferior a 1 GB. Considereu aturar les sessions inactives.',
+        recentlyClosed: 'Tancades recentment',
+        archivedIdle: 'Temps d\'inactivitat',
+        archivedManual: 'Aturada manualment',
+        archivedCrash: 'Finalitzada',
+        archivedOrphan: 'Neteja d\'òrfenes',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: 'Eliminar aquest worktree?',
+            deleteWarning: 'Una sessió activa està utilitzant aquest worktree. Atura la sessió primer.',
+        },
     },
 
     message: {

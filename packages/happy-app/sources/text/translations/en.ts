@@ -293,7 +293,9 @@ export const en: TranslationStructure = {
         sessionType: {
             title: 'Session Type',
             simple: 'Simple',
+            simpleDesc: 'Run in the current directory',
             worktree: 'Worktree',
+            worktreeDesc: 'Isolated git branch — changes don\'t affect main',
             comingSoon: 'Coming soon',
         },
         worktree: {
@@ -316,6 +318,7 @@ export const en: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Type a message ...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -525,6 +528,7 @@ export const en: TranslationStructure = {
             applyChanges: 'Update file',
             viewDiff: 'Current file changes',
             question: 'Question',
+            skill: 'Skill',
         },
         askUserQuestion: {
             submit: 'Submit Answer',
@@ -549,6 +553,7 @@ export const en: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `Modifying ${count} files`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} and ${count} more`,
             showingDiff: 'Showing changes',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         }
     },
 
@@ -762,6 +767,22 @@ export const en: TranslationStructure = {
         metadataVersion: 'Metadata Version',
         untitledSession: 'Untitled Session',
         back: 'Back',
+        memory: 'Memory',
+        systemMemory: 'System Memory',
+        freeMemory: 'Free Memory',
+        sessionMemoryTotal: 'Session Memory',
+        lowMemoryWarning: 'Low Memory',
+        lowMemoryHint: 'Free RAM is below 1 GB. Consider stopping idle sessions.',
+        recentlyClosed: 'Recently Closed',
+        archivedIdle: 'Idle timeout',
+        archivedManual: 'Manually stopped',
+        archivedCrash: 'Exited',
+        archivedOrphan: 'Orphan cleanup',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: 'Delete this worktree?',
+            deleteWarning: 'An active session is using this worktree. Stop the session first.',
+        },
     },
 
     message: {

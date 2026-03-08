@@ -279,7 +279,9 @@ export const zhHant: TranslationStructure = {
         sessionType: {
             title: '工作階段類型',
             simple: '簡單',
+            simpleDesc: '在目前目錄中執行',
             worktree: 'Worktree',
+            worktreeDesc: '獨立的 git 分支 — 更改不影響主分支',
             comingSoon: '即將推出',
         },
         worktree: {
@@ -302,6 +304,7 @@ export const zhHant: TranslationStructure = {
 
     session: {
         inputPlaceholder: '輸入訊息...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -511,6 +514,7 @@ export const zhHant: TranslationStructure = {
             applyChanges: '更新檔案',
             viewDiff: '目前檔案更改',
             question: '問題',
+            skill: 'Skill',
         },
         askUserQuestion: {
             submit: '提交答案',
@@ -535,6 +539,7 @@ export const zhHant: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `正在修改 ${count} 個檔案`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} 和其他 ${count} 個`,
             showingDiff: '顯示更改',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         }
     },
 
@@ -748,6 +753,22 @@ export const zhHant: TranslationStructure = {
         metadataVersion: '中繼資料版本',
         untitledSession: '無標題工作階段',
         back: '返回',
+        memory: '記憶體',
+        systemMemory: '系統記憶體',
+        freeMemory: '可用記憶體',
+        sessionMemoryTotal: '工作階段記憶體',
+        lowMemoryWarning: '記憶體不足',
+        lowMemoryHint: '可用記憶體低於 1 GB。請考慮停止閒置的工作階段。',
+        recentlyClosed: '最近關閉',
+        archivedIdle: '閒置逾時',
+        archivedManual: '手動停止',
+        archivedCrash: '已結束',
+        archivedOrphan: '孤立程序清理',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: '刪除此 worktree？',
+            deleteWarning: '有活躍工作階段正在使用此 worktree。請先停止工作階段。',
+        },
     },
 
     message: {

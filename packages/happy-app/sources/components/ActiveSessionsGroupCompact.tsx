@@ -12,7 +12,7 @@ import { StatusDot } from './StatusDot';
 import { useAllMachines, useSetting, useRealtimeSessionId, useRealtimeStatus } from '@/sync/storage';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { isMachineOnline } from '@/utils/machineUtils';
-import { machineSpawnNewSession, sessionKill } from '@/sync/ops';
+import { machineSpawnNewSession, sessionArchive } from '@/sync/ops';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { storage } from '@/sync/storage';
 import { Modal } from '@/modal';
@@ -22,6 +22,9 @@ import { useIsTablet } from '@/utils/responsive';
 import { ProjectGitStatus } from './ProjectGitStatus';
 import { useHappyAction } from '@/hooks/useHappyAction';
 import { HappyError } from '@/utils/errors';
+import { CompactMemoryBadge } from '@/components/CompactMemoryBadge';
+import { CompactBranchBadge } from '@/components/CompactBranchBadge';
+import { isWorktreePath, formatWorktreeSubtitle } from '@/utils/worktreeUtils';
 
 const stylesheet = StyleSheet.create((theme, runtime) => ({
     container: {
@@ -193,7 +196,9 @@ export function ActiveSessionsGroupCompact({ sessions, selectedSessionId }: Acti
             // Get or create project group
             let projectGroup = groups.get(projectPath);
             if (!projectGroup) {
-                const displayPath = formatPathRelativeToHome(projectPath, session.metadata?.homeDir);
+                const displayPath = isWorktreePath(projectPath)
+                    ? formatWorktreeSubtitle(projectPath, null, session.metadata?.homeDir)
+                    : formatPathRelativeToHome(projectPath, session.metadata?.homeDir);
                 projectGroup = {
                     path: projectPath,
                     displayPath,
@@ -304,7 +309,7 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
         && (realtimeStatus === 'connected' || realtimeStatus === 'connecting');
 
     const [archivingSession, performArchive] = useHappyAction(async () => {
-        const result = await sessionKill(session.id);
+        const result = await sessionArchive(session.id);
         if (!result.success) {
             throw new HappyError(result.message || t('sessionInfo.failedToArchiveSession'), false);
         }
@@ -407,6 +412,8 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
                     >
                         {sessionName}
                     </Text>
+                    <CompactBranchBadge sessionId={session.id} sessionPath={session.metadata?.path} />
+                    <CompactMemoryBadge sessionId={session.id} machineId={session.metadata?.machineId} />
                 </View>
             </View>
         </Pressable>

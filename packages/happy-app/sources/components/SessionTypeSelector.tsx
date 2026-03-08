@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, Platform } from 'react-native';
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet } from 'react-native-unistyles';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 
@@ -8,6 +8,78 @@ interface SessionTypeSelectorProps {
     value: 'simple' | 'worktree';
     onChange: (value: 'simple' | 'worktree') => void;
 }
+
+export const SessionTypeSelector: React.FC<SessionTypeSelectorProps> = ({ value, onChange }) => {
+    const styles = stylesheet;
+
+    const handlePress = (type: 'simple' | 'worktree') => {
+        onChange(type);
+    };
+
+    return (
+        <View style={styles.container}>
+            <Text style={styles.title}>{t('newSession.sessionType.title')}</Text>
+
+            <Pressable
+                onPress={() => handlePress('simple')}
+                style={({ pressed }) => [
+                    styles.optionContainer,
+                    pressed && styles.optionPressed,
+                ]}
+            >
+                <View style={[
+                    styles.radioButton,
+                    value === 'simple' ? styles.radioButtonActive : styles.radioButtonInactive,
+                ]}>
+                    {value === 'simple' && <View style={styles.radioButtonDot} />}
+                </View>
+                <View style={styles.optionContent}>
+                    <View>
+                        <Text style={[
+                            styles.optionLabel,
+                            value === 'simple' ? styles.optionLabelActive : styles.optionLabelInactive,
+                        ]}>
+                            {t('newSession.sessionType.simple')}
+                        </Text>
+                        <Text style={styles.optionDescription}>
+                            {t('newSession.sessionType.simpleDesc')}
+                        </Text>
+                    </View>
+                </View>
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <Pressable
+                onPress={() => handlePress('worktree')}
+                style={({ pressed }) => [
+                    styles.optionContainer,
+                    pressed && styles.optionPressed,
+                ]}
+            >
+                <View style={[
+                    styles.radioButton,
+                    value === 'worktree' ? styles.radioButtonActive : styles.radioButtonInactive,
+                ]}>
+                    {value === 'worktree' && <View style={styles.radioButtonDot} />}
+                </View>
+                <View style={styles.optionContent}>
+                    <View>
+                        <Text style={[
+                            styles.optionLabel,
+                            value === 'worktree' ? styles.optionLabelActive : styles.optionLabelInactive,
+                        ]}>
+                            {t('newSession.sessionType.worktree')}
+                        </Text>
+                        <Text style={styles.optionDescription}>
+                            {t('newSession.sessionType.worktreeDesc')}
+                        </Text>
+                    </View>
+                </View>
+            </Pressable>
+        </View>
+    );
+};
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -57,9 +129,6 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     optionContent: {
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
     },
     optionLabel: {
         fontSize: 16,
@@ -71,72 +140,15 @@ const stylesheet = StyleSheet.create((theme) => ({
     optionLabelInactive: {
         color: theme.colors.text,
     },
+    optionDescription: {
+        fontSize: 12,
+        color: theme.colors.textSecondary,
+        marginTop: 2,
+        ...Typography.default('regular'),
+    },
     divider: {
         height: Platform.select({ ios: 0.33, default: 0.5 }),
         backgroundColor: theme.colors.divider,
         marginLeft: 48,
     },
 }));
-
-export const SessionTypeSelector: React.FC<SessionTypeSelectorProps> = ({ value, onChange }) => {
-    const { theme } = useUnistyles();
-    const styles = stylesheet;
-
-    const handlePress = (type: 'simple' | 'worktree') => {
-        onChange(type);
-    };
-
-    return (
-        <View style={styles.container}>
-            <Text style={styles.title}>{t('newSession.sessionType.title')}</Text>
-            
-            <Pressable
-                onPress={() => handlePress('simple')}
-                style={({ pressed }) => [
-                    styles.optionContainer,
-                    pressed && styles.optionPressed,
-                ]}
-            >
-                <View style={[
-                    styles.radioButton,
-                    value === 'simple' ? styles.radioButtonActive : styles.radioButtonInactive,
-                ]}>
-                    {value === 'simple' && <View style={styles.radioButtonDot} />}
-                </View>
-                <View style={styles.optionContent}>
-                    <Text style={[
-                        styles.optionLabel,
-                        value === 'simple' ? styles.optionLabelActive : styles.optionLabelInactive,
-                    ]}>
-                        {t('newSession.sessionType.simple')}
-                    </Text>
-                </View>
-            </Pressable>
-
-            <View style={styles.divider} />
-
-            <Pressable
-                onPress={() => handlePress('worktree')}
-                style={({ pressed }) => [
-                    styles.optionContainer,
-                    pressed && styles.optionPressed,
-                ]}
-            >
-                <View style={[
-                    styles.radioButton,
-                    value === 'worktree' ? styles.radioButtonActive : styles.radioButtonInactive,
-                ]}>
-                    {value === 'worktree' && <View style={styles.radioButtonDot} />}
-                </View>
-                <View style={styles.optionContent}>
-                    <Text style={[
-                        styles.optionLabel,
-                        value === 'worktree' ? styles.optionLabelActive : styles.optionLabelInactive,
-                    ]}>
-                        {t('newSession.sessionType.worktree')}
-                    </Text>
-                </View>
-            </Pressable>
-        </View>
-    );
-};

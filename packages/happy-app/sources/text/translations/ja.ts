@@ -310,7 +310,9 @@ export const ja: TranslationStructure = {
         sessionType: {
             title: 'セッションタイプ',
             simple: 'シンプル',
+            simpleDesc: '現在のディレクトリで実行',
             worktree: 'ワークツリー',
+            worktreeDesc: '独立したgitブランチ — メインに影響を与えません',
             comingSoon: '近日公開',
         },
         worktree: {
@@ -333,6 +335,7 @@ export const ja: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'メッセージを入力...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -549,6 +552,7 @@ export const ja: TranslationStructure = {
             applyChanges: 'ファイルを更新',
             viewDiff: '現在のファイル変更',
             question: '質問',
+            skill: 'Skill',
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `ターミナル(cmd: ${cmd})`,
@@ -566,6 +570,7 @@ export const ja: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `${count}ファイルを変更中`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} 他${count}件`,
             showingDiff: '変更を表示中',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         }
     },
 
@@ -779,6 +784,22 @@ export const ja: TranslationStructure = {
         metadataVersion: 'メタデータバージョン',
         untitledSession: '無題のセッション',
         back: '戻る',
+        memory: 'メモリ',
+        systemMemory: 'システムメモリ',
+        freeMemory: '空きメモリ',
+        sessionMemoryTotal: 'セッションメモリ',
+        lowMemoryWarning: 'メモリ不足',
+        lowMemoryHint: '空きRAMが1 GB未満です。アイドルセッションの停止を検討してください。',
+        recentlyClosed: '最近閉じたセッション',
+        archivedIdle: 'アイドルタイムアウト',
+        archivedManual: '手動停止',
+        archivedCrash: '終了',
+        archivedOrphan: '孤立プロセスの整理',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: 'このworktreeを削除しますか？',
+            deleteWarning: 'アクティブなセッションがこのworktreeを使用しています。先にセッションを停止してください。',
+        },
     },
 
     message: {

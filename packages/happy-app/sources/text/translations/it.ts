@@ -307,7 +307,9 @@ export const it: TranslationStructure = {
         sessionType: {
             title: 'Tipo di sessione',
             simple: 'Semplice',
+            simpleDesc: 'Esegui nella directory corrente',
             worktree: 'Worktree',
+            worktreeDesc: 'Branch git isolato — le modifiche non influenzano il principale',
             comingSoon: 'In arrivo',
         },
         worktree: {
@@ -330,6 +332,7 @@ export const it: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Scrivi un messaggio ...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -546,6 +549,7 @@ export const it: TranslationStructure = {
             applyChanges: 'Aggiorna file',
             viewDiff: 'Modifiche file attuali',
             question: 'Domanda',
+            skill: 'Skill',
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `Terminale(cmd: ${cmd})`,
@@ -563,6 +567,7 @@ export const it: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `Modificando ${count} file`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} e altri ${count}`,
             showingDiff: 'Mostrando modifiche',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         }
     },
 
@@ -776,6 +781,22 @@ export const it: TranslationStructure = {
         metadataVersion: 'Versione metadati',
         untitledSession: 'Sessione senza titolo',
         back: 'Indietro',
+        memory: 'Memoria',
+        systemMemory: 'Memoria di sistema',
+        freeMemory: 'Memoria libera',
+        sessionMemoryTotal: 'Memoria sessioni',
+        lowMemoryWarning: 'Poca memoria',
+        lowMemoryHint: 'La RAM libera è inferiore a 1 GB. Considera di interrompere le sessioni inattive.',
+        recentlyClosed: 'Chiuse di recente',
+        archivedIdle: 'Timeout inattività',
+        archivedManual: 'Fermata manualmente',
+        archivedCrash: 'Terminata',
+        archivedOrphan: 'Pulizia orfani',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: 'Eliminare questo worktree?',
+            deleteWarning: 'Una sessione attiva sta usando questo worktree. Ferma prima la sessione.',
+        },
     },
 
     message: {

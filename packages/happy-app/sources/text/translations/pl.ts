@@ -289,7 +289,9 @@ export const pl: TranslationStructure = {
         sessionType: {
             title: 'Typ sesji',
             simple: 'Prosta',
+            simpleDesc: 'Uruchom w bieżącym katalogu',
             worktree: 'Worktree',
+            worktreeDesc: 'Izolowana gałąź git — zmiany nie wpływają na główną',
             comingSoon: 'Wkrótce dostępne',
         },
         worktree: {
@@ -312,6 +314,7 @@ export const pl: TranslationStructure = {
 
     session: {
         inputPlaceholder: 'Wpisz wiadomość...',
+        worktreeBadge: 'Worktree',
     },
 
     commandPalette: {
@@ -520,6 +523,7 @@ export const pl: TranslationStructure = {
             applyChanges: 'Zaktualizuj plik',
             viewDiff: 'Bieżące zmiany pliku',
             question: 'Pytanie',
+            skill: 'Skill',
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `Terminal(cmd: ${cmd})`,
@@ -537,6 +541,7 @@ export const pl: TranslationStructure = {
             modifyingFiles: ({ count }: { count: number }) => `Modyfikowanie ${count} ${plural({ count, one: 'pliku', few: 'plików', many: 'plików' })}`,
             modifyingMultipleFiles: ({ file, count }: { file: string; count: number }) => `${file} i ${count} ${plural({ count, one: 'więcej', few: 'więcej', many: 'więcej' })}`,
             showingDiff: 'Pokazywanie zmian',
+            skillInvoke: ({ skill }: { skill: string }) => `Skill: ${skill}`,
         },
         askUserQuestion: {
             submit: 'Wyślij odpowiedź',
@@ -757,6 +762,22 @@ export const pl: TranslationStructure = {
         metadataVersion: 'Wersja metadanych',
         untitledSession: 'Sesja bez nazwy',
         back: 'Wstecz',
+        memory: 'Pamięć',
+        systemMemory: 'Pamięć systemowa',
+        freeMemory: 'Wolna pamięć',
+        sessionMemoryTotal: 'Pamięć sesji',
+        lowMemoryWarning: 'Mało pamięci',
+        lowMemoryHint: 'Wolna pamięć RAM poniżej 1 GB. Rozważ zatrzymanie nieaktywnych sesji.',
+        recentlyClosed: 'Ostatnio zamknięte',
+        archivedIdle: 'Limit czasu bezczynności',
+        archivedManual: 'Zatrzymano ręcznie',
+        archivedCrash: 'Zakończono',
+        archivedOrphan: 'Czyszczenie osieroconych',
+        worktrees: {
+            title: 'Worktrees',
+            deleteConfirm: 'Usunąć ten worktree?',
+            deleteWarning: 'Aktywna sesja używa tego worktree. Najpierw zatrzymaj sesję.',
+        },
     },
 
     message: {

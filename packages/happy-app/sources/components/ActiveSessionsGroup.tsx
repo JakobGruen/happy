@@ -12,10 +12,13 @@ import { StatusDot } from './StatusDot';
 import { useAllMachines, useSetting, useRealtimeSessionId, useRealtimeStatus } from '@/sync/storage';
 import { StyleSheet } from 'react-native-unistyles';
 import { isMachineOnline } from '@/utils/machineUtils';
-import { machineSpawnNewSession, sessionKill } from '@/sync/ops';
+import { machineSpawnNewSession, sessionArchive } from '@/sync/ops';
 import { storage } from '@/sync/storage';
 import { Modal } from '@/modal';
 import { CompactGitStatus } from './CompactGitStatus';
+import { CompactMemoryBadge } from '@/components/CompactMemoryBadge';
+import { CompactBranchBadge } from '@/components/CompactBranchBadge';
+import { isWorktreePath, formatWorktreeSubtitle } from '@/utils/worktreeUtils';
 import { ProjectGitStatus } from './ProjectGitStatus';
 import { t } from '@/text';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
@@ -246,7 +249,9 @@ export function ActiveSessionsGroup({ sessions, selectedSessionId }: ActiveSessi
             // Get or create project group
             let projectGroup = groups.get(projectPath);
             if (!projectGroup) {
-                const displayPath = formatPathRelativeToHome(projectPath, session.metadata?.homeDir);
+                const displayPath = isWorktreePath(projectPath)
+                    ? formatWorktreeSubtitle(projectPath, null, session.metadata?.homeDir)
+                    : formatPathRelativeToHome(projectPath, session.metadata?.homeDir);
                 projectGroup = {
                     path: projectPath,
                     displayPath,
@@ -356,7 +361,7 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
     const swipeEnabled = Platform.OS !== 'web';
 
     const [archivingSession, performArchive] = useHappyAction(async () => {
-        const result = await sessionKill(session.id);
+        const result = await sessionArchive(session.id);
         if (!result.success) {
             throw new HappyError(result.message || t('sessionInfo.failedToArchiveSession'), false);
         }
@@ -458,7 +463,11 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
                             </View>
                         )}
 
-                        {/* No longer showing git status per item - it's in the header */}
+                        {/* Branch badge */}
+                        <CompactBranchBadge sessionId={session.id} sessionPath={session.metadata?.path} />
+
+                        {/* Memory badge */}
+                        <CompactMemoryBadge sessionId={session.id} machineId={session.metadata?.machineId} />
 
                         {/* Task status indicator */}
                         {session.todos && session.todos.length > 0 && (() => {
