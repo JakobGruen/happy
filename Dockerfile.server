@@ -10,21 +10,24 @@ COPY package.json yarn.lock ./
 COPY scripts ./scripts
 COPY patches ./patches
 
-RUN mkdir -p packages/happy-app packages/happy-server packages/happy-cli packages/happy-wire
+RUN mkdir -p packages/happy-app packages/happy-server packages/happy-cli packages/happy-wire packages/happy-agent
 
-COPY packages/happy-app/package.json packages/happy-app/
-COPY packages/happy-server/package.json packages/happy-server/
-COPY packages/happy-cli/package.json packages/happy-cli/
+# Only copy real package.json for packages we actually need (wire + server)
 COPY packages/happy-wire/package.json packages/happy-wire/
+COPY packages/happy-server/package.json packages/happy-server/
+
+# Stub out unneeded workspaces — avoids installing React Native, Expo, etc.
+RUN echo '{"name":"happy-app","version":"1.0.0","private":true}' > packages/happy-app/package.json
+RUN echo '{"name":"happy-coder","version":"0.1.0","private":true}' > packages/happy-cli/package.json
+RUN echo '{"name":"@slopus/agent","version":"0.1.0","private":true}' > packages/happy-agent/package.json
 
 # Workspace postinstall requirements
-COPY packages/happy-app/patches packages/happy-app/patches
 COPY packages/happy-server/prisma packages/happy-server/prisma
-COPY packages/happy-cli/scripts packages/happy-cli/scripts
-COPY packages/happy-cli/tools packages/happy-cli/tools
 
-# Normal install - happy-app postinstall is resilient (|| true) so it won't fail the build
-RUN SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines
+# Install with --ignore-scripts, then manually run what we need
+RUN SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines --ignore-scripts
+RUN SKIP_HAPPY_WIRE_BUILD=1 node scripts/postinstall.cjs
+RUN cd packages/happy-server && npx prisma generate
 
 # Stage 2: build the server
 FROM deps AS builder
