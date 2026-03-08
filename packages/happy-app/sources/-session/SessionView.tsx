@@ -22,6 +22,7 @@ import { sessionAbort } from '@/sync/ops';
 import { storage, useIsDataReady, useLocalSetting, useRealtimeStatus, useSessionMessages, useSessionUsage, useSetting } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
 import { Session } from '@/sync/storageTypes';
+import { apiSocket } from '@/sync/apiSocket';
 import { sync } from '@/sync/sync';
 import { t } from '@/text';
 import { tracking, trackMessageSent } from '@/track';
@@ -217,13 +218,16 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         }
     }, [machineId, cliVersion, acknowledgedCliVersions]);
 
-    // Function to update permission mode
+    // Function to update permission mode — sync to CLI immediately via RPC
     const updatePermissionMode = React.useCallback((mode: PermissionMode) => {
         storage.getState().updateSessionPermissionMode(sessionId, mode.key);
+        apiSocket.sessionRPC(sessionId, 'switch-permission-mode', { mode: mode.key }).catch(() => {});
     }, [sessionId]);
 
+    // Function to update model — sync to CLI immediately via RPC
     const updateModelMode = React.useCallback((mode: ModelMode) => {
         storage.getState().updateSessionModelMode(sessionId, mode.key);
+        apiSocket.sessionRPC(sessionId, 'switch-model', { model: mode.key }).catch(() => {});
     }, [sessionId]);
 
     // Memoize header-dependent styles to prevent re-renders

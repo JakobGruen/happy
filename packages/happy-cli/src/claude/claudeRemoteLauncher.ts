@@ -129,6 +129,20 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
         }
     );
 
+    // Switch model directly (from voice agent or app)
+    session.client.rpcHandlerManager.registerHandler<{ model: string }, void>(
+        'switch-model', async (data) => {
+            const { model } = data;
+            logger.debug(`[remote]: Model switch → ${model}`);
+
+            // Sync metadata so app shows correct model
+            session.client.updateMetadata((m) => ({
+                ...m,
+                currentModelCode: model,
+            }));
+        }
+    );
+
     // Removed catch-all stdin handler - now handled by RemoteModeDisplay keyboard handlers
 
     // Display connection status changes in remote mode

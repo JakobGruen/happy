@@ -28,7 +28,7 @@ import { claudeLocal } from '@/claude/claudeLocal';
 import { createSessionScanner } from '@/claude/utils/sessionScanner';
 import { Session } from './session';
 import { applySandboxPermissionPolicy, resolveInitialClaudePermissionMode } from './utils/permissionMode';
-import { getClaudeModels, normalizeModelCode } from '@slopus/happy-wire';
+import { getClaudeModels, getClaudeOperatingModes, normalizeModelCode } from '@slopus/happy-wire';
 
 /** JavaScript runtime to use for spawning Claude Code */
 export type JsRuntime = 'node' | 'bun'
@@ -117,6 +117,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         sandbox: sandboxConfig?.enabled ? sandboxConfig : null,
         dangerouslySkipPermissions,
         models: getClaudeModels(),
+        operatingModes: getClaudeOperatingModes(),
         currentOperatingModeCode: initialPermissionMode,
         ...(options.model ? { currentModelCode: normalizeModelCode(options.model) } : {}),
     };
@@ -285,10 +286,12 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         if (message.meta?.hasOwnProperty('model')) {
             messageModel = message.meta.model || undefined; // null becomes undefined
             currentModel = messageModel;
-            session.updateMetadata((m) => ({
-                ...m,
-                currentModelCode: currentModel ? normalizeModelCode(currentModel) : 'default',
-            }));
+            if (currentModel) {
+                session.updateMetadata((m) => ({
+                    ...m,
+                    currentModelCode: normalizeModelCode(currentModel!),
+                }));
+            }
             logger.debug(`[loop] Model updated from user message: ${messageModel || 'reset to default'}`);
         } else {
             logger.debug(`[loop] User message received with no model override, using current: ${currentModel || 'default'}`);

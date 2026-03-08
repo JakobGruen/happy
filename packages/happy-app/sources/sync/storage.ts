@@ -331,10 +331,10 @@ export const storage = create<StorageState>()((set, get) => {
                 const existingModelMode = state.sessions[session.id]?.modelMode;
                 const savedModelMode = savedModelModes[session.id];
                 const resolvedModelMode =
-                    (existingModelMode && existingModelMode !== 'default' ? existingModelMode : undefined) ||
-                    (savedModelMode && savedModelMode !== 'default' ? savedModelMode : undefined) ||
-                    (session.modelMode && session.modelMode !== 'default' ? session.modelMode : undefined) ||
-                    'default';
+                    existingModelMode ||
+                    savedModelMode ||
+                    session.modelMode ||
+                    null;
 
                 mergedSessions[session.id] = {
                     ...session,

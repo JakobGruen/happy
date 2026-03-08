@@ -11,7 +11,6 @@ interface ClaudeModelDef {
 }
 
 const CLAUDE_MODEL_REGISTRY: ClaudeModelDef[] = [
-    { code: 'default', value: 'Default', description: 'Use CLI settings', patterns: [] },
     { code: 'sonnet', value: 'Sonnet', description: 'Fast and capable', patterns: [/sonnet/i] },
     { code: 'opus', value: 'Opus', description: 'Most capable', patterns: [/opus/i] },
     { code: 'haiku', value: 'Haiku', description: 'Fastest', patterns: [/haiku/i] },
@@ -22,6 +21,18 @@ const CLAUDE_MODEL_REGISTRY: ClaudeModelDef[] = [
  */
 export function getClaudeModels(): Array<{ code: string; value: string; description: string }> {
     return CLAUDE_MODEL_REGISTRY.map(({ code, value, description }) => ({ code, value, description }));
+}
+
+/**
+ * Returns the operating mode list for session metadata.
+ */
+export function getClaudeOperatingModes(): Array<{ code: string; value: string; description: string }> {
+    return [
+        { code: 'default', value: 'Default', description: 'Ask for permissions' },
+        { code: 'acceptEdits', value: 'Accept Edits', description: 'Auto-accept file edits' },
+        { code: 'plan', value: 'Plan', description: 'Plan without executing' },
+        { code: 'bypassPermissions', value: 'Bypass Permissions', description: 'Skip all permission checks' },
+    ];
 }
 
 /**

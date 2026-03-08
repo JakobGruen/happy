@@ -549,7 +549,7 @@ export function NewSessionWizard({ onComplete, onCancel, initialPrompt = '' }: N
         return 'claude';
     });
     const [permissionMode, setPermissionMode] = useState<PermissionModeKey>('default');
-    const [modelMode, setModelMode] = useState<ModelModeKey>('default');
+    const [modelMode, setModelMode] = useState<ModelModeKey>('sonnet');
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(() => {
         return lastUsedProfile;
     });
@@ -1629,6 +1629,7 @@ export function NewSessionWizard({ onComplete, onCancel, initialPrompt = '' }: N
                                 { value: 'default', label: 'Default', description: 'Balanced performance', icon: 'cube-outline' },
                                 { value: 'sonnet', label: 'Sonnet', description: 'Fast and efficient', icon: 'speedometer-outline' },
                                 { value: 'opus', label: 'Opus', description: 'Most capable model', icon: 'diamond-outline' },
+                                { value: 'haiku', label: 'Haiku', description: 'Fastest responses', icon: 'flash-outline' },
                             ] as const : [
                                 { value: 'gpt-5-codex-high', label: 'GPT-5 Codex High', description: 'Best for complex coding', icon: 'diamond-outline' },
                                 { value: 'gpt-5-codex-medium', label: 'GPT-5 Codex Medium', description: 'Balanced coding assistance', icon: 'cube-outline' },

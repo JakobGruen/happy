@@ -70,9 +70,9 @@ export function getGeminiPermissionModes(translate: Translate): PermissionMode[]
 
 export function getClaudeModelModes(): ModelMode[] {
     return [
-        { key: 'default', name: 'Default', description: 'Use CLI settings' },
         { key: 'sonnet', name: 'Sonnet', description: 'Fast and capable' },
         { key: 'opus', name: 'Opus', description: 'Most capable' },
+        { key: 'haiku', name: 'Haiku', description: 'Fastest' },
     ];
 }
 
@@ -129,7 +129,7 @@ export function getAvailablePermissionModes(
     metadata: Metadata | null | undefined,
     translate: Translate,
 ): PermissionMode[] {
-    if (flavor === 'claude' || flavor === 'codex') {
+    if (flavor === 'codex') {
         return hackModes(getHardcodedPermissionModes(flavor, translate));
     }
 
@@ -168,7 +168,7 @@ export function getDefaultModelKey(flavor: AgentFlavor): string {
     if (flavor === 'gemini') {
         return 'gemini-2.5-pro';
     }
-    return 'default';
+    return 'sonnet';
 }
 
 export function getDefaultPermissionModeKey(_flavor: AgentFlavor): string {
