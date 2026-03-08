@@ -12,6 +12,14 @@
       "env": {
         "APP_ENV": "development"
       }
+    },
+    "preview": {
+      "autoIncrement": true,
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "APP_ENV": "preview"
+      }
     }
   }
 }
