@@ -69,6 +69,16 @@ export async function notifyDaemonSessionStarted(
   });
 }
 
+/**
+ * Notify the daemon that this process is still actively working.
+ * Fire-and-forget — silently ignores failures (daemon may not be running).
+ */
+export function notifyDaemonSessionActivity(): void {
+  daemonPost('/session-activity', { pid: process.pid }).catch(() => {
+    // Intentionally silent — daemon may not be running
+  });
+}
+
 export async function listDaemonSessions(): Promise<any[]> {
   const result = await daemonPost('/list');
   return result.children || [];

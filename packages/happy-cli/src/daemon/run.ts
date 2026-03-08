@@ -24,6 +24,7 @@ import { getTmuxUtilities, isTmuxAvailable, parseTmuxSessionIdentifier, formatTm
 import { expandEnvironmentVariables } from '@/utils/expandEnvVars';
 import { findIdleSessions } from './idleTimeout';
 import { collectMemoryStats } from './memoryStats';
+import { detectActiveProcesses } from './processActivity';
 
 // Prepare initial metadata
 export const initialMachineMetadata: MachineMetadata = {
@@ -721,7 +722,15 @@ export async function startDaemon(): Promise<void> {
       stopSession,
       spawnSession,
       requestShutdown: () => requestShutdown('happy-cli'),
-      onHappySessionWebhook
+      onHappySessionWebhook,
+      onSessionActivity: (pid: number) => {
+        const session = pidToTrackedSession.get(pid);
+        if (session) {
+          session.lastActivityAt = Date.now();
+          logger.debug(`[DAEMON RUN] Activity reported for PID ${pid} (session: ${session.happySessionId || 'unknown'})`);
+          persistChildren();
+        }
+      }
     });
 
     // Write initial daemon state (no lock needed for state file)
@@ -773,7 +782,9 @@ export async function startDaemon(): Promise<void> {
     // 3. If outdated, restart with latest version
     // 4. Write heartbeat
     const heartbeatIntervalMs = parseInt(process.env.HAPPY_DAEMON_HEARTBEAT_INTERVAL || '60000');
-    let heartbeatRunning = false
+    let heartbeatRunning = false;
+    /** Tracks last known CPU ticks per PID for detecting active processes */
+    let lastKnownCpuTicks = new Map<number, number>();
     const restartOnStaleVersionAndHeartbeat = setInterval(async () => {
       if (heartbeatRunning) {
         return;
@@ -800,6 +811,25 @@ export async function startDaemon(): Promise<void> {
       }
       if (pruned) {
         persistChildren();
+      }
+
+      // Refresh lastActivityAt for processes that consumed CPU since last check
+      if (pidToTrackedSession.size > 0) {
+        const pids = Array.from(pidToTrackedSession.keys());
+        const { updatedTicks, activePids } = detectActiveProcesses(pids, lastKnownCpuTicks);
+        lastKnownCpuTicks = updatedTicks;
+
+        if (activePids.size > 0) {
+          const now = Date.now();
+          for (const pid of activePids) {
+            const session = pidToTrackedSession.get(pid);
+            if (session) {
+              session.lastActivityAt = now;
+              logger.debug(`[DAEMON RUN] CPU activity detected for PID ${pid} (session: ${session.happySessionId || 'unknown'})`);
+            }
+          }
+          persistChildren();
+        }
       }
 
       // Evict idle sessions
