@@ -16,6 +16,7 @@ interface PermissionFooterProps {
         permissionSuggestions?: any[];
         decisionReason?: string;
         description?: string;
+        updatedPermissions?: any[];
     };
     sessionId: string;
     toolName: string;
@@ -37,16 +38,19 @@ function getSuggestionLabel(suggestion: any): string {
                 ? t('permissions.forAllProjects')
                 : '';
 
-    if (suggestion.type === 'addRules' && Array.isArray(suggestion.rules)) {
+    if ((suggestion.type === 'addRules' || suggestion.type === 'replaceRules') && Array.isArray(suggestion.rules)) {
         const rule = suggestion.rules[0];
         if (rule) {
-            const toolLabel = rule.prefix
-                ? `${rule.tool_name}(${rule.prefix}*)`
-                : rule.tool_name || 'tool';
-            if (rule.behavior === 'allow') {
+            const ruleContent = rule.ruleContent
+                ? (rule.ruleContent.length > 40 ? rule.ruleContent.slice(0, 37) + '...' : rule.ruleContent)
+                : '';
+            const toolLabel = ruleContent
+                ? `${rule.toolName || 'tool'}(${ruleContent})`
+                : rule.toolName || 'tool';
+            if (suggestion.behavior === 'allow') {
                 return t('permissions.allowTool', { tool: toolLabel, scope: destinationLabel });
             }
-            if (rule.behavior === 'deny') {
+            if (suggestion.behavior === 'deny') {
                 return t('permissions.denyTool', { tool: toolLabel, scope: destinationLabel });
             }
         }
@@ -114,11 +118,12 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
         if (!isPending || isAnyLoading) return;
         setLoadingKey(`suggestion-${index}`);
         try {
-            // If suggestion is setMode with acceptEdits, also update local permission mode
-            if (suggestion.type === 'setMode' && suggestion.mode === 'acceptEdits') {
-                storage.getState().updateSessionPermissionMode(sessionId, 'acceptEdits');
+            // Extract mode from setMode suggestions to pass to CLI
+            const mode = suggestion.type === 'setMode' ? suggestion.mode : undefined;
+            if (suggestion.type === 'setMode' && mode) {
+                storage.getState().updateSessionPermissionMode(sessionId, mode);
             }
-            await sessionAllow(sessionId, permission.id, undefined, undefined, undefined, undefined, [suggestion]);
+            await sessionAllow(sessionId, permission.id, mode, undefined, undefined, undefined, [suggestion]);
         } catch (error) {
             console.error('Failed to approve with suggestion:', error);
         } finally {
@@ -392,6 +397,17 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
     // --- Dynamic Claude rendering (when CC sends permission_suggestions) ---
     if (hasSuggestions) {
         const suggestions = permission.permissionSuggestions!;
+
+        // Determine which suggestion was selected (if any)
+        const wasSuggestionApproved = isApproved && Array.isArray(permission.updatedPermissions) && permission.updatedPermissions.length > 0;
+        const matchSuggestion = (suggestion: any, index: number): boolean => {
+            if (!wasSuggestionApproved) return false;
+            const applied = permission.updatedPermissions![0];
+            // Match by type + key fields (JSON comparison as fallback)
+            return applied?.type === suggestion.type && JSON.stringify(applied) === JSON.stringify(suggestion);
+        };
+        const isYesSelected = isApproved && !wasSuggestionApproved;
+
         return (
             <View style={styles.container}>
                 {/* Show decision reason as context when available */}
@@ -407,20 +423,21 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
                         t('common.yes'),
                         handleAllowOnce,
                         styles.buttonTextAllow,
-                        isApprovedViaAllow && !isApprovedForSession && !isApprovedViaAllEdits,
-                        isDenied || isApprovedForSession || isApprovedViaAllEdits,
+                        isYesSelected,
+                        isDenied || (isApproved && !isYesSelected),
                     )}
                     {/* Dynamic suggestion buttons */}
-                    {suggestions.map((suggestion, index) => renderButton(
-                        `suggestion-${index}`,
-                        getSuggestionLabel(suggestion),
-                        () => handleSuggestion(index, suggestion),
-                        styles.buttonTextAllowAll,
-                        // When approved, we can't easily tell which suggestion was picked,
-                        // so we just show the "allow once" as selected for approved state
-                        false,
-                        isDenied || isApproved,
-                    ))}
+                    {suggestions.map((suggestion, index) => {
+                        const isSuggestionSelected = matchSuggestion(suggestion, index);
+                        return renderButton(
+                            `suggestion-${index}`,
+                            getSuggestionLabel(suggestion),
+                            () => handleSuggestion(index, suggestion),
+                            styles.buttonTextAllowAll,
+                            isSuggestionSelected,
+                            isDenied || (isApproved && !isSuggestionSelected),
+                        );
+                    })}
                     {/* Deny */}
                     {renderButton(
                         'deny',

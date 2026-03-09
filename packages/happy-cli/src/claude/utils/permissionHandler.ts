@@ -103,12 +103,21 @@ export class PermissionHandler {
             logger.debug('Plan mode result received', response);
             if (response.approved) {
                 logger.debug('Plan approved - injecting PLAN_FAKE_RESTART');
-                // Inject the approval message at the beginning of the queue
+
+                // Determine permission mode: prefer explicit response.mode, fallback to updatedPermissions
+                let permissionMode: string = 'default';
                 if (response.mode && ['default', 'acceptEdits', 'bypassPermissions'].includes(response.mode)) {
-                    this.session.queue.unshift(PLAN_FAKE_RESTART, { permissionMode: response.mode });
-                } else {
-                    this.session.queue.unshift(PLAN_FAKE_RESTART, { permissionMode: 'default' });
+                    permissionMode = response.mode;
+                } else if (response.updatedPermissions?.length) {
+                    const setMode = response.updatedPermissions.find(
+                        (p) => p.type === 'setMode' && ['default', 'acceptEdits', 'bypassPermissions'].includes(p.mode)
+                    );
+                    if (setMode && setMode.type === 'setMode') {
+                        permissionMode = setMode.mode;
+                    }
                 }
+
+                this.session.queue.unshift(PLAN_FAKE_RESTART, { permissionMode });
                 pending.resolve({ behavior: 'deny', message: PLAN_FAKE_REJECT });
             } else {
                 pending.resolve({ behavior: 'deny', message: response.reason || 'Plan rejected' });

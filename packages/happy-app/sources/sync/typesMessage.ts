@@ -21,6 +21,7 @@ export type ToolCall = {
         permissionSuggestions?: any[];
         decisionReason?: string;
         description?: string;
+        updatedPermissions?: any[];
     };
 }
 

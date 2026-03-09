@@ -457,12 +457,13 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         }
 
                         // Check if we need to update ANY field
-                        const needsUpdate = 
+                        const needsUpdate =
                             message.tool.permission?.status !== completed.status ||
                             message.tool.permission?.reason !== completed.reason ||
                             message.tool.permission?.mode !== completed.mode ||
                             message.tool.permission?.allowedTools !== completed.allowedTools ||
-                            message.tool.permission?.decision !== completed.decision;
+                            message.tool.permission?.decision !== completed.decision ||
+                            message.tool.permission?.updatedPermissions !== completed.updatedPermissions;
 
                         if (!needsUpdate) {
                             continue;
@@ -478,7 +479,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                                 mode: completed.mode || undefined,
                                 allowedTools: completed.allowedTools || undefined,
                                 decision: completed.decision || undefined,
-                                reason: completed.reason || undefined
+                                reason: completed.reason || undefined,
+                                updatedPermissions: completed.updatedPermissions || undefined,
                             };
                             hasChanged = true;
                         } else {
@@ -487,6 +489,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             message.tool.permission.mode = completed.mode || undefined;
                             message.tool.permission.allowedTools = completed.allowedTools || undefined;
                             message.tool.permission.decision = completed.decision || undefined;
+                            message.tool.permission.updatedPermissions = completed.updatedPermissions || undefined;
                             if (completed.reason) {
                                 message.tool.permission.reason = completed.reason;
                             }
@@ -570,7 +573,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             reason: completed.reason || undefined,
                             mode: completed.mode || undefined,
                             allowedTools: completed.allowedTools || undefined,
-                            decision: completed.decision || undefined
+                            decision: completed.decision || undefined,
+                            updatedPermissions: completed.updatedPermissions || undefined,
                         }
                     };
 
