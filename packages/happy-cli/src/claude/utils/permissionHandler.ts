@@ -105,7 +105,7 @@ export class PermissionHandler {
                 logger.debug('Plan approved - injecting PLAN_FAKE_RESTART');
 
                 // Determine permission mode: prefer explicit response.mode, fallback to updatedPermissions
-                let permissionMode: string = 'default';
+                let permissionMode: PermissionMode = 'default';
                 if (response.mode && ['default', 'acceptEdits', 'bypassPermissions'].includes(response.mode)) {
                     permissionMode = response.mode;
                 } else if (response.updatedPermissions?.length) {
@@ -113,7 +113,7 @@ export class PermissionHandler {
                         (p) => p.type === 'setMode' && ['default', 'acceptEdits', 'bypassPermissions'].includes(p.mode)
                     );
                     if (setMode && setMode.type === 'setMode') {
-                        permissionMode = setMode.mode;
+                        permissionMode = setMode.mode as PermissionMode;
                     }
                 }
 
