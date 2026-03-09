@@ -46,6 +46,7 @@ function getGlobalClaudeVersion(): string | null {
  */
 export function getCleanEnv(): NodeJS.ProcessEnv {
     const env = { ...process.env }
+    delete env.CLAUDECODE
     const cwd = process.cwd()
     const pathSep = process.platform === 'win32' ? ';' : ':'
     const pathKey = process.platform === 'win32' ? 'Path' : 'PATH'

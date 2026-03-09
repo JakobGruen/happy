@@ -29,8 +29,9 @@ class Configuration {
   public readonly disableCaffeinate: boolean
 
   constructor() {
-    // Server configuration - priority: parameter > environment > default
-    this.serverUrl = process.env.HAPPY_SERVER_URL || 'https://api.cluster-fluster.com'
+    // Server configuration - priority: environment > variant default > prod default
+    const isDevVariant = process.env.HAPPY_VARIANT === 'dev'
+    this.serverUrl = process.env.HAPPY_SERVER_URL || (isDevVariant ? 'https://happy-server-dev.green-wald.de' : 'https://happy-server.green-wald.de')
     this.webappUrl = process.env.HAPPY_WEBAPP_URL || 'https://app.happy.engineering'
 
     // Check if we're running as daemon based on process args
