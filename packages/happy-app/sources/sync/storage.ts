@@ -413,23 +413,6 @@ export const storage = create<StorageState>()((set, get) => {
                     //     newRequests: Object.keys(newSession.agentState?.requests || {})
                     // });
 
-                    if (currentRealtimeSessionId === session.id && voiceSession) {
-                        const oldRequests = oldSession?.agentState?.requests || {};
-                        const newRequests = newSession.agentState?.requests || {};
-
-                        // Find NEW permission requests only
-                        for (const [requestId, request] of Object.entries(newRequests)) {
-                            if (!oldRequests[requestId]) {
-                                // This is a NEW permission request
-                                const toolName = request.tool;
-                                // console.log('[REALTIME DEBUG] Sending permission notification for:', toolName);
-                                voiceSession.sendTextMessage(
-                                    `Claude is requesting permission to use the ${toolName} tool`
-                                );
-                            }
-                        }
-                    }
-
                     // Process new AgentState through reducer
                     const reducerResult = reducer(existingSessionMessages.reducerState, [], newSession.agentState);
                     const processedMessages = reducerResult.messages;
