@@ -56,3 +56,4 @@ __pycache__/
 notes/
 # ralphex progress logs
 progress*.txt
+.claude/worktrees/
