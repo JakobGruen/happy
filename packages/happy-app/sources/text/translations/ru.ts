@@ -793,12 +793,15 @@ export const ru: TranslationStructure = {
             yesAllowAllEdits: 'Да, разрешить все правки в этой сессии',
             yesForTool: 'Да, больше не спрашивать для этого инструмента',
             noTellClaude: 'Нет, дать обратную связь',
+            sendFeedback: 'Отправить',
+            feedbackPlaceholder: 'Расскажите Claude почему...',
         }
     },
 
     // Dynamic permission suggestion labels (from CC permission_suggestions)
     permissions: {
         forSession: 'эту сессию',
+        forLocalSettings: 'локальные настройки проекта',
         forProject: 'этот проект',
         forAllProjects: 'все проекты',
         allowTool: ({ tool, scope }: { tool: string; scope: string }) => `Разрешить ${tool} для ${scope}`,

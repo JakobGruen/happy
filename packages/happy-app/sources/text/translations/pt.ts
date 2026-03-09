@@ -795,12 +795,15 @@ export const pt: TranslationStructure = {
             yesAllowAllEdits: 'Sim, permitir todas as edições durante esta sessão',
             yesForTool: 'Sim, não perguntar novamente para esta ferramenta',
             noTellClaude: 'Não, fornecer feedback',
+            sendFeedback: 'Enviar',
+            feedbackPlaceholder: 'Diga ao Claude por quê...',
         }
     },
 
     // Dynamic permission suggestion labels (from CC permission_suggestions)
     permissions: {
         forSession: 'esta sessão',
+        forLocalSettings: 'configurações locais do projeto',
         forProject: 'este projeto',
         forAllProjects: 'todos os projetos',
         allowTool: ({ tool, scope }: { tool: string; scope: string }) => `Permitir ${tool} para ${scope}`,

@@ -796,12 +796,15 @@ export const zhHant: TranslationStructure = {
             yesAllowAllEdits: '是，允許本次工作階段的所有編輯',
             yesForTool: '是，不再詢問此工具',
             noTellClaude: '否，並告訴 Claude 該如何不同地操作',
+            sendFeedback: '傳送',
+            feedbackPlaceholder: '告訴 Claude 原因...',
         }
     },
 
     // Dynamic permission suggestion labels (from CC permission_suggestions)
     permissions: {
         forSession: '此工作階段',
+        forLocalSettings: '本地專案設定',
         forProject: '此專案',
         forAllProjects: '所有專案',
         allowTool: ({ tool, scope }: { tool: string; scope: string }) => `允許 ${tool} 用於${scope}`,

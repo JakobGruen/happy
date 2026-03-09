@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, TextInput } from 'react-native';
 import { sessionAllow, sessionDeny } from '@/sync/ops';
 import { useUnistyles } from 'react-native-unistyles';
 import { storage } from '@/sync/storage';
@@ -32,11 +32,15 @@ function getSuggestionLabel(suggestion: any): string {
     const destination = suggestion.destination as string | undefined;
     const destinationLabel = destination === 'session'
         ? t('permissions.forSession')
-        : destination === 'projectSettings'
-            ? t('permissions.forProject')
-            : destination === 'userSettings'
-                ? t('permissions.forAllProjects')
-                : '';
+        : destination === 'localSettings'
+            ? t('permissions.forLocalSettings')
+            : destination === 'projectSettings'
+                ? t('permissions.forProject')
+                : destination === 'userSettings'
+                    ? t('permissions.forAllProjects')
+                    : destination === 'cliArg'
+                        ? t('permissions.forSession')
+                        : '';
 
     if ((suggestion.type === 'addRules' || suggestion.type === 'replaceRules') && Array.isArray(suggestion.rules)) {
         const rule = suggestion.rules[0];
@@ -82,6 +86,9 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
     const { theme } = useUnistyles();
     // Loading state: 'allow-once', 'deny', or 'suggestion-{index}' for dynamic suggestions
     const [loadingKey, setLoadingKey] = useState<string | null>(null);
+    // Deny feedback state
+    const [showFeedback, setShowFeedback] = useState(false);
+    const [feedbackText, setFeedbackText] = useState('');
 
     // Check if this is a Codex session
     const isCodex = metadata?.flavor === 'codex' || toolName.startsWith('Codex');
@@ -131,11 +138,19 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
         }
     };
 
-    const handleDeny = async () => {
+    const handleDenyTap = () => {
+        if (!isPending || isAnyLoading) return;
+        if (!showFeedback) {
+            setShowFeedback(true);
+            return;
+        }
+    };
+
+    const handleDenySubmit = async () => {
         if (!isPending || isAnyLoading) return;
         setLoadingKey('deny');
         try {
-            await sessionDeny(sessionId, permission.id);
+            await sessionDeny(sessionId, permission.id, undefined, undefined, undefined, feedbackText.trim() || undefined);
         } catch (error) {
             console.error('Failed to deny permission:', error);
         } finally {
@@ -313,6 +328,34 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
             paddingBottom: 4,
             fontStyle: 'italic',
         },
+        feedbackRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 4,
+        },
+        feedbackInput: {
+            flex: 1,
+            borderWidth: 1,
+            borderColor: theme.colors.divider,
+            borderRadius: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            fontSize: 14,
+            color: theme.colors.text,
+            minHeight: 36,
+        },
+        feedbackSend: {
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 8,
+        },
+        feedbackSendText: {
+            fontSize: 14,
+            fontWeight: '500',
+            color: theme.colors.permissionButton.deny.background,
+        },
     });
 
     const renderButton = (
@@ -442,12 +485,33 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
                     {renderButton(
                         'deny',
                         t('claude.permissions.noTellClaude'),
-                        handleDeny,
+                        handleDenyTap,
                         styles.buttonTextDeny,
                         isDenied,
                         isApproved,
                     )}
                 </View>
+                {showFeedback && isPending && (
+                    <View style={styles.feedbackRow}>
+                        <TextInput
+                            style={styles.feedbackInput}
+                            placeholder={t('claude.permissions.feedbackPlaceholder')}
+                            placeholderTextColor={theme.colors.textSecondary}
+                            value={feedbackText}
+                            onChangeText={setFeedbackText}
+                            onSubmitEditing={handleDenySubmit}
+                            autoFocus
+                            returnKeyType="send"
+                        />
+                        <TouchableOpacity style={styles.feedbackSend} onPress={handleDenySubmit} disabled={isAnyLoading}>
+                            {loadingKey === 'deny' ? (
+                                <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.deny.background} />
+                            ) : (
+                                <Text style={styles.feedbackSendText}>{t('claude.permissions.sendFeedback')}</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
         );
     }
@@ -485,12 +549,33 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
                 {renderButton(
                     'deny',
                     t('claude.permissions.noTellClaude'),
-                    handleDeny,
+                    handleDenyTap,
                     styles.buttonTextDeny,
                     isDenied,
                     isApproved,
                 )}
             </View>
+            {showFeedback && isPending && (
+                <View style={styles.feedbackRow}>
+                    <TextInput
+                        style={styles.feedbackInput}
+                        placeholder={t('claude.permissions.feedbackPlaceholder')}
+                        placeholderTextColor={theme.colors.textSecondary}
+                        value={feedbackText}
+                        onChangeText={setFeedbackText}
+                        onSubmitEditing={handleDenySubmit}
+                        autoFocus
+                        returnKeyType="send"
+                    />
+                    <TouchableOpacity style={styles.feedbackSend} onPress={handleDenySubmit} disabled={isAnyLoading}>
+                        {loadingKey === 'deny' ? (
+                            <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.deny.background} />
+                        ) : (
+                            <Text style={styles.feedbackSendText}>{t('claude.permissions.sendFeedback')}</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
     );
 };

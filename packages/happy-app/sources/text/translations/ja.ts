@@ -827,12 +827,15 @@ export const ja: TranslationStructure = {
             yesAllowAllEdits: 'はい、このセッション中のすべての編集を許可',
             yesForTool: "はい、このツールについては確認しない",
             noTellClaude: 'いいえ、フィードバックを提供',
+            sendFeedback: '送信',
+            feedbackPlaceholder: 'Claudeに理由を伝えてください...',
         }
     },
 
     // Dynamic permission suggestion labels (from CC permission_suggestions)
     permissions: {
         forSession: 'このセッション',
+        forLocalSettings: 'ローカルプロジェクト設定',
         forProject: 'このプロジェクト',
         forAllProjects: 'すべてのプロジェクト',
         allowTool: ({ tool, scope }: { tool: string; scope: string }) => `${scope}で${tool}を許可`,

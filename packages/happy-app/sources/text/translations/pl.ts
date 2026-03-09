@@ -805,12 +805,15 @@ export const pl: TranslationStructure = {
             yesAllowAllEdits: 'Tak, zezwól na wszystkie edycje podczas tej sesji',
             yesForTool: 'Tak, nie pytaj ponownie dla tego narzędzia',
             noTellClaude: 'Nie, przekaż opinię',
+            sendFeedback: 'Wyślij',
+            feedbackPlaceholder: 'Powiedz Claude dlaczego...',
         }
     },
 
     // Dynamic permission suggestion labels (from CC permission_suggestions)
     permissions: {
         forSession: 'tę sesję',
+        forLocalSettings: 'lokalne ustawienia projektu',
         forProject: 'ten projekt',
         forAllProjects: 'wszystkie projekty',
         allowTool: ({ tool, scope }: { tool: string; scope: string }) => `Zezwól na ${tool} dla ${scope}`,

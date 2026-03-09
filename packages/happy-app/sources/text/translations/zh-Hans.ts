@@ -797,12 +797,15 @@ export const zhHans: TranslationStructure = {
             yesAllowAllEdits: '是，允许本次会话的所有编辑',
             yesForTool: '是，不再询问此工具',
             noTellClaude: '否，提供反馈',
+            sendFeedback: '发送',
+            feedbackPlaceholder: '告诉 Claude 原因...',
         }
     },
 
     // Dynamic permission suggestion labels (from CC permission_suggestions)
     permissions: {
         forSession: '此会话',
+        forLocalSettings: '本地项目设置',
         forProject: '此项目',
         forAllProjects: '所有项目',
         allowTool: ({ tool, scope }: { tool: string; scope: string }) => `允许 ${tool} 用于${scope}`,

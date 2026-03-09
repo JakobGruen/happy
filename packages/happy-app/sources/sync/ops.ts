@@ -321,8 +321,8 @@ export async function sessionAllow(sessionId: string, id: string, mode?: 'defaul
 /**
  * Deny a permission request
  */
-export async function sessionDeny(sessionId: string, id: string, mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan', allowedTools?: string[], decision?: 'denied' | 'abort'): Promise<void> {
-    const request: SessionPermissionRequest = { id, approved: false, mode, allowTools: allowedTools, decision };
+export async function sessionDeny(sessionId: string, id: string, mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan', allowedTools?: string[], decision?: 'denied' | 'abort', reason?: string): Promise<void> {
+    const request: SessionPermissionRequest = { id, approved: false, mode, allowTools: allowedTools, decision, reason };
     await apiSocket.sessionRPC(sessionId, 'permission', request);
 }
 
