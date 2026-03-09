@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { registerGlobals } from '@livekit/react-native';
+import { registerGlobals } from '@livekit/react-native-webrtc';
 import { registerVoiceSession } from './RealtimeSession';
 import { realtimeClientTools } from './realtimeClientTools';
 import { SimpleMediaManager } from './PipecatMediaManager';
@@ -7,7 +7,7 @@ import { storage } from '@/sync/storage';
 import { VOICE_CONFIG } from './voiceConfig';
 import type { VoiceSession, VoiceSessionConfig } from './types';
 
-// Polyfill WebRTC APIs (RTCPeerConnection, navigator.mediaDevices) required by RNSmallWebRTCTransport on React Native
+// Polyfill WebRTC APIs (RTCPeerConnection, navigator.mediaDevices) for React Native
 registerGlobals();
 
 // Pipecat client types — dynamically imported to avoid bundling when not used
@@ -15,7 +15,7 @@ type PipecatClientType = any;
 
 let pcClient: PipecatClientType | null = null;
 
-// Circuit breaker for send failures (same pattern as LiveKit)
+// Circuit breaker for send failures
 let consecutiveSendFailures = 0;
 
 // Suppress errors fired during intentional disconnect (WebKit throws InvalidStateError

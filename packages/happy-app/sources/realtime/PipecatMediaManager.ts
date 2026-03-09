@@ -1,7 +1,7 @@
 /**
  * Minimal MediaManager for Pipecat RN transport.
  *
- * Uses the WebRTC globals polyfilled by @livekit/react-native (registerGlobals).
+ * Uses the WebRTC globals polyfilled by @livekit/react-native-webrtc (registerGlobals).
  * Only handles audio — no camera or screen share needed for voice sessions.
  */
 import { MediaManager } from '@pipecat-ai/react-native-small-webrtc-transport';

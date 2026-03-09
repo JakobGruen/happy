@@ -9,8 +9,12 @@ import {
 describe('localSettings', () => {
 
     describe('localSettingsDefaults', () => {
-        it('should include voiceBackend set to elevenlabs', () => {
-            expect(localSettingsDefaults.voiceBackend).toBe('elevenlabs');
+        it('should have pipecatUrl set to empty string', () => {
+            expect(localSettingsDefaults.pipecatUrl).toBe('');
+        });
+
+        it('should have pipecatAuthSecret set to empty string', () => {
+            expect(localSettingsDefaults.pipecatAuthSecret).toBe('');
         });
     });
 
@@ -21,36 +25,31 @@ describe('localSettings', () => {
             commandPaletteEnabled: false,
             themePreference: 'adaptive' as const,
             markdownCopyV2: false,
-            voiceBackend: 'elevenlabs' as const,
+            pipecatUrl: '',
+            pipecatAuthSecret: '',
             acknowledgedCliVersions: {},
         };
 
-        it('should accept elevenlabs as voiceBackend', () => {
+        it('should accept valid settings', () => {
+            const result = LocalSettingsSchema.safeParse(validSettings);
+            expect(result.success).toBe(true);
+        });
+
+        it('should accept pipecatUrl string', () => {
             const result = LocalSettingsSchema.safeParse({
                 ...validSettings,
-                voiceBackend: 'elevenlabs',
+                pipecatUrl: 'https://my-pipecat.local:8080',
             });
             expect(result.success).toBe(true);
             if (result.success) {
-                expect(result.data.voiceBackend).toBe('elevenlabs');
+                expect(result.data.pipecatUrl).toBe('https://my-pipecat.local:8080');
             }
         });
 
-        it('should accept livekit as voiceBackend', () => {
+        it('should reject invalid field types', () => {
             const result = LocalSettingsSchema.safeParse({
                 ...validSettings,
-                voiceBackend: 'livekit',
-            });
-            expect(result.success).toBe(true);
-            if (result.success) {
-                expect(result.data.voiceBackend).toBe('livekit');
-            }
-        });
-
-        it('should reject invalid voiceBackend values', () => {
-            const result = LocalSettingsSchema.safeParse({
-                ...validSettings,
-                voiceBackend: 'openai',
+                debugMode: 'not-a-boolean',
             });
             expect(result.success).toBe(false);
         });
@@ -72,34 +71,28 @@ describe('localSettings', () => {
             expect(result).toEqual(localSettingsDefaults);
         });
 
-        it('should preserve valid voiceBackend', () => {
-            const result = localSettingsParse({ voiceBackend: 'livekit' });
-            expect(result.voiceBackend).toBe('livekit');
-        });
-
         it('should ignore unknown fields without throwing and return defaults plus passthrough', () => {
             const result = localSettingsParse({ unknownField: 'test' });
             expect(result.debugMode).toBe(localSettingsDefaults.debugMode);
-            expect(result.voiceBackend).toBe(localSettingsDefaults.voiceBackend);
             // Passthrough preserves the unknown key on the object
             expect((result as Record<string, unknown>)['unknownField']).toBe('test');
         });
     });
 
     describe('applyLocalSettings', () => {
-        it('should merge voiceBackend delta', () => {
-            const result = applyLocalSettings(localSettingsDefaults, { voiceBackend: 'livekit' });
-            expect(result.voiceBackend).toBe('livekit');
+        it('should merge debugMode delta', () => {
+            const result = applyLocalSettings(localSettingsDefaults, { debugMode: true });
+            expect(result.debugMode).toBe(true);
         });
 
-        it('should preserve other settings when changing voiceBackend', () => {
+        it('should preserve other settings when changing one field', () => {
             const customSettings = {
                 ...localSettingsDefaults,
                 debugMode: true,
                 themePreference: 'dark' as const,
             };
-            const result = applyLocalSettings(customSettings, { voiceBackend: 'livekit' });
-            expect(result.voiceBackend).toBe('livekit');
+            const result = applyLocalSettings(customSettings, { pipecatUrl: 'https://example.com' });
+            expect(result.pipecatUrl).toBe('https://example.com');
             expect(result.debugMode).toBe(true);
             expect(result.themePreference).toBe('dark');
             expect(result.commandPaletteEnabled).toBe(false);

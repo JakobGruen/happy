@@ -96,24 +96,20 @@ State updates (session metadata, agent state, machine daemon state) use `expecte
 Server can run with embedded WASM PostgreSQL (PGlite) instead of external Postgres. Azure deployment uses `tsx sources/standalone.ts migrate && tsx sources/standalone.ts serve`.
 
 ### Voice Architecture
-Three selectable backends via `localSettings.voiceBackend` (`elevenlabs` | `livekit` | `pipecat`). All implement `VoiceSession` interface (`startSession`, `endSession`, `sendTextMessage`, `sendContextualUpdate`, `sendTrigger`).
+Self-hosted Pipecat voice agent via WebRTC. The app implements the `VoiceSession` interface (`startSession`, `endSession`, `sendTextMessage`, `sendContextualUpdate`, `sendTrigger`).
 
 ```
-User speaks → Voice backend (ElevenLabs/LiveKit/Pipecat)
+User speaks → Pipecat WebRTC (self-hosted)
   → Voice agent LLM decides action
   → RPC tool call lands in happy-app (client-registered handlers)
   → App calls sessionAllow / sends message to CLI daemon
 ```
 
-**Backends & token endpoints:**
-- **ElevenLabs** (`/v1/voice/token`): Managed service, checks RevenueCat subscription in prod
-- **LiveKit** (`/v1/voice/livekit-token`): Python agent in `packages/happy-voice-agent/agent.py` (Deepgram STT → LLM → Cartesia TTS), runs on LiveKit Cloud
-- **Pipecat** (`/v1/voice/pipecat-session`): Self-hosted, HMAC-signed URLs. Python bot in `packages/happy-voice-agent/pipecat_bot.py`
-
-Per-user credentials stored encrypted in `serviceAccountToken` table (vendor=`livekit`/`pipecat`), with env var fallbacks.
+**Server endpoint:** `POST /v1/voice/pipecat-session` — returns HMAC-signed WebRTC offer URL. App can also connect directly via `localSettings.pipecatUrl` for local dev.
 
 **Key app files** (all in `packages/happy-app/sources/realtime/`):
-- `RealtimeSession.ts` — orchestrator: picks backend, requests mic, manages singleton session
+- `RealtimeSession.ts` — orchestrator: requests mic, connects to Pipecat
+- `PipecatVoiceSession.tsx` / `.web.tsx` — WebRTC client implementation
 - `types.ts` — `VoiceSession` interface contract
 - `hooks/voiceHooks.ts` — bridges app events (messages, permissions, focus) to voice session
 - `voiceQuestionBridge.ts` — state machine for `AskUserQuestion` RPC flows
@@ -150,9 +146,8 @@ Per-user credentials stored encrypted in `serviceAccountToken` table (vendor=`li
 | Server | `DATABASE_URL` | PostgreSQL (if absent + `PGLITE_DIR` set → embedded PGlite) |
 | Server | `HANDY_MASTER_SECRET` | Required master secret for auth/encryption KeyTree |
 | Server | `PORT` | Default 3005 |
-| Server | `ELEVENLABS_API_KEY` | ElevenLabs voice backend |
-| Server | `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` / `LIVEKIT_URL` | LiveKit voice fallback creds |
-| Server | `PIPECAT_VOICE_URL` / `PIPECAT_AUTH_SECRET` | Pipecat voice server URL + HMAC secret |
+| Server | `PIPECAT_VOICE_URL` | Pipecat voice server base URL |
+| Server | `PIPECAT_AUTH_SECRET` | Optional HMAC secret for Pipecat auth |
 
 ## Per-Package Details
 
