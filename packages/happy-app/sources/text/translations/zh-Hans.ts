@@ -649,6 +649,11 @@ export const zhHans: TranslationStructure = {
         tapToUpdatePlayStore: '点击在 Play Store 中更新',
     },
 
+    notifications: {
+        permissionNeeded: ({ session, tool }: { session: string, tool: string }) => `${session}: ${tool}`,
+        morePermissions: ({ count }: { count: number }) => `+${count} 更多`,
+    },
+
     changelog: {
         // Used by the changelog screen
         version: ({ version }: { version: number }) => `版本 ${version}`,

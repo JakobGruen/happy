@@ -647,6 +647,11 @@ export const es: TranslationStructure = {
         tapToUpdatePlayStore: 'Toque para actualizar en Play Store',
     },
 
+    notifications: {
+        permissionNeeded: ({ session, tool }: { session: string, tool: string }) => `${session}: ${tool}`,
+        morePermissions: ({ count }: { count: number }) => `+${count} más`,
+    },
+
     changelog: {
         // Used by the changelog screen
         version: ({ version }: { version: number }) => `Versión ${version}`,

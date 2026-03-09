@@ -657,6 +657,11 @@ export const pl: TranslationStructure = {
         tapToUpdatePlayStore: 'Naciśnij, aby zaktualizować w Sklepie Play',
     },
 
+    notifications: {
+        permissionNeeded: ({ session, tool }: { session: string, tool: string }) => `${session}: ${tool}`,
+        morePermissions: ({ count }: { count: number }) => `+${count} więcej`,
+    },
+
     changelog: {
         // Used by the changelog screen
         version: ({ version }: { version: number }) => `Wersja ${version}`,
