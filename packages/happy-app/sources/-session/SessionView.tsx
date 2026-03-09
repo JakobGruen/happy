@@ -179,7 +179,13 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     const flavor = session.metadata?.flavor;
 
     // Session reactivation — show banner when session is archived but can be revived
-    const { canReactivate, reactivating, performReactivate } = useCanReactivateSession(session);
+    const { canReactivate, reactivating, performReactivate } = useCanReactivateSession(session, {
+        onSuccess: (newSessionId) => {
+            router.replace(`/session/${newSessionId}`, {
+                dangerouslySingular() { return 'session'; },
+            });
+        },
+    });
     const availableModels = React.useMemo(() => (
         getAvailableModels(flavor, session.metadata, t)
     ), [flavor, session.metadata]);

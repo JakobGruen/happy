@@ -392,7 +392,14 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
     }, [performArchive]);
 
     // Reactivation — only for archived Claude sessions on an online machine
-    const { canReactivate, reactivating, performReactivate } = useCanReactivateSession(session);
+    const router = useRouter();
+    const { canReactivate, reactivating, performReactivate } = useCanReactivateSession(session, {
+        onSuccess: (newSessionId) => {
+            router.replace(`/session/${newSessionId}`, {
+                dangerouslySingular() { return 'session'; },
+            });
+        },
+    });
 
     const handleReactivate = React.useCallback(() => {
         swipeableRef.current?.close();
