@@ -14,6 +14,7 @@ import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
 import { VoiceAssistantStatusBar } from '@/components/VoiceAssistantStatusBar';
 import { useDraft } from '@/hooks/useDraft';
+import { useImageAttachment } from '@/hooks/useImageAttachment';
 import { Modal } from '@/modal';
 import { voiceHooks } from '@/realtime/hooks/voiceHooks';
 import { startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
@@ -222,6 +223,9 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     // Use draft hook for auto-saving message drafts
     const { clearDraft } = useDraft(sessionId, message, setMessage);
 
+    // Image attachment support
+    const { attachments, pickImage, addRawAttachment, removeAttachment, clearAttachments } = useImageAttachment();
+
     // Handle dismissing CLI version warning
     const handleDismissCliWarning = React.useCallback(() => {
         if (machineId && cliVersion) {
@@ -373,11 +377,19 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                     dotColor: sessionStatus.statusDotColor,
                     isPulsing: sessionStatus.isPulsing
                 }}
+                attachments={attachments}
+                onPickImage={pickImage}
+                onRemoveAttachment={removeAttachment}
+                onAddRawAttachment={addRawAttachment}
                 onSend={() => {
-                    if (message.trim()) {
+                    if (message.trim() || attachments.length > 0) {
+                        const imageData = attachments.length > 0
+                            ? attachments.map(a => ({ base64: a.base64, mediaType: a.mediaType }))
+                            : undefined;
                         setMessage('');
                         clearDraft();
-                        sync.sendMessage(sessionId, message);
+                        clearAttachments();
+                        sync.sendMessage(sessionId, message, imageData);
                         trackMessageSent();
                     }
                 }}
