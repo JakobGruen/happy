@@ -137,6 +137,55 @@ export class ApiClient {
   }
 
   /**
+   * Reactivate an existing archived session — reuses the same session ID and encryption key.
+   * Called during session reactivation when the CLI has a stored encryption key.
+   * Returns null on failure (caller should fall back to creating a new session).
+   */
+  async reactivateSession(opts: {
+    sessionId: string,
+    encryptionKey: Uint8Array,
+    encryptionVariant: 'legacy' | 'dataKey',
+    metadata: Metadata,
+    state: AgentState | null,
+  }): Promise<Session | null> {
+    const { sessionId, encryptionKey, encryptionVariant, metadata, state } = opts;
+
+    try {
+      const response = await axios.post<CreateSessionResponse>(
+        `${configuration.serverUrl}/v1/sessions/${sessionId}/reactivate`,
+        {
+          metadata: encodeBase64(encrypt(encryptionKey, encryptionVariant, metadata)),
+          agentState: state ? encodeBase64(encrypt(encryptionKey, encryptionVariant, state)) : null,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.credential.token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 60000
+        }
+      );
+
+      logger.debug(`Session reactivated: ${response.data.session.id}`);
+      const raw = response.data.session;
+      return {
+        id: raw.id,
+        seq: raw.seq,
+        metadata: decrypt(encryptionKey, encryptionVariant, decodeBase64(raw.metadata)),
+        metadataVersion: raw.metadataVersion,
+        agentState: raw.agentState ? decrypt(encryptionKey, encryptionVariant, decodeBase64(raw.agentState)) : null,
+        agentStateVersion: raw.agentStateVersion,
+        encryptionKey,
+        encryptionVariant,
+      };
+    } catch (error) {
+      logger.debug(`[API] Failed to reactivate session ${sessionId}:`, error);
+      // Return null — caller falls back to creating a new session
+      return null;
+    }
+  }
+
+  /**
    * Register or update machine with the server
    * Returns the current machine state from the server with decrypted metadata and daemonState
    */

@@ -494,9 +494,11 @@ export async function sessionKill(sessionId: string): Promise<SessionKillRespons
 }
 
 /**
- * Reactivate a session by spawning a fresh Happy session with Claude --resume.
- * Creates a new session (old one stays archived), but Claude loads full
- * conversation history locally via --resume. Returns the new session ID.
+ * Reactivate a session by spawning a CLI process that reuses the same Happy session ID.
+ * Passes happySessionId and claudeSessionId as top-level RPC params so the daemon
+ * sets HAPPY_REACTIVATE_SESSION_ID and HAPPY_RESUME_CLAUDE_SESSION_ID env vars.
+ * The CLI reactivates the existing session on the server (same ID, same history).
+ * Returns the same session ID on success, or a new one if reactivation falls back.
  */
 export async function machineResumeSession(options: {
     machineId: string;
@@ -507,20 +509,39 @@ export async function machineResumeSession(options: {
     agent?: 'codex' | 'claude' | 'gemini';
     environmentVariables?: Record<string, string>;
 }): Promise<SpawnSessionResult> {
-    const { machineId, claudeSessionId, directory, token, agent, environmentVariables } = options;
+    const { machineId, sessionId, claudeSessionId, directory, token, agent, environmentVariables } = options;
 
-    // Spawn a fresh session but tell Claude to --resume the old conversation
-    return machineSpawnNewSession({
-        machineId,
-        directory,
-        approvedNewDirectoryCreation: true,
-        token,
-        agent,
-        environmentVariables: {
-            ...environmentVariables,
-            HAPPY_RESUME_CLAUDE_SESSION_ID: claudeSessionId,
-        },
-    });
+    try {
+        const result = await apiSocket.machineRPC<SpawnSessionResult, {
+            type: 'spawn-in-directory'
+            directory: string
+            approvedNewDirectoryCreation?: boolean
+            token?: string
+            agent?: 'codex' | 'claude' | 'gemini'
+            happySessionId?: string
+            claudeSessionId?: string
+            environmentVariables?: Record<string, string>
+        }>(
+            machineId,
+            'spawn-happy-session',
+            {
+                type: 'spawn-in-directory',
+                directory,
+                approvedNewDirectoryCreation: true,
+                token,
+                agent,
+                happySessionId: sessionId,
+                claudeSessionId,
+                environmentVariables,
+            }
+        );
+        return result;
+    } catch (error) {
+        return {
+            type: 'error',
+            errorMessage: error instanceof Error ? error.message : 'Failed to resume session'
+        };
+    }
 }
 
 /**

@@ -29,6 +29,7 @@ import { createSessionScanner } from '@/claude/utils/sessionScanner';
 import { Session } from './session';
 import { applySandboxPermissionPolicy, resolveInitialClaudePermissionMode } from './utils/permissionMode';
 import { getClaudeModels, getClaudeOperatingModes, normalizeModelCode } from '@jakobgruen/happy-wire';
+import { storeSessionKey, loadSessionKey } from '@/claude/sessionKeyStore';
 
 /** JavaScript runtime to use for spawning Claude Code */
 export type JsRuntime = 'node' | 'bun'
@@ -105,6 +106,13 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         logger.debug(`[START] Will resume Claude session ${resumeClaudeSessionId}`);
     }
 
+    // Check for session reactivation (reuse existing session ID instead of creating new)
+    const reactivateSessionId = process.env.HAPPY_REACTIVATE_SESSION_ID;
+    if (reactivateSessionId) {
+        delete process.env.HAPPY_REACTIVATE_SESSION_ID;
+        logger.debug(`[START] Will attempt to reactivate session ${reactivateSessionId}`);
+    }
+
     let metadata: Metadata = {
         path: workingDirectory,
         host: os.hostname(),
@@ -130,8 +138,50 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         ...(options.model ? { currentModelCode: normalizeModelCode(options.model) } : {}),
     };
 
-    // Create a new session (--resume is handled by claudeArgs, not by reconnecting to an existing Happy session)
-    const response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
+    // Try to reactivate existing session, or create a new one
+    let response: Awaited<ReturnType<typeof api.getOrCreateSession>> = null;
+
+    if (reactivateSessionId) {
+        // Recover encryption key: try stored key first, then legacy secret
+        const stored = await loadSessionKey(reactivateSessionId);
+        let reactivationKey: Uint8Array | null = null;
+        let reactivationVariant: 'legacy' | 'dataKey' = 'legacy';
+
+        if (stored) {
+            reactivationKey = stored.encryptionKey;
+            reactivationVariant = stored.encryptionVariant;
+            logger.debug(`[START] Found stored encryption key for session ${reactivateSessionId}`);
+        } else if (credentials.encryption.type === 'legacy') {
+            reactivationKey = credentials.encryption.secret;
+            reactivationVariant = 'legacy';
+            logger.debug(`[START] Using legacy secret for session reactivation`);
+        } else {
+            logger.debug(`[START] No stored key and dataKey encryption — cannot reactivate, will create new session`);
+        }
+
+        if (reactivationKey) {
+            response = await api.reactivateSession({
+                sessionId: reactivateSessionId,
+                encryptionKey: reactivationKey,
+                encryptionVariant: reactivationVariant,
+                metadata,
+                state,
+            });
+
+            if (response) {
+                logger.debug(`[START] Successfully reactivated session ${response.id}`);
+                // Store key (in case it wasn't stored before, e.g. legacy fallback)
+                await storeSessionKey(response.id, reactivationKey, reactivationVariant);
+            } else {
+                logger.debug(`[START] Reactivation failed — will create new session`);
+            }
+        }
+    }
+
+    // Fall through: create a new session if reactivation didn't happen or failed
+    if (!response) {
+        response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
+    }
 
     // Handle server unreachable case - run Claude locally with hot reconnection
     // Note: connectionState.notifyOffline() was already called by api.ts with error details
@@ -178,7 +228,10 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         process.exit(0);
     }
 
-    logger.debug(`Session created: ${response.id}`);
+    logger.debug(`Session ready: ${response.id}`);
+
+    // Store encryption key locally for future session reactivation (idempotent for reactivated sessions)
+    await storeSessionKey(response.id, response.encryptionKey, response.encryptionVariant);
 
     // Always report to daemon if it exists
     try {

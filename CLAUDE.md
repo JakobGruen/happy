@@ -44,6 +44,11 @@ yarn workspace happy-server db        # Docker postgres
 yarn workspace happy-server redis     # Docker redis
 yarn workspace happy-server generate  # Prisma client codegen
 
+# Dev reset (rebuild + restart services)
+yarn dev:reset                        # full reset: wire → cli → daemon → server
+yarn dev:reset -c -d                  # rebuild CLI + restart daemon
+yarn dev:reset -s                     # restart server only
+
 # CLI with local server
 cd packages/happy-cli && yarn dev:local-server
 
@@ -140,7 +145,7 @@ User speaks → Pipecat WebRTC (self-hosted)
 
 | Package | Variable | Purpose |
 |---|---|---|
-| CLI | `HAPPY_SERVER_URL` | Override server URL (default: `https://api.cluster-fluster.com`) |
+| CLI | `HAPPY_SERVER_URL` | Override server URL (default: `https://happy-server.green-wald.de`) |
 | CLI | `HAPPY_HOME_DIR` | Override `~/.happy` |
 | App | `EXPO_PUBLIC_HAPPY_SERVER_URL` | Override server URL |
 | Server | `DATABASE_URL` | PostgreSQL (if absent + `PGLITE_DIR` set → embedded PGlite) |

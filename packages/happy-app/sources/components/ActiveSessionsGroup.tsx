@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Text } from '@/components/StyledText';
-import { useRouter } from 'expo-router';
+
 import { Session, Machine } from '@/sync/storageTypes';
 import { Ionicons } from '@expo/vector-icons';
 import { getSessionName, useSessionStatus, getSessionAvatarId, formatPathRelativeToHome } from '@/utils/sessionUtils';
@@ -25,7 +25,7 @@ import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useIsTablet } from '@/utils/responsive';
 import { useHappyAction } from '@/hooks/useHappyAction';
 import { HappyError } from '@/utils/errors';
-import { useCanReactivateSession } from '@/hooks/useCanReactivateSession';
+
 
 const stylesheet = StyleSheet.create((theme, runtime) => ({
     container: {
@@ -198,13 +198,6 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: theme.colors.status.error,
-    },
-    swipeActionReactivate: {
-        width: 112,
-        height: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#34C759',
     },
     swipeActionText: {
         marginTop: 4,
@@ -391,21 +384,6 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
         );
     }, [performArchive]);
 
-    // Reactivation — only for archived Claude sessions on an online machine
-    const router = useRouter();
-    const { canReactivate, reactivating, performReactivate } = useCanReactivateSession(session, {
-        onSuccess: (newSessionId) => {
-            router.replace(`/session/${newSessionId}`, {
-                dangerouslySingular() { return 'session'; },
-            });
-        },
-    });
-
-    const handleReactivate = React.useCallback(() => {
-        swipeableRef.current?.close();
-        performReactivate();
-    }, [performReactivate]);
-
     const avatarId = React.useMemo(() => {
         return getSessionAvatarId(session);
     }, [session]);
@@ -527,20 +505,6 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
     }
 
     const renderRightActions = () => {
-        if (canReactivate) {
-            return (
-                <Pressable
-                    style={styles.swipeActionReactivate}
-                    onPress={handleReactivate}
-                    disabled={reactivating}
-                >
-                    <Ionicons name="play-circle-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.swipeActionText} numberOfLines={2}>
-                        {t('session.reactivateSession')}
-                    </Text>
-                </Pressable>
-            );
-        }
         return (
             <Pressable
                 style={styles.swipeAction}
@@ -560,7 +524,7 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
             ref={swipeableRef}
             renderRightActions={renderRightActions}
             overshootRight={false}
-            enabled={!archivingSession && !reactivating}
+            enabled={!archivingSession}
         >
             {itemContent}
         </Swipeable>

@@ -1,4 +1,4 @@
-import { eventRouter, buildNewSessionUpdate } from "@/app/events/eventRouter";
+import { eventRouter, buildNewSessionUpdate, buildUpdateSessionUpdate } from "@/app/events/eventRouter";
 import { type Fastify } from "../types";
 import { db } from "@/storage/db";
 import { z } from "zod";
@@ -303,6 +303,84 @@ export function sessionRoutes(app: Fastify) {
                 }
             });
         }
+    });
+
+    /**
+     * Reactivate an archived session — sets active=true, updates metadata/agentState.
+     * Called by CLI when reusing an existing session ID instead of creating a new one.
+     * The CLI recovers the original encryption key locally, so dataEncryptionKey is unchanged.
+     */
+    app.post('/v1/sessions/:sessionId/reactivate', {
+        schema: {
+            params: z.object({
+                sessionId: z.string()
+            }),
+            body: z.object({
+                metadata: z.string(),
+                agentState: z.string().nullish(),
+            })
+        },
+        preHandler: app.authenticate
+    }, async (request, reply) => {
+        const userId = request.userId;
+        const { sessionId } = request.params;
+        const { metadata, agentState } = request.body;
+
+        const existing = await db.session.findFirst({
+            where: { id: sessionId, accountId: userId }
+        });
+
+        if (!existing) {
+            return reply.status(404).send({ error: 'Session not found' });
+        }
+
+        log({ module: 'session-reactivate', sessionId, userId }, `Reactivating session ${sessionId}`);
+
+        const session = await db.session.update({
+            where: { id: sessionId },
+            data: {
+                active: true,
+                lastActiveAt: new Date(),
+                metadata,
+                metadataVersion: { increment: 1 },
+                ...(agentState != null ? {
+                    agentState,
+                    agentStateVersion: { increment: 1 },
+                } : {}),
+            }
+        });
+
+        // Emit update so app sees the session become active with new metadata
+        const updSeq = await allocateUserSeq(userId);
+        const updatePayload = buildUpdateSessionUpdate(
+            sessionId,
+            updSeq,
+            randomKeyNaked(12),
+            { value: session.metadata, version: session.metadataVersion },
+            agentState != null ? { value: session.agentState!, version: session.agentStateVersion } : undefined
+        );
+        eventRouter.emitUpdate({
+            userId,
+            payload: updatePayload,
+            recipientFilter: { type: 'user-scoped-only' }
+        });
+
+        return reply.send({
+            session: {
+                id: session.id,
+                seq: session.seq,
+                metadata: session.metadata,
+                metadataVersion: session.metadataVersion,
+                agentState: session.agentState,
+                agentStateVersion: session.agentStateVersion,
+                dataEncryptionKey: session.dataEncryptionKey ? Buffer.from(session.dataEncryptionKey).toString('base64') : null,
+                active: session.active,
+                activeAt: session.lastActiveAt.getTime(),
+                createdAt: session.createdAt.getTime(),
+                updatedAt: session.updatedAt.getTime(),
+                lastMessage: null
+            }
+        });
     });
 
     // Get single session by ID
