@@ -25,6 +25,11 @@ export type ToolCall = {
     };
 }
 
+export interface ImageAttachmentData {
+    mediaType: string;
+    data: string;
+}
+
 // Flattened message types - each message represents a single block
 export type UserTextMessage = {
     kind: 'user-text';
@@ -35,6 +40,7 @@ export type UserTextMessage = {
     displayText?: string; // Optional text to display in UI instead of actual text
     commandName?: string; // Detected skill/command name, e.g. "/feature-dev"
     commandBody?: string; // Full prompt body for collapsible display
+    imageAttachments?: ImageAttachmentData[];
     meta?: MessageMeta;
 }
 

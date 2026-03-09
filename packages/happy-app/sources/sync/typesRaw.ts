@@ -462,10 +462,26 @@ const rawRecordSchema = z.preprocess(
         }),
         z.object({
             role: z.literal('user'),
-            content: z.object({
-                type: z.literal('text'),
-                text: z.string()
-            }),
+            content: z.discriminatedUnion('type', [
+                z.object({
+                    type: z.literal('text'),
+                    text: z.string()
+                }),
+                z.object({
+                    type: z.literal('multimodal'),
+                    blocks: z.array(z.discriminatedUnion('type', [
+                        z.object({ type: z.literal('text'), text: z.string() }),
+                        z.object({
+                            type: z.literal('image'),
+                            source: z.object({
+                                type: z.literal('base64'),
+                                data: z.string(),
+                                media_type: z.string(),
+                            }),
+                        }),
+                    ])),
+                }),
+            ]),
             meta: MessageMetaSchema.optional()
         }),
         z.object({
@@ -536,6 +552,12 @@ export type NormalizedMessage = ({
     content: {
         type: 'text';
         text: string;
+    } | {
+        type: 'multimodal';
+        blocks: Array<
+            | { type: 'text'; text: string }
+            | { type: 'image'; source: { type: 'base64'; data: string; media_type: string } }
+        >;
     }
 } | {
     role: 'agent'

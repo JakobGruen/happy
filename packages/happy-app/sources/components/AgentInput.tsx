@@ -76,6 +76,10 @@ interface AgentInputProps {
     minHeight?: number;
     profileId?: string | null;
     onProfileClick?: () => void;
+    attachments?: Array<{ id: string; base64: string; mediaType: string; uri: string }>;
+    onPickImage?: () => void;
+    onRemoveAttachment?: (id: string) => void;
+    onAddRawAttachment?: (base64: string, mediaType: string, uri: string) => void;
 }
 
 const MAX_CONTEXT_SIZE = 190000;
@@ -301,6 +305,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const screenWidth = useWindowDimensions().width;
 
     const hasText = props.value.trim().length > 0;
+    const hasAttachments = (props.attachments?.length ?? 0) > 0;
+    const hasContent = hasText || hasAttachments;
 
     // Check if this is a Codex or Gemini session
     // Use metadata.flavor for existing sessions, agentType prop for new sessions
@@ -421,6 +427,37 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         // Small haptic feedback
         hapticsLight();
     }, [suggestions, inputState, props.autocompletePrefixes]);
+
+    // Web clipboard paste handler for images
+    React.useEffect(() => {
+        if (Platform.OS !== 'web' || !props.onAddRawAttachment) return;
+
+        const handlePaste = (e: ClipboardEvent) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of Array.from(items)) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const blob = item.getAsFile();
+                    if (!blob) continue;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const dataUrl = reader.result as string;
+                        // dataUrl format: "data:image/png;base64,..."
+                        const commaIdx = dataUrl.indexOf(',');
+                        const base64 = dataUrl.slice(commaIdx + 1);
+                        const mediaType = item.type;
+                        props.onAddRawAttachment?.(base64, mediaType, dataUrl);
+                    };
+                    reader.readAsDataURL(blob);
+                    break; // Only handle first image
+                }
+            }
+        };
+
+        document.addEventListener('paste', handlePaste);
+        return () => document.removeEventListener('paste', handlePaste);
+    }, [props.onAddRawAttachment]);
 
     // Settings modal state
     const [showSettings, setShowSettings] = React.useState(false);
@@ -956,12 +993,71 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         />
                     </View>
 
+                    {/* Attachment thumbnails */}
+                    {hasAttachments && (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+                            {props.attachments!.map(att => (
+                                <View key={att.id} style={{ position: 'relative' }}>
+                                    <Image
+                                        source={{ uri: att.uri.startsWith('data:') ? att.uri : `data:${att.mediaType};base64,${att.base64}` }}
+                                        style={{ width: 56, height: 56, borderRadius: 8 }}
+                                        contentFit="cover"
+                                    />
+                                    <Pressable
+                                        style={{
+                                            position: 'absolute',
+                                            top: -6,
+                                            right: -6,
+                                            backgroundColor: 'rgba(0,0,0,0.6)',
+                                            borderRadius: 10,
+                                            width: 20,
+                                            height: 20,
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}
+                                        onPress={() => props.onRemoveAttachment?.(att.id)}
+                                        hitSlop={4}
+                                    >
+                                        <Ionicons name="close" size={14} color="#fff" />
+                                    </Pressable>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+
                     {/* Action buttons below input */}
                     <View style={styles.actionButtonsContainer}>
                         <View style={{ flexDirection: 'column', flex: 1, gap: 2 }}>
                             {/* Row 1: Settings, Profile (FIRST), Agent, Abort, Git Status */}
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <View style={styles.actionButtonsLeft}>
+
+                                {/* Image attach button */}
+                                {props.onPickImage && (
+                                    <Pressable
+                                        onPress={() => {
+                                            hapticsLight();
+                                            props.onPickImage?.();
+                                        }}
+                                        hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
+                                        style={(p) => ({
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            borderRadius: Platform.select({ default: 16, android: 20 }),
+                                            paddingHorizontal: 8,
+                                            paddingVertical: 6,
+                                            justifyContent: 'center',
+                                            height: 32,
+                                            opacity: p.pressed ? 0.7 : 1,
+                                        })}
+                                    >
+                                        <Ionicons
+                                            name="image-outline"
+                                            size={18}
+                                            color={theme.colors.button.secondary.tint}
+                                        />
+                                    </Pressable>
+                                )}
 
                                 {/* Settings button */}
                                 {props.onPermissionModeChange && (
@@ -1101,7 +1197,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 <View
                                     style={[
                                         styles.sendButton,
-                                        (hasText || props.isSending || (props.onMicPress && !props.isMicActive))
+                                        (hasContent || props.isSending || (props.onMicPress && !props.isMicActive))
                                             ? styles.sendButtonActive
                                             : styles.sendButtonInactive
                                     ]}
@@ -1117,20 +1213,20 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
                                         onPress={() => {
                                             hapticsLight();
-                                            if (hasText) {
+                                            if (hasContent) {
                                                 props.onSend();
                                             } else {
                                                 props.onMicPress?.();
                                             }
                                         }}
-                                        disabled={props.isSendDisabled || props.isSending || (!hasText && !props.onMicPress)}
+                                        disabled={props.isSendDisabled || props.isSending || (!hasContent && !props.onMicPress)}
                                     >
                                         {props.isSending ? (
                                             <ActivityIndicator
                                                 size="small"
                                                 color={theme.colors.button.primary.tint}
                                             />
-                                        ) : hasText ? (
+                                        ) : hasContent ? (
                                             <Octicons
                                                 name="arrow-up"
                                                 size={16}

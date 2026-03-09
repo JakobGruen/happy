@@ -118,6 +118,11 @@ import { MessageMeta } from "../typesMessageMeta";
 import { parseMessageAsEvent } from "./messageToEvent";
 import { parseCommandMessage } from "@/utils/parseCommandMessage";
 
+type ImageAttachment = {
+    mediaType: string;
+    data: string;
+}
+
 type ReducerMessage = {
     id: string;
     realID: string | null;
@@ -130,6 +135,7 @@ type ReducerMessage = {
     meta?: MessageMeta;
     commandName?: string;
     commandBody?: string;
+    imageAttachments?: ImageAttachment[];
 }
 
 type StoredPermission = {
@@ -624,15 +630,34 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                 continue;
             }
 
+            // Extract text and images from content (text or multimodal)
+            let messageText: string = '';
+            let imageAttachments: ImageAttachment[] | undefined;
+            if (msg.content.type === 'multimodal') {
+                const textParts: string[] = [];
+                const images: ImageAttachment[] = [];
+                for (const block of msg.content.blocks) {
+                    if (block.type === 'text') {
+                        textParts.push(block.text);
+                    } else if (block.type === 'image') {
+                        images.push({ mediaType: block.source.media_type, data: block.source.data });
+                    }
+                }
+                messageText = textParts.join('\n');
+                if (images.length > 0) imageAttachments = images;
+            } else {
+                messageText = msg.content.text;
+            }
+
             // Create a new message
             let mid = allocateId();
-            const parsedCommand = msg.content.text ? parseCommandMessage(msg.content.text) : null;
+            const parsedCommand = messageText ? parseCommandMessage(messageText) : null;
             state.messages.set(mid, {
                 id: mid,
                 realID: msg.id,
                 role: 'user',
                 createdAt: msg.createdAt,
-                text: msg.content.text,
+                text: messageText,
                 tool: null,
                 event: null,
                 meta: msg.meta,
@@ -640,6 +665,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     commandName: parsedCommand.commandName,
                     commandBody: parsedCommand.commandBody,
                 }),
+                ...(imageAttachments && { imageAttachments }),
             });
 
             // Track both localId and messageId
@@ -1182,6 +1208,7 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
                 commandName: reducerMsg.commandName,
                 commandBody: reducerMsg.commandBody,
             }),
+            ...(reducerMsg.imageAttachments && { imageAttachments: reducerMsg.imageAttachments }),
             meta: reducerMsg.meta
         };
     } else if (reducerMsg.role === 'agent' && reducerMsg.text !== null) {

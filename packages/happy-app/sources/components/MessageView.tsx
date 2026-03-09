@@ -1,5 +1,6 @@
 import * as React from "react";
 import { View, Text, Pressable, Platform } from "react-native";
+import { Image } from 'expo-image';
 import { StyleSheet } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
 import { MarkdownView } from "./markdown/MarkdownView";
@@ -78,13 +79,26 @@ function UserTextBlock(props: {
     return <CommandMessageBlock message={props.message} />;
   }
 
+  const images = props.message.imageAttachments;
+
   return (
     <View style={styles.userMessageContainer}>
       <View style={styles.userMessageBubble}>
-        <MarkdownView markdown={props.message.displayText || props.message.text} onOptionPress={handleOptionPress} />
-        {/* {__DEV__ && (
-          <Text style={styles.debugText}>{JSON.stringify(props.message.meta)}</Text>
-        )} */}
+        {images && images.length > 0 && (
+          <View style={styles.userImageRow}>
+            {images.map((img, i) => (
+              <Image
+                key={i}
+                source={{ uri: `data:${img.mediaType};base64,${img.data}` }}
+                style={{ width: 200, height: 150, borderRadius: 8 }}
+                contentFit="cover"
+              />
+            ))}
+          </View>
+        )}
+        {props.message.text ? (
+          <MarkdownView markdown={props.message.displayText || props.message.text} onOptionPress={handleOptionPress} />
+        ) : null}
       </View>
     </View>
   );
@@ -256,6 +270,13 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: 12,
     marginBottom: 12,
     maxWidth: '100%',
+  },
+  userImageRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 4,
   },
   agentMessageContainer: {
     marginHorizontal: 16,
