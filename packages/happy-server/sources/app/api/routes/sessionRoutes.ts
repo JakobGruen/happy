@@ -1,4 +1,4 @@
-import { eventRouter, buildNewSessionUpdate, buildUpdateSessionUpdate } from "@/app/events/eventRouter";
+import { eventRouter, buildNewSessionUpdate, buildUpdateSessionUpdate, buildSessionActivityEphemeral } from "@/app/events/eventRouter";
 import { type Fastify } from "../types";
 import { db } from "@/storage/db";
 import { z } from "zod";
@@ -381,6 +381,39 @@ export function sessionRoutes(app: Fastify) {
                 lastMessage: null
             }
         });
+    });
+
+    /**
+     * Mark a session as inactive. Called by the daemon when it detects a crashed
+     * or orphaned session, eliminating the 10-minute server timeout delay.
+     * Idempotent — no-op if session is already inactive.
+     */
+    app.post('/v1/sessions/:sessionId/end', {
+        schema: {
+            params: z.object({
+                sessionId: z.string()
+            })
+        },
+        preHandler: app.authenticate
+    }, async (request, reply) => {
+        const userId = request.userId;
+        const { sessionId } = request.params;
+
+        const updated = await db.session.updateManyAndReturn({
+            where: { id: sessionId, accountId: userId, active: true },
+            data: { active: false, lastActiveAt: new Date() }
+        });
+
+        if (updated.length > 0) {
+            log({ module: 'session-end', sessionId, userId }, `Daemon marked session ${sessionId} as inactive`);
+            eventRouter.emitEphemeral({
+                userId,
+                payload: buildSessionActivityEphemeral(sessionId, false, Date.now(), false),
+                recipientFilter: { type: 'user-scoped-only' }
+            });
+        }
+
+        return reply.send({ ok: true });
     });
 
     // Get single session by ID

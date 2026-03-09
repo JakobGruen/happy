@@ -192,6 +192,9 @@ export async function startDaemon(): Promise<void> {
       writeDaemonChildren(children);
     };
 
+    // Late-bound API client reference (set after auth, used by closures defined earlier)
+    let apiRef: ApiClient | null = null;
+
     // Recently archived sessions audit log (last 10)
     const MAX_ARCHIVED_LOG = 10;
     const recentlyArchived: Array<{ sessionId?: string; pid: number; reason: string; archivedAt: number }> = [];
@@ -199,6 +202,10 @@ export async function startDaemon(): Promise<void> {
       recentlyArchived.push({ pid, sessionId, reason, archivedAt: Date.now() });
       if (recentlyArchived.length > MAX_ARCHIVED_LOG) {
         recentlyArchived.shift();
+      }
+      // Notify server that session is dead (best-effort, eliminates 10-minute zombie window)
+      if (sessionId && apiRef && reason !== 'reactivated') {
+        apiRef.markSessionInactive(sessionId);
       }
     };
 
@@ -633,16 +640,16 @@ export async function startDaemon(): Promise<void> {
 
           return new Promise((resolve) => {
             // Set timeout for webhook
+            // Reactivation needs extra time for the /reactivate API call
+            const timeoutMs = options.happySessionId ? 25_000 : 15_000;
             const timeout = setTimeout(() => {
               pidToAwaiter.delete(happyProcess.pid!);
-              logger.debug(`[DAEMON RUN] Session webhook timeout for PID ${happyProcess.pid}`);
+              logger.debug(`[DAEMON RUN] Session webhook timeout for PID ${happyProcess.pid} (waited ${timeoutMs / 1000}s)`);
               resolve({
                 type: 'error',
                 errorMessage: `Session webhook timeout for PID ${happyProcess.pid}`
               });
-              // 15 second timeout - I have seen timeouts on 10 seconds
-              // even though session was still created successfully in ~2 more seconds
-            }, 15_000);
+            }, timeoutMs);
 
             // Register awaiter
             pidToAwaiter.set(happyProcess.pid!, (completedSession) => {
@@ -756,6 +763,7 @@ export async function startDaemon(): Promise<void> {
 
     // Create API client
     const api = await ApiClient.create(credentials);
+    apiRef = api;
 
     // Get or create machine
     const machine = await api.getOrCreateMachine({

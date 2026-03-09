@@ -166,7 +166,21 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     let planModeToolCalls = new Set<string>();
     let ongoingToolCalls = new Map<string, { parentToolCallId: string | null }>();
 
+    // Reactivation: skip forwarding messages until system.init (history replay phase)
+    let skipMessageForwarding = session.isReactivation;
+    let reactivationSkippedCount = 0;
+    let reactivationForwardedCount = 0;
+    if (skipMessageForwarding) {
+        logger.debug('[remote] Reactivation mode — skipping message forwarding until system.init');
+    }
+
     function onMessage(message: SDKMessage) {
+
+        // Reactivation: detect system.init to stop skipping history replay messages
+        if (skipMessageForwarding && message.type === 'system' && (message as any).subtype === 'init') {
+            skipMessageForwarding = false;
+            logger.debug(`[remote] Reactivation: system.init received — forwarding enabled (skipped ${reactivationSkippedCount} history messages)`);
+        }
 
         // Write to message log
         formatClaudeMessageForInk(message, messageBuffer);
@@ -246,8 +260,16 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
             }
         }
 
+        // Skip forwarding messages to server during history replay (reactivation)
+        if (skipMessageForwarding) {
+            reactivationSkippedCount++;
+            return;
+        }
+
         const logMessage = sdkToLogConverter.convert(msg);
         if (logMessage) {
+            reactivationForwardedCount++;
+
             // Add permissions field to tool result content
             if (logMessage.type === 'user' && logMessage.message?.content) {
                 const content = Array.isArray(logMessage.message.content)
@@ -517,6 +539,13 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
         if (abortFuture) { // Just in case of error
             abortFuture.resolve(undefined);
         }
+    }
+
+    // Log reactivation diagnostics
+    if (session.isReactivation) {
+        logger.debug(`[remote] Reactivation diagnostics: skipped=${reactivationSkippedCount}, forwarded=${reactivationForwardedCount}, skipActive=${skipMessageForwarding}`);
+        // Clear reactivation flag for subsequent loops (only first run needs it)
+        session.isReactivation = false;
     }
 
     return exitReason || 'exit';
