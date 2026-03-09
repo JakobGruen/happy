@@ -170,7 +170,7 @@ const styles = StyleSheet.create((theme) => ({
     banner: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: theme.colors.box.warning.background,
+        backgroundColor: theme.colors.surfaceHigh,
         borderRadius: 12,
         paddingVertical: 10,
         paddingHorizontal: 12,
@@ -180,12 +180,12 @@ const styles = StyleSheet.create((theme) => ({
         shadowOpacity: theme.dark ? 0.4 : 0.15,
         elevation: 8,
         borderWidth: 1,
-        borderColor: theme.colors.box.warning.border + '60',
+        borderColor: theme.colors.box.warning.border + '80',
     },
     bannerNotification: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: theme.dark ? 'rgba(10, 132, 255, 0.12)' : 'rgba(0, 122, 255, 0.08)',
+        backgroundColor: theme.colors.surfaceHigh,
         borderRadius: 12,
         paddingVertical: 10,
         paddingHorizontal: 12,
@@ -195,7 +195,7 @@ const styles = StyleSheet.create((theme) => ({
         shadowOpacity: theme.dark ? 0.4 : 0.15,
         elevation: 8,
         borderWidth: 1,
-        borderColor: theme.colors.textLink + '40',
+        borderColor: theme.colors.textLink + '60',
     },
     contentArea: {
         flex: 1,
