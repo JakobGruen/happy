@@ -9,7 +9,7 @@ import type { Config } from './config';
 function makeTestConfig(): Config {
     const homeDir = mkdtempSync(join(tmpdir(), 'happy-agent-test-'));
     return {
-        serverUrl: 'https://api.cluster-fluster.com',
+        serverUrl: 'https://happy-server.green-wald.de',
         homeDir,
         credentialPath: join(homeDir, 'agent.key'),
     };

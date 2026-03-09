@@ -303,9 +303,10 @@ export const en = {
     session: {
         inputPlaceholder: 'Type a message ...',
         worktreeBadge: 'Worktree',
-        reactivateSession: 'Reactivate Session',
+        reactivateSession: 'Reactivate',
         reactivateSessionSubtitle: 'Resume this session where it left off',
         reactivating: 'Reactivating...',
+        sessionArchived: 'Session ended',
     },
 
     commandPalette: {

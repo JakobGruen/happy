@@ -6,7 +6,7 @@ Happy CLI (`happy-coder`) is a command-line tool that wraps Claude Code to enabl
 
 1. **happy-cli** (this project) - CLI wrapper for Claude Code
 2. **happy-app** - React Native mobile + web client
-3. **happy-server** - Fastify backend with Prisma (hosted at https://api.cluster-fluster.com)
+3. **happy-server** - Fastify backend with Prisma (hosted at https://happy-server.green-wald.de)
 
 ## Code Style Preferences
 

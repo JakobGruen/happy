@@ -181,9 +181,15 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     // Session reactivation — show banner when session is archived but can be revived
     const { canReactivate, reactivating, performReactivate } = useCanReactivateSession(session, {
         onSuccess: (newSessionId) => {
-            router.replace(`/session/${newSessionId}`, {
-                dangerouslySingular() { return 'session'; },
-            });
+            if (newSessionId !== session.id) {
+                // Fallback: new session created (reactivation fell back) — navigate to it
+                router.replace(`/session/${newSessionId}`, {
+                    dangerouslySingular() { return 'session'; },
+                });
+            }
+            // else: same session reactivated in-place — stay here
+            // Session's active field will flip via server update broadcast,
+            // canReactivate becomes false, banner disappears, input re-enables
         },
     });
     const availableModels = React.useMemo(() => (
@@ -312,55 +318,93 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     ) : null;
 
     const input = (
-        <AgentInput
-            placeholder={t('session.inputPlaceholder')}
-            value={message}
-            onChangeText={setMessage}
-            sessionId={sessionId}
-            permissionMode={permissionMode}
-            onPermissionModeChange={updatePermissionMode}
-            availableModes={availableModes}
-            modelMode={modelMode}
-            availableModels={availableModels}
-            onModelModeChange={updateModelMode}
-            metadata={session.metadata}
-            connectionStatus={{
-                text: sessionStatus.statusText,
-                color: sessionStatus.statusColor,
-                dotColor: sessionStatus.statusDotColor,
-                isPulsing: sessionStatus.isPulsing
-            }}
-            onSend={() => {
-                if (message.trim()) {
-                    setMessage('');
-                    clearDraft();
-                    sync.sendMessage(sessionId, message);
-                    trackMessageSent();
-                }
-            }}
-            onMicPress={micButtonState.onMicPress}
-            isMicActive={micButtonState.isMicActive}
-            onAbort={() => sessionAbort(sessionId)}
-            showAbortButton={sessionStatus.state === 'thinking' || sessionStatus.state === 'waiting'}
-            onFileViewerPress={experiments ? () => router.push(`/session/${sessionId}/files`) : undefined}
-            // Autocomplete configuration
-            autocompletePrefixes={['@', '/']}
-            autocompleteSuggestions={(query) => getSuggestions(sessionId, query)}
-            usageData={sessionUsage ? {
-                inputTokens: sessionUsage.inputTokens,
-                outputTokens: sessionUsage.outputTokens,
-                cacheCreation: sessionUsage.cacheCreation,
-                cacheRead: sessionUsage.cacheRead,
-                contextSize: sessionUsage.contextSize
-            } : session.latestUsage ? {
-                inputTokens: session.latestUsage.inputTokens,
-                outputTokens: session.latestUsage.outputTokens,
-                cacheCreation: session.latestUsage.cacheCreation,
-                cacheRead: session.latestUsage.cacheRead,
-                contextSize: session.latestUsage.contextSize
-            } : undefined}
-            alwaysShowContextSize={alwaysShowContextSize}
-        />
+        <>
+            {/* Reactivation banner — in-flow above input when session is archived */}
+            {canReactivate && (
+                <View style={{
+                    backgroundColor: theme.colors.success,
+                    paddingVertical: 10,
+                    paddingHorizontal: 16,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}>
+                    {reactivating ? (
+                        <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                    ) : (
+                        <Ionicons name="play-circle-outline" size={16} color="#fff" style={{ marginRight: 8 }} />
+                    )}
+                    <Text style={{ color: '#fff', fontSize: 13, marginRight: 12 }}>
+                        {t('session.sessionArchived')}
+                    </Text>
+                    <Pressable
+                        onPress={performReactivate}
+                        disabled={reactivating}
+                        style={{
+                            backgroundColor: 'rgba(255,255,255,0.25)',
+                            borderRadius: 6,
+                            paddingHorizontal: 12,
+                            paddingVertical: 5,
+                            opacity: reactivating ? 0.6 : 1,
+                        }}
+                    >
+                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>
+                            {reactivating ? t('session.reactivating') : t('session.reactivateSession')}
+                        </Text>
+                    </Pressable>
+                </View>
+            )}
+            <AgentInput
+                placeholder={t('session.inputPlaceholder')}
+                value={message}
+                onChangeText={setMessage}
+                sessionId={sessionId}
+                permissionMode={permissionMode}
+                onPermissionModeChange={updatePermissionMode}
+                availableModes={availableModes}
+                modelMode={modelMode}
+                availableModels={availableModels}
+                onModelModeChange={updateModelMode}
+                metadata={session.metadata}
+                isSendDisabled={!session.active}
+                connectionStatus={{
+                    text: sessionStatus.statusText,
+                    color: sessionStatus.statusColor,
+                    dotColor: sessionStatus.statusDotColor,
+                    isPulsing: sessionStatus.isPulsing
+                }}
+                onSend={() => {
+                    if (message.trim()) {
+                        setMessage('');
+                        clearDraft();
+                        sync.sendMessage(sessionId, message);
+                        trackMessageSent();
+                    }
+                }}
+                onMicPress={micButtonState.onMicPress}
+                isMicActive={micButtonState.isMicActive}
+                onAbort={() => sessionAbort(sessionId)}
+                showAbortButton={sessionStatus.state === 'thinking' || sessionStatus.state === 'waiting'}
+                onFileViewerPress={experiments ? () => router.push(`/session/${sessionId}/files`) : undefined}
+                // Autocomplete configuration
+                autocompletePrefixes={['@', '/']}
+                autocompleteSuggestions={(query) => getSuggestions(sessionId, query)}
+                usageData={sessionUsage ? {
+                    inputTokens: sessionUsage.inputTokens,
+                    outputTokens: sessionUsage.outputTokens,
+                    cacheCreation: sessionUsage.cacheCreation,
+                    cacheRead: sessionUsage.cacheRead,
+                    contextSize: sessionUsage.contextSize
+                } : session.latestUsage ? {
+                    inputTokens: session.latestUsage.inputTokens,
+                    outputTokens: session.latestUsage.outputTokens,
+                    cacheCreation: session.latestUsage.cacheCreation,
+                    cacheRead: session.latestUsage.cacheRead,
+                    contextSize: session.latestUsage.contextSize
+                } : undefined}
+                alwaysShowContextSize={alwaysShowContextSize}
+            />
+        </>
     );
 
 
@@ -397,45 +441,6 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                         {t('sessionInfo.cliVersionOutdated')}
                     </Text>
                     <Ionicons name="close" size={14} color="#856404" style={{ marginLeft: 8 }} />
-                </Pressable>
-            )}
-
-            {/* Reactivate banner — shown when session is archived and can be revived */}
-            {canReactivate && !(isLandscape && deviceType === 'phone') && (
-                <Pressable
-                    onPress={performReactivate}
-                    disabled={reactivating}
-                    style={{
-                        position: 'absolute',
-                        top: 8,
-                        alignSelf: 'center',
-                        backgroundColor: reactivating ? '#D4EDDA' : '#34C759',
-                        borderRadius: 100,
-                        paddingHorizontal: 14,
-                        paddingVertical: 7,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        zIndex: 998,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 4,
-                        elevation: 4,
-                        opacity: reactivating ? 0.7 : 1,
-                    }}
-                >
-                    {reactivating ? (
-                        <ActivityIndicator size="small" color="#fff" style={{ marginRight: 6 }} />
-                    ) : (
-                        <Ionicons name="play-circle-outline" size={14} color="#fff" style={{ marginRight: 6 }} />
-                    )}
-                    <Text style={{
-                        fontSize: 12,
-                        color: '#fff',
-                        fontWeight: '600'
-                    }}>
-                        {reactivating ? t('session.reactivating') : t('session.reactivateSession')}
-                    </Text>
                 </Pressable>
             )}
 

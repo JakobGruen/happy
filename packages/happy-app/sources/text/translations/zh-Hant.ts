@@ -305,9 +305,10 @@ export const zhHant: TranslationStructure = {
     session: {
         inputPlaceholder: '輸入訊息...',
         worktreeBadge: 'Worktree',
-        reactivateSession: '重新啟動工作階段',
+        reactivateSession: '重新啟用',
         reactivateSessionSubtitle: '從上次中斷的地方繼續工作階段',
         reactivating: '正在重新啟動...',
+        sessionArchived: '工作階段已結束',
     },
 
     commandPalette: {

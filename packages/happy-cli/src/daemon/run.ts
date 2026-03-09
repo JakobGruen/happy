@@ -424,6 +424,12 @@ export async function startDaemon(): Promise<void> {
           logger.debug(`[DAEMON RUN] Setting HAPPY_RESUME_CLAUDE_SESSION_ID for Claude --resume`);
         }
 
+        // Pass existing Happy session ID for reactivation (reuse same session instead of creating new)
+        if (options.happySessionId) {
+          extraEnv.HAPPY_REACTIVATE_SESSION_ID = options.happySessionId;
+          logger.debug(`[DAEMON RUN] Setting HAPPY_REACTIVATE_SESSION_ID for session reactivation`);
+        }
+
         // Check if tmux is available and should be used
         const tmuxAvailable = await isTmuxAvailable();
         let useTmux = tmuxAvailable;
