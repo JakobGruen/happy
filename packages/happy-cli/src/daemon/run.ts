@@ -418,14 +418,10 @@ export async function startDaemon(): Promise<void> {
           };
         }
 
-        // Pass resume env vars for session reactivation (before tmux/regular spawn paths)
+        // Pass Claude --resume env var for session reactivation
         if (options.claudeSessionId) {
           extraEnv.HAPPY_RESUME_CLAUDE_SESSION_ID = options.claudeSessionId;
           logger.debug(`[DAEMON RUN] Setting HAPPY_RESUME_CLAUDE_SESSION_ID for Claude --resume`);
-        }
-        if (options.happySessionId) {
-          extraEnv.HAPPY_RESUME_SESSION_ID = options.happySessionId;
-          logger.debug(`[DAEMON RUN] Setting HAPPY_RESUME_SESSION_ID for session revival: ${options.happySessionId}`);
         }
 
         // Check if tmux is available and should be used

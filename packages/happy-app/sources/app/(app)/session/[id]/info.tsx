@@ -203,7 +203,11 @@ function SessionInfoContent({ session }: { session: Session }) {
 
     // Reactivate archived session
     const { canReactivate, reactivating, performReactivate } = useCanReactivateSession(session, {
-        onSuccess: () => router.back(),
+        onSuccess: (newSessionId) => {
+            router.replace(`/session/${newSessionId}`, {
+                dangerouslySingular() { return 'session'; },
+            });
+        },
     });
 
     const formatDate = useCallback((timestamp: number) => {

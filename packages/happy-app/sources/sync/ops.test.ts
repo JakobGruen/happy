@@ -25,27 +25,13 @@ describe('machineResumeSession', () => {
 
     const baseOptions = {
         machineId: 'machine-1',
-        sessionId: 'session-1',
+        sessionId: 'old-session-1',
         claudeSessionId: 'claude-abc',
         directory: '/home/user/project',
     };
 
-    it('sends session-start before RPC call', async () => {
-        machineRPCMock.mockResolvedValue({ type: 'success', sessionId: 'session-1' });
-
-        await machineResumeSession(baseOptions);
-
-        // session-start should be called first
-        expect(sendMock).toHaveBeenCalledWith('session-start', expect.objectContaining({
-            sid: 'session-1',
-            time: expect.any(Number),
-        }));
-        expect(sendMock.mock.invocationCallOrder[0])
-            .toBeLessThan(machineRPCMock.mock.invocationCallOrder[0]);
-    });
-
-    it('calls machineRPC with correct params', async () => {
-        machineRPCMock.mockResolvedValue({ type: 'success', sessionId: 'session-1' });
+    it('delegates to machineSpawnNewSession with HAPPY_RESUME_CLAUDE_SESSION_ID env var', async () => {
+        machineRPCMock.mockResolvedValue({ type: 'success', sessionId: 'new-session-1' });
 
         await machineResumeSession(baseOptions);
 
@@ -55,36 +41,41 @@ describe('machineResumeSession', () => {
             expect.objectContaining({
                 type: 'spawn-in-directory',
                 directory: '/home/user/project',
-                happySessionId: 'session-1',
-                claudeSessionId: 'claude-abc',
                 approvedNewDirectoryCreation: true,
+                environmentVariables: expect.objectContaining({
+                    HAPPY_RESUME_CLAUDE_SESSION_ID: 'claude-abc',
+                }),
             }),
         );
     });
 
-    it('returns success result from RPC', async () => {
-        const successResult = { type: 'success', sessionId: 'session-1' };
-        machineRPCMock.mockResolvedValue(successResult);
-
-        const result = await machineResumeSession(baseOptions);
-
-        expect(result).toEqual(successResult);
-    });
-
-    it('reverts with session-end on RPC failure', async () => {
-        machineRPCMock.mockRejectedValue(new Error('Connection timeout'));
+    it('does not send happySessionId or claudeSessionId as RPC params', async () => {
+        machineRPCMock.mockResolvedValue({ type: 'success', sessionId: 'new-session-1' });
 
         await machineResumeSession(baseOptions);
 
-        // Should send session-start first, then session-end on failure
-        expect(sendMock).toHaveBeenCalledTimes(2);
-        expect(sendMock).toHaveBeenNthCalledWith(1, 'session-start', expect.any(Object));
-        expect(sendMock).toHaveBeenNthCalledWith(2, 'session-end', expect.objectContaining({
-            sid: 'session-1',
-        }));
+        const rpcParams = machineRPCMock.mock.calls[0][2];
+        expect(rpcParams).not.toHaveProperty('happySessionId');
+        expect(rpcParams).not.toHaveProperty('claudeSessionId');
     });
 
-    it('returns error result on RPC failure', async () => {
+    it('does not send session-start or session-end (normal spawn handles lifecycle)', async () => {
+        machineRPCMock.mockResolvedValue({ type: 'success', sessionId: 'new-session-1' });
+
+        await machineResumeSession(baseOptions);
+
+        expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    it('returns success with new session ID', async () => {
+        machineRPCMock.mockResolvedValue({ type: 'success', sessionId: 'new-session-1' });
+
+        const result = await machineResumeSession(baseOptions);
+
+        expect(result).toEqual({ type: 'success', sessionId: 'new-session-1' });
+    });
+
+    it('returns error on RPC failure', async () => {
         machineRPCMock.mockRejectedValue(new Error('Connection timeout'));
 
         const result = await machineResumeSession(baseOptions);
@@ -95,14 +86,18 @@ describe('machineResumeSession', () => {
         });
     });
 
-    it('returns generic error message for non-Error throws', async () => {
-        machineRPCMock.mockRejectedValue('something broke');
+    it('merges caller environmentVariables with resume env var', async () => {
+        machineRPCMock.mockResolvedValue({ type: 'success', sessionId: 'new-session-1' });
 
-        const result = await machineResumeSession(baseOptions);
+        await machineResumeSession({
+            ...baseOptions,
+            environmentVariables: { ANTHROPIC_API_KEY: 'sk-test' },
+        });
 
-        expect(result).toEqual({
-            type: 'error',
-            errorMessage: 'Failed to reactivate session',
+        const rpcParams = machineRPCMock.mock.calls[0][2];
+        expect(rpcParams.environmentVariables).toEqual({
+            ANTHROPIC_API_KEY: 'sk-test',
+            HAPPY_RESUME_CLAUDE_SESSION_ID: 'claude-abc',
         });
     });
 });

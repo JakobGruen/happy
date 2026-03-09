@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { useMachine } from '@/sync/storage';
 import { machineResumeSession } from '@/sync/ops';
 import { useHappyAction } from '@/hooks/useHappyAction';
@@ -23,8 +22,10 @@ export function canReactivateSession(session: Session, machine: Machine | null):
 
 /**
  * Hook wrapper: determines reactivatability and provides the action.
+ * Spawns a fresh session with Claude --resume for context continuity.
+ * Calls onSuccess with the new session ID so the caller can navigate to it.
  */
-export function useCanReactivateSession(session: Session, opts?: { onSuccess?: () => void }) {
+export function useCanReactivateSession(session: Session, opts?: { onSuccess?: (newSessionId: string) => void }) {
     const machineId = session.metadata?.machineId;
     const machine = useMachine(machineId || '');
 
@@ -40,7 +41,9 @@ export function useCanReactivateSession(session: Session, opts?: { onSuccess?: (
         if (result.type === 'error') {
             throw new HappyError(result.errorMessage, false);
         }
-        opts?.onSuccess?.();
+        if (result.type === 'success') {
+            opts?.onSuccess?.(result.sessionId);
+        }
     });
 
     return { canReactivate, reactivating, performReactivate };

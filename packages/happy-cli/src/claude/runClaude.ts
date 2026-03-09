@@ -97,17 +97,12 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         metadata: initialMachineMetadata
     });
 
-    // Check for session reactivation env vars (set by daemon for reviving archived sessions)
-    const resumeHappySessionId = process.env.HAPPY_RESUME_SESSION_ID;
+    // Check for Claude --resume env var (set by daemon for session reactivation)
     const resumeClaudeSessionId = process.env.HAPPY_RESUME_CLAUDE_SESSION_ID;
-    if (resumeHappySessionId) {
-        delete process.env.HAPPY_RESUME_SESSION_ID;
-        logger.debug(`[START] Session reactivation: reconnecting to happy session ${resumeHappySessionId}`);
-    }
     if (resumeClaudeSessionId) {
         delete process.env.HAPPY_RESUME_CLAUDE_SESSION_ID;
         options.claudeArgs = [...(options.claudeArgs || []), '--resume', resumeClaudeSessionId];
-        logger.debug(`[START] Session reactivation: will resume Claude session ${resumeClaudeSessionId}`);
+        logger.debug(`[START] Will resume Claude session ${resumeClaudeSessionId}`);
     }
 
     let metadata: Metadata = {
@@ -135,18 +130,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         ...(options.model ? { currentModelCode: normalizeModelCode(options.model) } : {}),
     };
 
-    // Either reconnect to existing session (reactivation) or create a new one
-    let response: Awaited<ReturnType<typeof api.getOrCreateSession>>;
-    if (resumeHappySessionId) {
-        response = await api.reconnectToSession(resumeHappySessionId);
-        if (response) {
-            // Update metadata on the revived session (new PID, lifecycle state, etc.)
-            metadata = { ...metadata, ...(response.metadata as Metadata) };
-            logger.debug(`[START] Successfully reconnected to session ${resumeHappySessionId}`);
-        }
-    } else {
-        response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
-    }
+    // Create a new session (--resume is handled by claudeArgs, not by reconnecting to an existing Happy session)
+    const response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
 
     // Handle server unreachable case - run Claude locally with hot reconnection
     // Note: connectionState.notifyOffline() was already called by api.ts with error details
