@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, Platform, ActivityIndicator } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import { SwipeableRow, type SwipeableRowRef } from './SwipeableRow';
 import { Text } from '@/components/StyledText';
 
 import { Session, Machine } from '@/sync/storageTypes';
@@ -358,8 +358,7 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
     const sessionName = getSessionName(session);
     const navigateToSession = useNavigateToSession();
     const isTablet = useIsTablet();
-    const swipeableRef = React.useRef<Swipeable | null>(null);
-    const swipeEnabled = Platform.OS !== 'web';
+    const swipeableRef = React.useRef<SwipeableRowRef | null>(null);
 
     const [archivingSession, performArchive] = useHappyAction(async () => {
         const result = await sessionArchive(session.id);
@@ -500,10 +499,6 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
         </Pressable>
     );
 
-    if (!swipeEnabled) {
-        return itemContent;
-    }
-
     const renderRightActions = () => {
         return (
             <Pressable
@@ -520,13 +515,13 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
     };
 
     return (
-        <Swipeable
+        <SwipeableRow
             ref={swipeableRef}
             renderRightActions={renderRightActions}
             overshootRight={false}
             enabled={!archivingSession}
         >
             {itemContent}
-        </Swipeable>
+        </SwipeableRow>
     );
 });

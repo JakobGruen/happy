@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Pressable, FlatList, Platform } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import { View, Pressable, FlatList } from 'react-native';
+import { SwipeableRow, type SwipeableRowRef } from './SwipeableRow';
 import { Text } from '@/components/StyledText';
 import { usePathname } from 'expo-router';
 import { SessionListViewItem, useRealtimeSessionId, useRealtimeStatus } from '@/sync/storage';
@@ -29,6 +29,8 @@ import { useHappyAction } from '@/hooks/useHappyAction';
 import { sessionDelete } from '@/sync/ops';
 import { HappyError } from '@/utils/errors';
 import { Modal } from '@/modal';
+import { canReactivateSession, useCanReactivateSession } from '@/hooks/useCanReactivateSession';
+import { useMachine } from '@/sync/storage';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -203,6 +205,13 @@ const stylesheet = StyleSheet.create((theme) => ({
         textAlign: 'center',
         ...Typography.default('semiBold'),
     },
+    swipeReactivateAction: {
+        width: 112,
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.colors.status.connected,
+    },
 }));
 
 export function SessionsList() {
@@ -347,8 +356,7 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
     const sessionSubtitle = getSessionSubtitle(session);
     const navigateToSession = useNavigateToSession();
     const isTablet = useIsTablet();
-    const swipeableRef = React.useRef<Swipeable | null>(null);
-    const swipeEnabled = Platform.OS !== 'web';
+    const swipeableRef = React.useRef<SwipeableRowRef | null>(null);
 
     const [deletingSession, performDelete] = useHappyAction(async () => {
         const result = await sessionDelete(session.id);
@@ -372,6 +380,18 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
             ]
         );
     }, [performDelete]);
+
+    // Reactivation support for inactive sessions
+    const machine = useMachine(session.metadata?.machineId || '');
+    const showReactivate = canReactivateSession(session, machine);
+    const { reactivating, performReactivate } = useCanReactivateSession(session, {
+        onSuccess: (newSessionId) => navigateToSession(newSessionId),
+    });
+
+    const handleReactivate = React.useCallback(() => {
+        swipeableRef.current?.close();
+        performReactivate();
+    }, [performReactivate]);
 
     const avatarId = React.useMemo(() => {
         return getSessionAvatarId(session);
@@ -462,14 +482,6 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
                 isLast ? styles.sessionItemContainerLast : {}
     ];
 
-    if (!swipeEnabled) {
-        return (
-            <View style={containerStyles}>
-                {itemContent}
-            </View>
-        );
-    }
-
     const renderRightActions = () => (
         <Pressable
             style={styles.swipeAction}
@@ -483,16 +495,31 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
         </Pressable>
     );
 
+    const renderLeftActions = showReactivate ? () => (
+        <Pressable
+            style={styles.swipeReactivateAction}
+            onPress={handleReactivate}
+            disabled={reactivating}
+        >
+            <Ionicons name="play-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.swipeActionText} numberOfLines={2}>
+                {t('session.reactivateSession')}
+            </Text>
+        </Pressable>
+    ) : undefined;
+
     return (
         <View style={containerStyles}>
-            <Swipeable
+            <SwipeableRow
                 ref={swipeableRef}
                 renderRightActions={renderRightActions}
+                renderLeftActions={renderLeftActions}
                 overshootRight={false}
-                enabled={!deletingSession}
+                overshootLeft={false}
+                enabled={!deletingSession && !reactivating}
             >
                 {itemContent}
-            </Swipeable>
+            </SwipeableRow>
         </View>
     );
 });
