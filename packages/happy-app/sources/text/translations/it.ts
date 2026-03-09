@@ -678,6 +678,9 @@ export const it: TranslationStructure = {
 
     notifications: {
         permissionNeeded: ({ session, tool }: { session: string, tool: string }) => `${session}: ${tool}`,
+        permissionTool: ({ tool, description }: { tool: string, description?: string }) => description ? `${tool} · ${description}` : tool,
+        permissionQuestion: 'Ha una domanda per te',
+        permissionPlanReview: 'Piano pronto per la revisione',
         morePermissions: ({ count }: { count: number }) => `+${count} altri`,
     },
 

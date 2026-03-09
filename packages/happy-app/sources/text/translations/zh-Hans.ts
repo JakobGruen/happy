@@ -651,6 +651,9 @@ export const zhHans: TranslationStructure = {
 
     notifications: {
         permissionNeeded: ({ session, tool }: { session: string, tool: string }) => `${session}: ${tool}`,
+        permissionTool: ({ tool, description }: { tool: string, description?: string }) => description ? `${tool} · ${description}` : tool,
+        permissionQuestion: '有问题要问你',
+        permissionPlanReview: '计划已准备好审核',
         morePermissions: ({ count }: { count: number }) => `+${count} 更多`,
     },
 

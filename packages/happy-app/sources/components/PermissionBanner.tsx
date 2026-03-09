@@ -10,10 +10,24 @@ import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { getSessionName } from '@/utils/sessionUtils';
 import { t } from '@/text';
 
+const NOTIFICATION_ONLY_TOOLS = ['AskUserQuestion', 'ExitPlanMode', 'exit_plan_mode'];
+
+function isNotificationOnly(tool: string): boolean {
+    return NOTIFICATION_ONLY_TOOLS.includes(tool);
+}
+
+function isPlanTool(tool: string): boolean {
+    return tool === 'ExitPlanMode' || tool === 'exit_plan_mode';
+}
+
 /**
  * Global floating banner that shows pending permission requests from sessions
  * the user is NOT currently viewing. Displays one request at a time with
  * Allow/Deny quick actions. When resolved, the next request animates in.
+ *
+ * For AskUserQuestion / ExitPlanMode, shows a navigate-only banner (no
+ * allow/deny) since these need in-session interaction.
+ *
  * Mounted in _layout.tsx — visible on all screens.
  */
 export const PermissionBanner = React.memo(() => {
@@ -26,6 +40,14 @@ export const PermissionBanner = React.memo(() => {
     const current = queue[0];
     const remaining = queue.length - 1;
     const sessionName = getSessionName(current.session);
+    const notificationOnly = isNotificationOnly(current.tool);
+
+    const toolLine = notificationOnly
+        ? (isPlanTool(current.tool) ? t('notifications.permissionPlanReview') : t('notifications.permissionQuestion'))
+        : t('notifications.permissionTool', {
+            tool: current.tool,
+            description: current.description ?? undefined,
+        });
 
     const handleAllow = async () => {
         if (loadingAction) return;
@@ -62,16 +84,28 @@ export const PermissionBanner = React.memo(() => {
             exiting={FadeOut.duration(150)}
             style={styles.container}
         >
-            <View style={styles.banner}>
+            <View style={notificationOnly ? styles.bannerNotification : styles.banner}>
                 <TouchableOpacity
                     style={styles.contentArea}
                     onPress={handleNavigate}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="shield-outline" size={20} style={styles.icon} />
+                    <View style={notificationOnly ? styles.iconContainerNotification : styles.iconContainer}>
+                        <Ionicons
+                            name={notificationOnly
+                                ? (isPlanTool(current.tool) ? 'document-text-outline' : 'chatbubble-ellipses-outline')
+                                : 'shield-outline'
+                            }
+                            size={18}
+                            style={notificationOnly ? styles.iconNotification : styles.icon}
+                        />
+                    </View>
                     <View style={styles.textArea}>
-                        <Text style={styles.title} numberOfLines={1}>
-                            {t('notifications.permissionNeeded', { session: sessionName, tool: current.tool })}
+                        <Text style={styles.sessionName} numberOfLines={1}>
+                            {sessionName}
+                        </Text>
+                        <Text style={notificationOnly ? styles.toolDescriptionNotification : styles.toolDescription} numberOfLines={1}>
+                            {toolLine}
                         </Text>
                         {remaining > 0 && (
                             <Text style={styles.moreCount}>
@@ -81,33 +115,43 @@ export const PermissionBanner = React.memo(() => {
                     </View>
                 </TouchableOpacity>
 
-                <View style={styles.actions}>
+                {notificationOnly ? (
                     <TouchableOpacity
-                        style={styles.denyButton}
-                        onPress={handleDeny}
-                        disabled={loadingAction !== null}
+                        style={styles.chevronButton}
+                        onPress={handleNavigate}
                         activeOpacity={0.7}
                     >
-                        {loadingAction === 'deny' ? (
-                            <ActivityIndicator size="small" />
-                        ) : (
-                            <Ionicons name="close" size={18} style={styles.denyIcon} />
-                        )}
+                        <Ionicons name="chevron-forward" size={20} style={styles.chevronIcon} />
                     </TouchableOpacity>
+                ) : (
+                    <View style={styles.actions}>
+                        <TouchableOpacity
+                            style={styles.denyButton}
+                            onPress={handleDeny}
+                            disabled={loadingAction !== null}
+                            activeOpacity={0.7}
+                        >
+                            {loadingAction === 'deny' ? (
+                                <ActivityIndicator size="small" />
+                            ) : (
+                                <Ionicons name="close" size={18} style={styles.denyIcon} />
+                            )}
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={styles.allowButton}
-                        onPress={handleAllow}
-                        disabled={loadingAction !== null}
-                        activeOpacity={0.7}
-                    >
-                        {loadingAction === 'allow' ? (
-                            <ActivityIndicator size="small" />
-                        ) : (
-                            <Ionicons name="checkmark" size={18} style={styles.allowIcon} />
-                        )}
-                    </TouchableOpacity>
-                </View>
+                        <TouchableOpacity
+                            style={styles.allowButton}
+                            onPress={handleAllow}
+                            disabled={loadingAction !== null}
+                            activeOpacity={0.7}
+                        >
+                            {loadingAction === 'allow' ? (
+                                <ActivityIndicator size="small" />
+                            ) : (
+                                <Ionicons name="checkmark" size={18} style={styles.allowIcon} />
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
         </Animated.View>
     );
@@ -126,17 +170,32 @@ const styles = StyleSheet.create((theme) => ({
     banner: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: theme.colors.surface,
+        backgroundColor: theme.colors.box.warning.background,
         borderRadius: 12,
         paddingVertical: 10,
         paddingHorizontal: 12,
         shadowColor: theme.colors.shadow.color,
-        shadowOffset: { width: 0, height: 2 },
-        shadowRadius: 8,
-        shadowOpacity: theme.colors.shadow.opacity,
-        elevation: 6,
+        shadowOffset: { width: 0, height: 3 },
+        shadowRadius: 12,
+        shadowOpacity: theme.dark ? 0.4 : 0.15,
+        elevation: 8,
         borderWidth: 1,
-        borderColor: theme.colors.warning + '40',
+        borderColor: theme.colors.box.warning.border + '60',
+    },
+    bannerNotification: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.dark ? 'rgba(10, 132, 255, 0.12)' : 'rgba(0, 122, 255, 0.08)',
+        borderRadius: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        shadowColor: theme.colors.shadow.color,
+        shadowOffset: { width: 0, height: 3 },
+        shadowRadius: 12,
+        shadowOpacity: theme.dark ? 0.4 : 0.15,
+        elevation: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.textLink + '40',
     },
     contentArea: {
         flex: 1,
@@ -144,48 +203,88 @@ const styles = StyleSheet.create((theme) => ({
         alignItems: 'center',
         marginRight: 8,
     },
+    iconContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: theme.colors.box.warning.border + '20',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10,
+    },
+    iconContainerNotification: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: theme.colors.textLink + '20',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10,
+    },
     icon: {
-        color: theme.colors.warning,
-        marginRight: 8,
+        color: theme.colors.box.warning.border,
+    },
+    iconNotification: {
+        color: theme.colors.textLink,
     },
     textArea: {
         flex: 1,
     },
-    title: {
+    sessionName: {
         fontSize: 13,
         fontWeight: '600',
         color: theme.colors.text,
     },
+    toolDescription: {
+        fontSize: 12,
+        color: theme.colors.box.warning.text,
+        marginTop: 1,
+    },
+    toolDescriptionNotification: {
+        fontSize: 12,
+        color: theme.colors.textLink,
+        marginTop: 1,
+    },
     moreCount: {
         fontSize: 11,
         color: theme.colors.textSecondary,
-        marginTop: 1,
+        marginTop: 2,
     },
     actions: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
     },
+    chevronButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    chevronIcon: {
+        color: theme.colors.textLink,
+    },
     denyButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: theme.colors.surfaceHighest,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: theme.colors.permissionButton.deny.background + '18',
         alignItems: 'center',
         justifyContent: 'center',
     },
     allowButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: theme.colors.success + '20',
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: theme.colors.permissionButton.allow.background + '25',
         alignItems: 'center',
         justifyContent: 'center',
     },
     denyIcon: {
-        color: theme.colors.textSecondary,
+        color: theme.colors.permissionButton.deny.background,
     },
     allowIcon: {
-        color: theme.colors.success,
+        color: theme.colors.permissionButton.allow.background,
     },
 }));

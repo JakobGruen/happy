@@ -650,6 +650,9 @@ export const zhHant: TranslationStructure = {
 
     notifications: {
         permissionNeeded: ({ session, tool }: { session: string, tool: string }) => `${session}: ${tool}`,
+        permissionTool: ({ tool, description }: { tool: string, description?: string }) => description ? `${tool} · ${description}` : tool,
+        permissionQuestion: '有問題要問你',
+        permissionPlanReview: '計畫已準備好審核',
         morePermissions: ({ count }: { count: number }) => `+${count} 更多`,
     },
 
