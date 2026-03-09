@@ -464,6 +464,9 @@ export const pl: TranslationStructure = {
             folderLabel: 'FOLDER',
         },
         noMachinesAvailable: 'Brak maszyn',
+        attachImage: 'Załącz obraz',
+        removeAttachment: 'Usuń',
+        maxAttachments: 'Maksymalnie 4 obrazy na wiadomość',
     },
 
     machineLauncher: {

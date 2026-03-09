@@ -454,6 +454,9 @@ export const pt: TranslationStructure = {
             folderLabel: 'PASTA',
         },
         noMachinesAvailable: 'Sem máquinas',
+        attachImage: 'Anexar imagem',
+        removeAttachment: 'Remover',
+        maxAttachments: 'Máximo de 4 imagens por mensagem',
     },
 
     machineLauncher: {

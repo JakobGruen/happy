@@ -453,6 +453,9 @@ export const en = {
             folderLabel: 'FOLDER',
         },
         noMachinesAvailable: 'No machines',
+        attachImage: 'Attach image',
+        removeAttachment: 'Remove',
+        maxAttachments: 'Maximum 4 images per message',
     },
 
     machineLauncher: {

@@ -454,6 +454,9 @@ export const es: TranslationStructure = {
             folderLabel: 'CARPETA',
         },
         noMachinesAvailable: 'Sin máquinas',
+        attachImage: 'Adjuntar imagen',
+        removeAttachment: 'Eliminar',
+        maxAttachments: 'Máximo 4 imágenes por mensaje',
     },
 
     machineLauncher: {

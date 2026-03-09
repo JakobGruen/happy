@@ -456,6 +456,9 @@ export const zhHans: TranslationStructure = {
             folderLabel: '文件夹',
         },
         noMachinesAvailable: '无设备',
+        attachImage: '附加图片',
+        removeAttachment: '移除',
+        maxAttachments: '每条消息最多4张图片',
     },
 
     machineLauncher: {

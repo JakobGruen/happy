@@ -464,6 +464,9 @@ export const ru: TranslationStructure = {
             folderLabel: 'ПАПКА',
         },
         noMachinesAvailable: 'Нет машин',
+        attachImage: 'Прикрепить изображение',
+        removeAttachment: 'Удалить',
+        maxAttachments: 'Максимум 4 изображения на сообщение',
     },
 
     machineLauncher: {

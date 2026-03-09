@@ -483,6 +483,9 @@ export const it: TranslationStructure = {
             folderLabel: 'CARTELLA',
         },
         noMachinesAvailable: 'Nessuna macchina',
+        attachImage: 'Allega immagine',
+        removeAttachment: 'Rimuovi',
+        maxAttachments: 'Massimo 4 immagini per messaggio',
     },
 
     machineLauncher: {

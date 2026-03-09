@@ -486,6 +486,9 @@ export const ja: TranslationStructure = {
             folderLabel: 'フォルダ',
         },
         noMachinesAvailable: 'マシンなし',
+        attachImage: '画像を添付',
+        removeAttachment: '削除',
+        maxAttachments: '1メッセージにつき最大4枚の画像',
     },
 
     machineLauncher: {

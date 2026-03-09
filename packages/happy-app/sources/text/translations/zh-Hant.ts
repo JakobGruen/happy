@@ -455,6 +455,9 @@ export const zhHant: TranslationStructure = {
             folderLabel: '資料夾',
         },
         noMachinesAvailable: '無裝置',
+        attachImage: '附加圖片',
+        removeAttachment: '移除',
+        maxAttachments: '每則訊息最多4張圖片',
     },
 
     machineLauncher: {
