@@ -90,6 +90,7 @@ interface StorageState {
     feedHasMore: boolean;
     feedLoaded: boolean;  // True after initial feed fetch
     friendsLoaded: boolean;  // True after initial friends fetch
+    viewingSessionId: string | null;
     realtimeStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
     realtimeSessionId: string | null;
     realtimeMode: 'idle' | 'speaking';
@@ -112,6 +113,7 @@ interface StorageState {
     applyGitStatus: (sessionId: string, status: GitStatus | null) => void;
     applyNativeUpdateStatus: (status: { available: boolean; updateUrl?: string } | null) => void;
     isMutableToolCall: (sessionId: string, callId: string) => boolean;
+    setViewingSessionId: (id: string | null) => void;
     setRealtimeStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void;
     setRealtimeSessionId: (id: string | null) => void;
     setRealtimeMode: (mode: 'idle' | 'speaking', immediate?: boolean) => void;
@@ -275,6 +277,7 @@ export const storage = create<StorageState>()((set, get) => {
         sessionListViewData: null,
         sessionMessages: {},
         sessionGitStatus: {},
+        viewingSessionId: null,
         realtimeStatus: 'disconnected',
         realtimeSessionId: null,
         realtimeMode: 'idle',
@@ -694,6 +697,10 @@ export const storage = create<StorageState>()((set, get) => {
         applyNativeUpdateStatus: (status: { available: boolean; updateUrl?: string } | null) => set((state) => ({
             ...state,
             nativeUpdateStatus: status
+        })),
+        setViewingSessionId: (id: string | null) => set((state) => ({
+            ...state,
+            viewingSessionId: id
         })),
         setRealtimeStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => set((state) => ({
             ...state,
@@ -1317,5 +1324,47 @@ export function useRequestedFriends() {
     return storage(useShallow((state) => {
         // Filter friends to get sent requests (where status is 'requested')
         return Object.values(state.friends).filter(friend => friend.status === 'requested');
+    }));
+}
+
+export interface PendingPermissionItem {
+    sessionId: string;
+    session: Session;
+    permissionId: string;
+    tool: string;
+    description?: string | null;
+    createdAt?: number | null;
+    permissionSuggestions?: any[] | null;
+}
+
+/**
+ * Returns a flattened, sorted queue of all pending permission requests across active sessions.
+ * Excludes the currently viewed session (which shows PermissionFooter inline).
+ */
+export function usePendingPermissionQueue(): PendingPermissionItem[] {
+    const viewingSessionId = storage((state) => state.viewingSessionId);
+    return storage(useShallow((state) => {
+        const items: PendingPermissionItem[] = [];
+        for (const session of Object.values(state.sessions)) {
+            if (!session.active) continue;
+            if (session.id === viewingSessionId) continue;
+            if (session.presence !== 'online') continue;
+            const requests = session.agentState?.requests;
+            if (!requests) continue;
+            for (const [permId, req] of Object.entries(requests)) {
+                items.push({
+                    sessionId: session.id,
+                    session,
+                    permissionId: permId,
+                    tool: req.tool,
+                    description: req.description,
+                    createdAt: req.createdAt,
+                    permissionSuggestions: req.permissionSuggestions,
+                });
+            }
+        }
+        // Sort oldest first so user sees the most urgent request
+        items.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+        return items;
     }));
 }
