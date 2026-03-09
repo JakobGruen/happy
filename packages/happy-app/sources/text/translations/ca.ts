@@ -647,6 +647,11 @@ export const ca: TranslationStructure = {
         tapToUpdatePlayStore: 'Toca per actualitzar a Play Store',
     },
 
+    notifications: {
+        permissionNeeded: ({ session, tool }: { session: string, tool: string }) => `${session}: ${tool}`,
+        morePermissions: ({ count }: { count: number }) => `+${count} més`,
+    },
+
     changelog: {
         // Used by the changelog screen
         version: ({ version }: { version: number }) => `Versió ${version}`,

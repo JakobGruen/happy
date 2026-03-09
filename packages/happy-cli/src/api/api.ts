@@ -139,7 +139,7 @@ export class ApiClient {
   /**
    * Reactivate an existing archived session — reuses the same session ID and encryption key.
    * Called during session reactivation when the CLI has a stored encryption key.
-   * Returns null on failure (caller should fall back to creating a new session).
+   * Retries once on transient errors (network/5xx). Returns null on permanent failure.
    */
   async reactivateSession(opts: {
     sessionId: string,
@@ -149,39 +149,76 @@ export class ApiClient {
     state: AgentState | null,
   }): Promise<Session | null> {
     const { sessionId, encryptionKey, encryptionVariant, metadata, state } = opts;
+    const maxAttempts = 2;
 
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await axios.post<CreateSessionResponse>(
+          `${configuration.serverUrl}/v1/sessions/${sessionId}/reactivate`,
+          {
+            metadata: encodeBase64(encrypt(encryptionKey, encryptionVariant, metadata)),
+            agentState: state ? encodeBase64(encrypt(encryptionKey, encryptionVariant, state)) : null,
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${this.credential.token}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 60000
+          }
+        );
+
+        logger.debug(`Session reactivated: ${response.data.session.id}`);
+        const raw = response.data.session;
+        return {
+          id: raw.id,
+          seq: raw.seq,
+          metadata: decrypt(encryptionKey, encryptionVariant, decodeBase64(raw.metadata)),
+          metadataVersion: raw.metadataVersion,
+          agentState: raw.agentState ? decrypt(encryptionKey, encryptionVariant, decodeBase64(raw.agentState)) : null,
+          agentStateVersion: raw.agentStateVersion,
+          encryptionKey,
+          encryptionVariant,
+        };
+      } catch (error) {
+        const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+        const isTransient = !status || status >= 500;
+        logger.warn(`[API] Reactivation attempt ${attempt}/${maxAttempts} failed for session ${sessionId} (status: ${status ?? 'network error'})`);
+
+        // Don't retry on permanent failures (4xx)
+        if (!isTransient || attempt === maxAttempts) {
+          return null;
+        }
+
+        // Brief delay before retry
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Mark a session as inactive on the server. Best-effort — used by the daemon
+   * when it detects a crashed/orphaned session to eliminate the 10-minute zombie window.
+   */
+  async markSessionInactive(sessionId: string): Promise<void> {
     try {
-      const response = await axios.post<CreateSessionResponse>(
-        `${configuration.serverUrl}/v1/sessions/${sessionId}/reactivate`,
-        {
-          metadata: encodeBase64(encrypt(encryptionKey, encryptionVariant, metadata)),
-          agentState: state ? encodeBase64(encrypt(encryptionKey, encryptionVariant, state)) : null,
-        },
+      await axios.post(
+        `${configuration.serverUrl}/v1/sessions/${sessionId}/end`,
+        {},
         {
           headers: {
             'Authorization': `Bearer ${this.credential.token}`,
             'Content-Type': 'application/json'
           },
-          timeout: 60000
+          timeout: 5000
         }
       );
-
-      logger.debug(`Session reactivated: ${response.data.session.id}`);
-      const raw = response.data.session;
-      return {
-        id: raw.id,
-        seq: raw.seq,
-        metadata: decrypt(encryptionKey, encryptionVariant, decodeBase64(raw.metadata)),
-        metadataVersion: raw.metadataVersion,
-        agentState: raw.agentState ? decrypt(encryptionKey, encryptionVariant, decodeBase64(raw.agentState)) : null,
-        agentStateVersion: raw.agentStateVersion,
-        encryptionKey,
-        encryptionVariant,
-      };
+      logger.debug(`[API] Marked session ${sessionId} as inactive on server`);
     } catch (error) {
-      logger.debug(`[API] Failed to reactivate session ${sessionId}:`, error);
-      // Return null — caller falls back to creating a new session
-      return null;
+      // Best-effort — server's 10-minute timeout will catch it eventually
+      logger.debug(`[API] Failed to mark session ${sessionId} inactive:`, error);
     }
   }
 

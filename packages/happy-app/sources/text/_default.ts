@@ -646,6 +646,11 @@ export const en = {
         tapToUpdatePlayStore: 'Tap to update in Play Store',
     },
 
+    notifications: {
+        permissionNeeded: ({ session, tool }: { session: string, tool: string }) => `${session}: ${tool}`,
+        morePermissions: ({ count }: { count: number }) => `+${count} more`,
+    },
+
     changelog: {
         // Used by the changelog screen
         version: ({ version }: { version: number }) => `Version ${version}`,

@@ -17,10 +17,12 @@ import { View, Platform } from 'react-native';
 import { ModalProvider } from '@/modal';
 import { PostHogProvider } from 'posthog-react-native';
 import { tracking } from '@/track/tracking';
-import { syncRestore } from '@/sync/sync';
+import { sync, syncRestore } from '@/sync/sync';
 import { useTrackScreens } from '@/track/useTrackScreens';
+import { useViewingSession } from '@/hooks/useViewingSession';
 import { RealtimeProvider } from '@/realtime/RealtimeProvider';
 import { FaviconPermissionIndicator } from '@/components/web/FaviconPermissionIndicator';
+import { PermissionBanner } from '@/components/PermissionBanner';
 import { CommandPaletteProvider } from '@/components/CommandPalette/CommandPaletteProvider';
 import { StatusBarProvider } from '@/components/StatusBarProvider';
 // import * as SystemUI from 'expo-system-ui';
@@ -28,13 +30,13 @@ import { monkeyPatchConsoleForRemoteLoggingForFasterAiAutoDebuggingOnlyInLocalBu
 import { useUnistyles } from 'react-native-unistyles';
 import { AsyncLock } from '@/utils/lock';
 
-// Configure notification handler for foreground notifications
+// Configure notification handler — suppress OS alerts when app is in foreground
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
+        shouldShowAlert: !sync.isAppActive,
+        shouldPlaySound: !sync.isAppActive,
         shouldSetBadge: true,
-        shouldShowBanner: true,
+        shouldShowBanner: !sync.isAppActive,
         shouldShowList: true,
     }),
 });
@@ -206,6 +208,9 @@ export default function RootLayout() {
     // Track the screens
     useTrackScreens()
 
+    // Track which session is currently being viewed (for PermissionBanner filtering)
+    useViewingSession()
+
     //
     // Not inited
     //
@@ -230,6 +235,7 @@ export default function RootLayout() {
                                     <RealtimeProvider>
                                         <HorizontalSafeAreaWrapper>
                                             <SidebarNavigator />
+                                            <PermissionBanner />
                                         </HorizontalSafeAreaWrapper>
                                     </RealtimeProvider>
                                 </CommandPaletteProvider>

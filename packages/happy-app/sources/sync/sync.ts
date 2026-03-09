@@ -92,7 +92,11 @@ class Sync {
     private feedSync: InvalidateSync;
     private activityAccumulator: ActivityUpdateAccumulator;
     private pendingSettings: Partial<Settings> = loadPendingSettings();
-    private appState: AppStateStatus = AppState.currentState;
+    private _appState: AppStateStatus = AppState.currentState;
+
+    get isAppActive(): boolean {
+        return this._appState === 'active';
+    }
     private backgroundSendTimeout: ReturnType<typeof setTimeout> | null = null;
     private backgroundSendNotificationId: string | null = null;
     private backgroundSendStartedAt: number | null = null;
@@ -125,7 +129,7 @@ class Sync {
 
         // Listen for app state changes to refresh purchases
         AppState.addEventListener('change', (nextAppState) => {
-            this.appState = nextAppState;
+            this._appState = nextAppState;
             if (nextAppState === 'active') {
                 const shouldFailAfterResume = this.backgroundSendStartedAt !== null
                     && this.hasPendingOutboxMessages()
@@ -317,7 +321,7 @@ class Sync {
     }
 
     private maybeStartBackgroundSendWatchdog() {
-        if (Platform.OS === 'web' || this.appState === 'active') {
+        if (Platform.OS === 'web' || this._appState === 'active') {
             return;
         }
         if (!this.hasPendingOutboxMessages() || this.backgroundSendTimeout) {
@@ -1584,7 +1588,7 @@ class Sync {
             this.clearBackgroundSendWatchdog();
             await this.cancelBackgroundSendTimeoutNotification();
             this.backgroundSendStartedAt = null;
-        } else if (this.appState !== 'active') {
+        } else if (this._appState !== 'active') {
             this.maybeStartBackgroundSendWatchdog();
         }
     }

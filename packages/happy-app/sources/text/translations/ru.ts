@@ -645,6 +645,11 @@ export const ru: TranslationStructure = {
         tapToUpdatePlayStore: 'Нажмите для обновления в Play Store',
     },
 
+    notifications: {
+        permissionNeeded: ({ session, tool }: { session: string, tool: string }) => `${session}: ${tool}`,
+        morePermissions: ({ count }: { count: number }) => `+${count} ещё`,
+    },
+
     changelog: {
         // Used by the changelog screen
         version: ({ version }: { version: number }) => `Версия ${version}`,

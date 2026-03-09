@@ -126,8 +126,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         startedFromDaemon: options.startedBy === 'daemon',
         hostPid: process.pid,
         startedBy: options.startedBy || 'terminal',
-        // Initialize lifecycle state
-        lifecycleState: 'running',
+        // Initialize lifecycle state — use 'waiting' for reactivation since CC hasn't started yet
+        lifecycleState: reactivateSessionId ? 'waiting' : 'running',
         lifecycleStateSince: Date.now(),
         flavor: 'claude',
         sandbox: sandboxConfig?.enabled ? sandboxConfig : null,
@@ -156,7 +156,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             reactivationVariant = 'legacy';
             logger.debug(`[START] Using legacy secret for session reactivation`);
         } else {
-            logger.debug(`[START] No stored key and dataKey encryption — cannot reactivate, will create new session`);
+            logger.warn(`[START] No stored encryption key for dataKey session ${reactivateSessionId} — cannot reactivate, will create new session`);
         }
 
         if (reactivationKey) {
@@ -173,7 +173,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
                 // Store key (in case it wasn't stored before, e.g. legacy fallback)
                 await storeSessionKey(response.id, reactivationKey, reactivationVariant);
             } else {
-                logger.debug(`[START] Reactivation failed — will create new session`);
+                logger.warn(`[START] Reactivation API call failed for session ${reactivateSessionId} — will create new session`);
             }
         }
     }
@@ -537,6 +537,10 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         onSessionReady: (sessionInstance) => {
             // Store reference for hook server callback
             currentSession = sessionInstance;
+            // Mark session as reactivation so message forwarding skips history replay
+            if (reactivateSessionId && response?.id === reactivateSessionId) {
+                sessionInstance.isReactivation = true;
+            }
         },
         mcpServers: {
             'happy': {

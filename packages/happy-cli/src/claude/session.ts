@@ -26,6 +26,9 @@ export class Session {
     sessionId: string | null;
     mode: 'local' | 'remote' = 'local';
     thinking: boolean = false;
+    /** Set to true when this session was reactivated (same Happy session ID, --resume CC session).
+     *  Used to skip forwarding historical messages that the server already has. */
+    isReactivation: boolean = false;
     
     /** Callbacks to be notified when session ID is found/changed */
     private sessionFoundCallbacks: ((sessionId: string) => void)[] = [];
