@@ -107,7 +107,7 @@ export class PermissionHandler {
                 // Determine permission mode: prefer explicit response.mode, fallback to updatedPermissions
                 let permissionMode: PermissionMode = 'default';
                 if (response.mode && ['default', 'acceptEdits', 'bypassPermissions'].includes(response.mode)) {
-                    permissionMode = response.mode;
+                    permissionMode = response.mode as PermissionMode;
                 } else if (response.updatedPermissions?.length) {
                     const setMode = response.updatedPermissions.find(
                         (p) => p.type === 'setMode' && ['default', 'acceptEdits', 'bypassPermissions'].includes(p.mode)

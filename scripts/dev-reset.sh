@@ -55,6 +55,12 @@ if [[ $HAD_FLAGS -eq 0 ]] || [[ $DO_ALL -eq 1 ]]; then
     DO_WIRE=1; DO_CLI=1; DO_SERVER=1; DO_DAEMON=1
 fi
 
+# --daemon needs a built CLI — auto-build if dist is missing
+if [[ $DO_DAEMON -eq 1 ]] && [[ ! -f packages/happy-cli/dist/index.mjs ]]; then
+    warn "CLI not built (dist/index.mjs missing) — adding build step for daemon"
+    DO_CLI=1
+fi
+
 # --cli implies --wire (dependency)
 [[ $DO_CLI -eq 1 ]] && DO_WIRE=1
 

@@ -1327,44 +1327,24 @@ export function useRequestedFriends() {
     }));
 }
 
-export interface PendingPermissionItem {
-    sessionId: string;
-    session: Session;
-    permissionId: string;
-    tool: string;
-    description?: string | null;
-    createdAt?: number | null;
-    permissionSuggestions?: any[] | null;
-}
+export type { PendingPermissionItem } from './permissionQueue';
+import { type PendingPermissionItem, buildPermissionQueue, permissionQueueEqual } from './permissionQueue';
+import { useStoreWithEqualityFn } from 'zustand/traditional';
 
 /**
  * Returns a flattened, sorted queue of all pending permission requests across active sessions.
  * Excludes the currently viewed session (which shows PermissionFooter inline).
+ *
+ * Uses useStoreWithEqualityFn with a custom equality (comparing by permissionId)
+ * instead of useShallow to prevent infinite re-render loops — useShallow fails because
+ * the selector creates new objects on every call, and shallow reference comparison
+ * always sees them as changed.
  */
 export function usePendingPermissionQueue(): PendingPermissionItem[] {
     const viewingSessionId = storage((state) => state.viewingSessionId);
-    return storage(useShallow((state) => {
-        const items: PendingPermissionItem[] = [];
-        for (const session of Object.values(state.sessions)) {
-            if (!session.active) continue;
-            if (session.id === viewingSessionId) continue;
-            if (session.presence !== 'online') continue;
-            const requests = session.agentState?.requests;
-            if (!requests) continue;
-            for (const [permId, req] of Object.entries(requests)) {
-                items.push({
-                    sessionId: session.id,
-                    session,
-                    permissionId: permId,
-                    tool: req.tool,
-                    description: req.description,
-                    createdAt: req.createdAt,
-                    permissionSuggestions: req.permissionSuggestions,
-                });
-            }
-        }
-        // Sort oldest first so user sees the most urgent request
-        items.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
-        return items;
-    }));
+    return useStoreWithEqualityFn(
+        storage,
+        (state) => buildPermissionQueue(state.sessions, viewingSessionId),
+        permissionQueueEqual,
+    );
 }
