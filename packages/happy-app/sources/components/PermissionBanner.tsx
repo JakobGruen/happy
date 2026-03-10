@@ -44,10 +44,12 @@ export const PermissionBanner = React.memo(() => {
 
     const toolLine = notificationOnly
         ? (isPlanTool(current.tool) ? t('notifications.permissionPlanReview') : t('notifications.permissionQuestion'))
-        : t('notifications.permissionTool', {
-            tool: current.tool,
-            description: current.description ?? undefined,
-        });
+        : (current.llmSummary
+            ? current.llmSummary
+            : t('notifications.permissionTool', {
+                tool: current.tool,
+                description: current.description ?? undefined,
+            }));
 
     const handleAllow = async () => {
         if (loadingAction) return;

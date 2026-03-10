@@ -302,8 +302,25 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         gitStatusSync.getSync(sessionId);
     }, [sessionId, realtimeStatus]);
 
+    const summaryText = session.metadata?.summary?.text;
+
     let content = (
         <>
+            {summaryText && (
+                <View style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 6,
+                    marginBottom: 4,
+                }}>
+                    <Text style={{
+                        fontSize: 13,
+                        color: theme.colors.textSecondary,
+                        lineHeight: 18,
+                    }} numberOfLines={3}>
+                        {summaryText}
+                    </Text>
+                </View>
+            )}
             <Deferred>
                 {messages.length > 0 && (
                     <ChatList session={session} />
