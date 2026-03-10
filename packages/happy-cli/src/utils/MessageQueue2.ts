@@ -1,7 +1,8 @@
 import { logger } from "@/ui/logger";
+import type { UserContent, UserContentBlock } from "@/api/types";
 
 interface QueueItem<T> {
-    message: string;
+    message: UserContent;
     mode: T;
     modeHash: string;
     isolate?: boolean; // If true, this message must be processed alone
@@ -10,17 +11,18 @@ interface QueueItem<T> {
 /**
  * A mode-aware message queue that stores messages with their modes.
  * Returns consistent batches of messages with the same mode.
+ * Supports both plain text (string) and multimodal content (UserContentBlock[]).
  */
 export class MessageQueue2<T> {
     public queue: QueueItem<T>[] = []; // Made public for testing
     private waiter: ((hasMessages: boolean) => void) | null = null;
     private closed = false;
-    private onMessageHandler: ((message: string, mode: T) => void) | null = null;
+    private onMessageHandler: ((message: UserContent, mode: T) => void) | null = null;
     modeHasher: (mode: T) => string;
 
     constructor(
         modeHasher: (mode: T) => string,
-        onMessageHandler: ((message: string, mode: T) => void) | null = null
+        onMessageHandler: ((message: UserContent, mode: T) => void) | null = null
     ) {
         this.modeHasher = modeHasher;
         this.onMessageHandler = onMessageHandler;
@@ -30,14 +32,14 @@ export class MessageQueue2<T> {
     /**
      * Set a handler that will be called when a message arrives
      */
-    setOnMessage(handler: ((message: string, mode: T) => void) | null): void {
+    setOnMessage(handler: ((message: UserContent, mode: T) => void) | null): void {
         this.onMessageHandler = handler;
     }
 
     /**
      * Push a message to the queue with a mode.
      */
-    push(message: string, mode: T): void {
+    push(message: UserContent, mode: T): void {
         if (this.closed) {
             throw new Error('Cannot push to closed queue');
         }
@@ -72,7 +74,7 @@ export class MessageQueue2<T> {
      * Push a message immediately without batching delay.
      * Does not clear the queue or enforce isolation.
      */
-    pushImmediate(message: string, mode: T): void {
+    pushImmediate(message: UserContent, mode: T): void {
         if (this.closed) {
             throw new Error('Cannot push to closed queue');
         }
@@ -108,7 +110,7 @@ export class MessageQueue2<T> {
      * Clears any pending messages and ensures this message is never batched with others.
      * Used for special commands that require dedicated processing.
      */
-    pushIsolateAndClear(message: string, mode: T): void {
+    pushIsolateAndClear(message: UserContent, mode: T): void {
         if (this.closed) {
             throw new Error('Cannot push to closed queue');
         }
@@ -145,7 +147,7 @@ export class MessageQueue2<T> {
     /**
      * Push a message to the beginning of the queue with a mode.
      */
-    unshift(message: string, mode: T): void {
+    unshift(message: UserContent, mode: T): void {
         if (this.closed) {
             throw new Error('Cannot unshift to closed queue');
         }
@@ -218,10 +220,11 @@ export class MessageQueue2<T> {
     }
 
     /**
-     * Wait for messages and return all messages with the same mode as a single string
-     * Returns { message: string, mode: T } or null if aborted/closed
+     * Wait for messages and return all messages with the same mode.
+     * Text messages are joined with newlines; content block arrays are merged.
+     * Returns { message: UserContent, mode: T } or null if aborted/closed
      */
-    async waitForMessagesAndGetAsString(abortSignal?: AbortSignal): Promise<{ message: string, mode: T, isolate: boolean, hash: string } | null> {
+    async waitForMessages(abortSignal?: AbortSignal): Promise<{ message: UserContent, mode: T, isolate: boolean, hash: string } | null> {
         // If we have messages, return them immediately
         if (this.queue.length > 0) {
             return this.collectBatch();
@@ -233,7 +236,7 @@ export class MessageQueue2<T> {
         }
 
         // Wait for messages to arrive
-        const hasMessages = await this.waitForMessages(abortSignal);
+        const hasMessages = await this.waitForNotification(abortSignal);
 
         if (!hasMessages) {
             return null;
@@ -243,15 +246,24 @@ export class MessageQueue2<T> {
     }
 
     /**
-     * Collect a batch of messages with the same mode, respecting isolation requirements
+     * @deprecated Use waitForMessages() instead — same behavior but clearer name
      */
-    private collectBatch(): { message: string, mode: T, hash: string, isolate: boolean } | null {
+    async waitForMessagesAndGetAsString(abortSignal?: AbortSignal): Promise<{ message: UserContent, mode: T, isolate: boolean, hash: string } | null> {
+        return this.waitForMessages(abortSignal);
+    }
+
+    /**
+     * Collect a batch of messages with the same mode, respecting isolation requirements.
+     * Text strings are joined with newlines. If any message is a content block array,
+     * all messages are merged into a single content block array.
+     */
+    private collectBatch(): { message: UserContent, mode: T, hash: string, isolate: boolean } | null {
         if (this.queue.length === 0) {
             return null;
         }
 
         const firstItem = this.queue[0];
-        const sameModeMessages: string[] = [];
+        const collected: UserContent[] = [];
         let mode = firstItem.mode;
         let isolate = firstItem.isolate ?? false;
         const targetModeHash = firstItem.modeHash;
@@ -259,7 +271,7 @@ export class MessageQueue2<T> {
         // If the first message requires isolation, only process it alone
         if (firstItem.isolate) {
             const item = this.queue.shift()!;
-            sameModeMessages.push(item.message);
+            collected.push(item.message);
             logger.debug(`[MessageQueue2] Collected isolated message with mode hash: ${targetModeHash}`);
         } else {
             // Collect all messages with the same mode until we hit an isolated message
@@ -267,16 +279,33 @@ export class MessageQueue2<T> {
                 this.queue[0].modeHash === targetModeHash &&
                 !this.queue[0].isolate) {
                 const item = this.queue.shift()!;
-                sameModeMessages.push(item.message);
+                collected.push(item.message);
             }
-            logger.debug(`[MessageQueue2] Collected batch of ${sameModeMessages.length} messages with mode hash: ${targetModeHash}`);
+            logger.debug(`[MessageQueue2] Collected batch of ${collected.length} messages with mode hash: ${targetModeHash}`);
         }
 
-        // Join all messages with newlines
-        const combinedMessage = sameModeMessages.join('\n');
+        // Merge collected messages
+        const hasContentBlocks = collected.some(m => Array.isArray(m));
+
+        let message: UserContent;
+        if (!hasContentBlocks) {
+            // All strings — join with newlines (original behavior)
+            message = (collected as string[]).join('\n');
+        } else {
+            // At least one content block array — merge everything into content blocks
+            const blocks: UserContentBlock[] = [];
+            for (const item of collected) {
+                if (typeof item === 'string') {
+                    blocks.push({ type: 'text', text: item });
+                } else {
+                    blocks.push(...item);
+                }
+            }
+            message = blocks;
+        }
 
         return {
-            message: combinedMessage,
+            message,
             mode,
             hash: targetModeHash,
             isolate
@@ -284,9 +313,9 @@ export class MessageQueue2<T> {
     }
 
     /**
-     * Wait for messages to arrive
+     * Wait for messages to arrive (internal notification mechanism)
      */
-    private waitForMessages(abortSignal?: AbortSignal): Promise<boolean> {
+    private waitForNotification(abortSignal?: AbortSignal): Promise<boolean> {
         return new Promise((resolve) => {
             let abortHandler: (() => void) | null = null;
 

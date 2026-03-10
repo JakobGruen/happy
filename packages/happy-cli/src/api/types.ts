@@ -230,17 +230,60 @@ export const CreateSessionResponseSchema = z.object({
 
 export type CreateSessionResponse = z.infer<typeof CreateSessionResponseSchema>
 
+/** A single content block in a multimodal user message (matches Anthropic API format) */
+export const UserContentBlockSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('text'), text: z.string() }),
+  z.object({
+    type: z.literal('image'),
+    source: z.object({
+      type: z.literal('base64'),
+      media_type: z.string(),
+      data: z.string(),
+    }),
+  }),
+])
+
+export type UserContentBlock = z.infer<typeof UserContentBlockSchema>
+
+/** User message content — text-only or multimodal (text + images) */
+export const UserMessageContentSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('text'), text: z.string() }),
+  z.object({ type: z.literal('multimodal'), blocks: z.array(UserContentBlockSchema) }),
+])
+
+export type UserMessageContent = z.infer<typeof UserMessageContentSchema>
+
+/**
+ * Content ready for the Claude SDK — plain string for text, content block array for multimodal.
+ * This is what flows through MessageQueue2 and into claudeRemote.
+ */
+export type UserContent = string | UserContentBlock[]
+
 export const UserMessageSchema = z.object({
   role: z.literal('user'),
-  content: z.object({
-    type: z.literal('text'),
-    text: z.string()
-  }),
+  content: UserMessageContentSchema,
   localKey: z.string().optional(), // Mobile messages include this
   meta: MessageMetaSchema.optional()
 })
 
 export type UserMessage = z.infer<typeof UserMessageSchema>
+
+/** Extract SDK-ready content from a parsed UserMessage */
+export function extractUserContent(content: UserMessageContent): UserContent {
+  if (content.type === 'text') {
+    return content.text;
+  }
+  return content.blocks;
+}
+
+/** Extract text from user message content (for special command parsing, logging, etc.) */
+export function extractTextFromContent(content: UserMessageContent): string {
+  if (content.type === 'text') {
+    return content.text;
+  }
+  const textBlocks = content.blocks.filter((b): b is { type: 'text'; text: string } => b.type === 'text');
+  return textBlocks.map(b => b.text).join('\n');
+}
 
 export const AgentMessageSchema = z.object({
   role: z.literal('agent'),

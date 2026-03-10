@@ -13,6 +13,7 @@ import { SDKToLogConverter, getGitBranchAsync } from "./utils/sdkToLogConverter"
 import { normalizeModelCode } from "@jakobgruen/happy-wire";
 import { PLAN_FAKE_REJECT } from "./sdk/prompts";
 import { EnhancedMode, PermissionMode } from "./loop";
+import type { UserContent } from "@/api/types";
 import { RawJSONLines } from "@/claude/types";
 import { OutgoingMessageQueue } from "./utils/OutgoingMessageQueue";
 import { getToolName } from "./utils/getToolName";
@@ -168,7 +169,7 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     let ongoingToolCalls = new Map<string, { parentToolCallId: string | null }>();
 
     // Track turn data for summary generation
-    let lastUserMessage = '';
+    let lastUserMessage: UserContent = '';
     let turnToolCalls: Array<{ tool: string; description?: string | null }> = [];
 
     // Reactivation: skip forwarding messages until system.init (history replay phase)
@@ -368,7 +369,7 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
 
     try {
         let pending: {
-            message: string;
+            message: UserContent;
             mode: EnhancedMode;
         } | null = null;
 
@@ -488,8 +489,9 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                         }
 
                         // Fire-and-forget: generate turn summary via Haiku
-                        if (lastUserMessage) {
-                            void generateTurnSummary(lastUserMessage, turnToolCalls).then((summary) => {
+                        const summaryText = typeof lastUserMessage === 'string' ? lastUserMessage : lastUserMessage.filter(b => b.type === 'text').map(b => (b as { type: 'text'; text: string }).text).join('\n');
+                        if (summaryText) {
+                            void generateTurnSummary(summaryText, turnToolCalls).then((summary) => {
                                 if (!summary) return;
                                 session.client.updateMetadata((m) => ({
                                     ...m,

@@ -9,6 +9,7 @@ import { AcpSessionManager } from './AcpSessionManager';
 import type { SessionEnvelope } from '@jakobgruen/happy-wire';
 import { logger } from '@/ui/logger';
 import { MessageQueue2 } from '@/utils/MessageQueue2';
+import { extractTextFromContent } from '@/api/types';
 import { hashObject } from '@/utils/deterministicJson';
 import { Credentials, readSettings } from '@/persistence';
 import { initialMachineMetadata } from '@/daemon/run';
@@ -820,7 +821,8 @@ export async function runAcp(opts: {
   backend.onMessage(onBackendMessage);
 
   session.onUserMessage((message) => {
-    if (!message.content.text) {
+    const textContent = extractTextFromContent(message.content);
+    if (!textContent) {
       return;
     }
 
@@ -834,7 +836,7 @@ export async function runAcp(opts: {
       logger.debug(`[${opts.agentName}] Requested ACP model: ${currentModel ?? 'null'}`);
     }
 
-    messageQueue.push(message.content.text, {
+    messageQueue.push(textContent, {
       permissionMode: currentPermissionMode,
       model: currentModel,
     });
@@ -909,7 +911,8 @@ export async function runAcp(opts: {
         if (typeof batch.mode.model === 'string' && batch.mode.model.length > 0) {
           await switchModelIfRequested(batch.mode.model);
         }
-        await backend.sendPrompt(acpSessionId, batch.message);
+        const promptText = typeof batch.message === 'string' ? batch.message : batch.message.filter(b => b.type === 'text').map(b => (b as { type: 'text'; text: string }).text).join('\n');
+        await backend.sendPrompt(acpSessionId, promptText);
         await turnEnded;
         sendEnvelopes(sessionManager.endTurn('completed'));
         session.sendSessionEvent({ type: 'ready' });

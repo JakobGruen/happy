@@ -1,6 +1,7 @@
 import { EnhancedMode } from "./loop";
 import { query, type QueryOptions, type SDKMessage, type SDKSystemMessage, type SDKResultMessage, AbortError, SDKUserMessage } from '@/claude/sdk'
 import type { TurnEndStats } from '@jakobgruen/happy-wire';
+import type { UserContent } from '@/api/types';
 import { mapToClaudeMode } from "./utils/permissionMode";
 import { claudeCheckSession } from "./utils/claudeCheckSession";
 import { join, resolve } from 'node:path';
@@ -31,7 +32,7 @@ export async function claudeRemote(opts: {
     jsRuntime?: JsRuntime,
 
     // Dynamic parameters
-    nextMessage: () => Promise<{ message: string, mode: EnhancedMode } | null>,
+    nextMessage: () => Promise<{ message: UserContent, mode: EnhancedMode } | null>,
     onReady: (stats?: TurnEndStats) => void,
     isAborted: (toolCallId: string) => boolean,
 
@@ -89,8 +90,9 @@ export async function claudeRemote(opts: {
         return;
     }
 
-    // Handle special commands
-    const specialCommand = parseSpecialCommand(initial.message);
+    // Handle special commands (extract text for command parsing)
+    const initialText = typeof initial.message === 'string' ? initial.message : '';
+    const specialCommand = parseSpecialCommand(initialText);
 
     // Handle /clear command
     if (specialCommand.type === 'clear') {
