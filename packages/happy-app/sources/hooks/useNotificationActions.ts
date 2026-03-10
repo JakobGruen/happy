@@ -3,11 +3,10 @@ import * as Notifications from 'expo-notifications';
 import { sessionAllow, sessionDeny } from '@/sync/ops';
 import { router } from 'expo-router';
 
-interface NotificationAction {
-    type: 'allow' | 'deny' | 'navigate';
-    sessionId: string;
-    requestId?: string;
-}
+type NotificationAction =
+    | { type: 'allow'; sessionId: string; requestId: string }
+    | { type: 'deny'; sessionId: string; requestId: string }
+    | { type: 'navigate'; sessionId: string };
 
 /**
  * Maps a notification action identifier + data to a typed action.
@@ -48,10 +47,10 @@ export function useNotificationActions() {
 
             switch (action.type) {
                 case 'allow':
-                    sessionAllow(action.sessionId, action.requestId!);
+                    sessionAllow(action.sessionId, action.requestId);
                     break;
                 case 'deny':
-                    sessionDeny(action.sessionId, action.requestId!);
+                    sessionDeny(action.sessionId, action.requestId);
                     break;
                 case 'navigate':
                     router.push(`/(app)/session/${action.sessionId}`);
