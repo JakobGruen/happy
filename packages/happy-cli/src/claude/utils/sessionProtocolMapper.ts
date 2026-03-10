@@ -584,9 +584,20 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                         maybeEmitSubagentStop(state, turnId, sessionSubagentForToolResult, envelopes);
                     }
                 }
+                let resultText: string | undefined;
+                if (typeof block.content === 'string') {
+                    resultText = block.content;
+                } else if (Array.isArray(block.content)) {
+                    resultText = block.content
+                        .filter((b: any) => b.type === 'text' && typeof b.text === 'string')
+                        .map((b: any) => b.text)
+                        .join('\n') || undefined;
+                }
                 envelopes.push(createEnvelope('agent', {
                     t: 'tool-call-end',
                     call: block.tool_use_id,
+                    ...(resultText !== undefined && { result: resultText }),
+                    ...(block.is_error === true && { isError: true }),
                 }, { turn: turnId, subagent }));
                 continue;
             }
