@@ -173,6 +173,13 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         }
     }
 
+    // Collapse post-approval/denial tools to minimal header line for Claude sessions
+    // This matches CC terminal behavior where completed tools show as a single line
+    const isClaude = props.metadata?.flavor !== 'codex' && props.metadata?.flavor !== 'gemini';
+    if (isClaude && tool.permission && tool.permission.status !== 'pending' && tool.state !== 'running') {
+        minimal = true;
+    }
+
     // Computed after all minimal mutations (incl. isToolUseError) are finalized
     const hasCollapsibleContent = !minimal && tool.name !== 'AskUserQuestion';
 
