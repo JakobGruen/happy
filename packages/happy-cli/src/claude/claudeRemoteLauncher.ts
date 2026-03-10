@@ -16,6 +16,7 @@ import { EnhancedMode, PermissionMode } from "./loop";
 import { RawJSONLines } from "@/claude/types";
 import { OutgoingMessageQueue } from "./utils/OutgoingMessageQueue";
 import { getToolName } from "./utils/getToolName";
+import { generateTurnSummary } from "@/claude/utils/summarizer";
 
 interface PermissionsField {
     date: number;
@@ -166,6 +167,10 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     let planModeToolCalls = new Set<string>();
     let ongoingToolCalls = new Map<string, { parentToolCallId: string | null }>();
 
+    // Track turn data for summary generation
+    let lastUserMessage = '';
+    let turnToolCalls: Array<{ tool: string; description?: string | null }> = [];
+
     // Reactivation: skip forwarding messages until system.init (history replay phase)
     let skipMessageForwarding = session.isReactivation;
     let reactivationSkippedCount = 0;
@@ -209,6 +214,11 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                     if (c.type === 'tool_use') {
                         logger.debug('[remote]: detected tool use ' + c.id! + ' parent: ' + umessage.parent_tool_use_id);
                         ongoingToolCalls.set(c.id!, { parentToolCallId: umessage.parent_tool_use_id ?? null });
+
+                        // Track for turn summary (top-level tool calls only)
+                        if (!umessage.parent_tool_use_id) {
+                            turnToolCalls.push({ tool: c.name ?? 'unknown' });
+                        }
                     }
                 }
             }
@@ -407,6 +417,8 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                             let p = pending;
                             pending = null;
                             permissionHandler.handleModeChange(p.mode.permissionMode);
+                            lastUserMessage = p.message;
+                            turnToolCalls.length = 0;
                             return p;
                         }
 
@@ -422,6 +434,8 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                             modeHash = msg.hash;
                             mode = msg.mode;
                             permissionHandler.handleModeChange(mode.permissionMode);
+                            lastUserMessage = msg.message;
+                            turnToolCalls.length = 0;
                             return {
                                 message: msg.message,
                                 mode: msg.mode
@@ -471,6 +485,17 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                                 `Claude is waiting for your command`,
                                 { sessionId: session.client.sessionId }
                             );
+                        }
+
+                        // Fire-and-forget: generate turn summary via Haiku
+                        if (lastUserMessage) {
+                            void generateTurnSummary(lastUserMessage, turnToolCalls).then((summary) => {
+                                if (!summary) return;
+                                session.client.updateMetadata((m) => ({
+                                    ...m,
+                                    summary: { text: summary, updatedAt: Date.now() },
+                                }));
+                            });
                         }
                     },
                     signal: abortController.signal,
