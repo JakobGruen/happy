@@ -20,6 +20,8 @@ import { tracking } from '@/track/tracking';
 import { sync, syncRestore } from '@/sync/sync';
 import { useTrackScreens } from '@/track/useTrackScreens';
 import { useViewingSession } from '@/hooks/useViewingSession';
+import { useNotificationActions } from '@/hooks/useNotificationActions';
+import { registerNotificationCategories } from '@/utils/notificationCategories';
 import { RealtimeProvider } from '@/realtime/RealtimeProvider';
 import { FaviconPermissionIndicator } from '@/components/web/FaviconPermissionIndicator';
 import { PermissionBanner } from '@/components/PermissionBanner';
@@ -51,6 +53,9 @@ if (Platform.OS === 'android') {
         lightColor: '#FF231F7C',
     });
 }
+
+// Register notification categories for action buttons (Allow/Deny on iOS)
+registerNotificationCategories();
 
 export {
     // Catch any errors thrown by the Layout component.
@@ -211,6 +216,9 @@ export default function RootLayout() {
 
     // Track which session is currently being viewed (for PermissionBanner filtering)
     useViewingSession()
+
+    // Handle notification action responses (Allow/Deny buttons + body taps)
+    useNotificationActions()
 
     //
     // Not inited
