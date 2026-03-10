@@ -14,6 +14,7 @@ import { sync } from '@/sync/sync';
 import { Option } from './markdown/MarkdownView';
 import { useSetting } from "@/sync/storage";
 import { useRouter } from 'expo-router';
+import { ImageViewerManager } from './ImageViewer';
 
 export const MessageView = (props: {
   message: Message;
@@ -88,12 +89,13 @@ function UserTextBlock(props: {
         {images && images.length > 0 && (
           <View style={styles.userImageRow}>
             {images.map((img, i) => (
-              <Image
-                key={i}
-                source={{ uri: `data:${img.mediaType};base64,${img.data}` }}
-                style={{ width: 200, height: 150, borderRadius: 8 }}
-                contentFit="cover"
-              />
+              <Pressable key={i} onPress={() => ImageViewerManager.open(images, i)}>
+                <Image
+                  source={{ uri: `data:${img.mediaType};base64,${img.data}` }}
+                  style={{ width: 200, height: 150, borderRadius: 8 }}
+                  contentFit="cover"
+                />
+              </Pressable>
             ))}
           </View>
         )}
