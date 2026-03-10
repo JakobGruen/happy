@@ -14,6 +14,7 @@ import { Image } from 'expo-image';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { useInboxHasContent } from '@/hooks/useInboxHasContent';
+import { isUsingCustomServer } from '@/sync/serverConfig';
 import { Ionicons } from '@expo/vector-icons';
 
 const stylesheet = StyleSheet.create((theme, runtime) => ({
@@ -139,6 +140,7 @@ export const SidebarView = React.memo(() => {
     const realtimeStatus = useRealtimeStatus();
     const friendRequests = useFriendRequests();
     const inboxHasContent = useInboxHasContent();
+    const isCustomServer = isUsingCustomServer();
     const settings = useSettings();
 
     // Compute connection status once per render (theme-reactive, no stale memoization)
@@ -187,9 +189,9 @@ export const SidebarView = React.memo(() => {
     // Uses same formula as SidebarNavigator.tsx:18 for consistency
     const { width: windowWidth } = useWindowDimensions();
     const sidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
-    // With experiments: 4 icons (148px total), threshold 408px > max 360px → always left-justify
-    // Without experiments: 3 icons (108px total), threshold 328px → left-justify below ~340px
-    const shouldLeftJustify = settings.experiments || sidebarWidth < 340;
+    // With experiments or custom server: 4+ icons, threshold > max 360px → always left-justify
+    // Without: 3 icons (108px total), threshold 328px → left-justify below ~340px
+    const shouldLeftJustify = settings.experiments || isCustomServer || sidebarWidth < 340;
 
     const handleNewSession = React.useCallback(() => {
         router.push('/new');
@@ -259,6 +261,14 @@ export const SidebarView = React.memo(() => {
                                 <View style={styles.indicatorDot} />
                             )}
                         </Pressable>
+                        {isCustomServer && (
+                            <Pressable
+                                onPress={() => router.push('/server')}
+                                hitSlop={15}
+                            >
+                                <Ionicons name="server-outline" size={24} color={theme.colors.header.tint} />
+                            </Pressable>
+                        )}
                         <Pressable
                             onPress={() => router.push('/settings')}
                             hitSlop={15}
