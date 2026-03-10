@@ -15,6 +15,7 @@ import { getToolName } from "./getToolName";
 import { EnhancedMode, PermissionMode } from "../loop";
 import { getToolDescriptor } from "./getToolDescriptor";
 import { delay } from "@/utils/time";
+import { generatePermissionSummary } from "@/claude/utils/summarizer";
 
 interface PermissionResponse {
     id: string;
@@ -286,6 +287,22 @@ export class PermissionHandler {
                     }
                 }
             }));
+
+            // Fire-and-forget: generate Haiku summary asynchronously
+            void generatePermissionSummary(toolName, input as Record<string, unknown>, context?.description).then((summary) => {
+                if (!summary) return;
+                this.session.client.updateAgentState((currentState) => {
+                    const existing = currentState.requests?.[id];
+                    if (!existing) return currentState; // already completed
+                    return {
+                        ...currentState,
+                        requests: {
+                            ...currentState.requests,
+                            [id]: { ...existing, llmSummary: summary },
+                        },
+                    };
+                });
+            });
 
             logger.debug(`Permission request sent for tool call ${id}: ${toolName}`);
         });
