@@ -13,6 +13,7 @@ import { AgentEvent } from "@/sync/typesRaw";
 import { sync } from '@/sync/sync';
 import { Option } from './markdown/MarkdownView';
 import { useSetting } from "@/sync/storage";
+import { useRouter } from 'expo-router';
 
 export const MessageView = (props: {
   message: Message;
@@ -76,7 +77,7 @@ function UserTextBlock(props: {
   }, [props.sessionId]);
 
   if (props.message.commandName) {
-    return <CommandMessageBlock message={props.message} />;
+    return <CommandMessageBlock message={props.message} sessionId={props.sessionId} />;
   }
 
   const images = props.message.imageAttachments;
@@ -106,32 +107,25 @@ function UserTextBlock(props: {
 
 function CommandMessageBlock(props: {
   message: UserTextMessage;
+  sessionId: string;
 }) {
-  const [expanded, setExpanded] = React.useState(false);
+  const router = useRouter();
+
+  const handlePress = React.useCallback(() => {
+    router.push(`/session/${props.sessionId}/message/${props.message.id}`);
+  }, [props.sessionId, props.message.id, router]);
 
   return (
     <View style={commandStyles.container}>
-      <Pressable
-        onPress={() => setExpanded(v => !v)}
-        style={commandStyles.header}
-      >
+      <Pressable onPress={handlePress} style={commandStyles.header}>
         <View style={commandStyles.headerLeft}>
           <Ionicons name="sparkles-outline" size={18} style={commandStyles.icon} />
           <Text style={commandStyles.title} numberOfLines={1}>
             {props.message.commandName}
           </Text>
         </View>
-        <Ionicons
-          name={expanded ? 'chevron-down' : 'chevron-forward'}
-          size={18}
-          style={commandStyles.chevron}
-        />
+        <Ionicons name="chevron-forward" size={18} style={commandStyles.chevron} />
       </Pressable>
-      {expanded && props.message.commandBody && (
-        <View style={commandStyles.body}>
-          <MarkdownView markdown={props.message.commandBody} />
-        </View>
-      )}
     </View>
   );
 }
@@ -347,8 +341,5 @@ const commandStyles = StyleSheet.create((theme) => ({
   },
   chevron: {
     color: theme.colors.textSecondary,
-  },
-  body: {
-    padding: 12,
   },
 }));

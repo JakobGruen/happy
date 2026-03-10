@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
-import { Text, View, ActivityIndicator } from "react-native";
+import { Text, View, ActivityIndicator, ScrollView } from "react-native";
 import { useMessage, useSession, useSessionMessages } from "@/sync/storage";
 import { sync } from '@/sync/sync';
 import { Deferred } from "@/components/Deferred";
@@ -10,6 +10,8 @@ import { ToolStatusIndicator } from '@/components/tools/ToolStatusIndicator';
 import { Message } from '@/sync/typesMessage';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Typography } from '@/constants/Typography';
+import { MarkdownView } from '@/components/markdown/MarkdownView';
+import { Ionicons } from '@expo/vector-icons';
 
 const stylesheet = StyleSheet.create((theme) => ({
     loadingContainer: {
@@ -80,6 +82,25 @@ export default React.memo(() => {
     
     return (
         <>
+            {message && message.kind === 'user-text' && message.commandName && (
+                <Stack.Screen
+                    options={{
+                        headerTitle: () => (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Ionicons name="sparkles-outline" size={18} color={theme.colors.header.tint} />
+                                <Text style={{ fontSize: 14, fontWeight: '500', color: theme.colors.text }}>
+                                    {message.commandName}
+                                </Text>
+                            </View>
+                        ),
+                        headerStyle: {
+                            backgroundColor: theme.colors.header.background,
+                        },
+                        headerTintColor: theme.colors.header.tint,
+                        headerShadowVisible: false,
+                    }}
+                />
+            )}
             {message && message.kind === 'tool-call' && message.tool && (
                 <Stack.Screen
                     options={{
@@ -115,6 +136,13 @@ function FullView(props: { message: Message }) {
         )
     }
     if (props.message.kind === 'user-text') {
+        if (props.message.commandName && props.message.commandBody) {
+            return (
+                <ScrollView style={styles.fullViewContainer}>
+                    <MarkdownView markdown={props.message.commandBody} />
+                </ScrollView>
+            );
+        }
         return (
             <View style={styles.fullViewContainer}>
                 <Text style={styles.messageText}>{props.message.text}</Text>
