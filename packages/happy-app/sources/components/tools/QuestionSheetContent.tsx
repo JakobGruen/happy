@@ -1,99 +1,84 @@
-import * as React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, TextInput, ScrollView } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { ToolViewProps } from './_all';
-import { ToolSectionView } from '../ToolSectionView';
-import { t } from '@/text';
 import { Ionicons } from '@expo/vector-icons';
+import { CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
 import {
     useQuestionFormState,
     AskUserQuestionInput,
     Question,
     OTHER_INDEX,
 } from '@/hooks/useQuestionFormState';
+import { sessionDeny } from '@/sync/ops';
+import { t } from '@/text';
 
-export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId }) => {
+interface QuestionSheetContentProps {
+    permission: CurrentSessionPermissionItem;
+    sessionId: string;
+}
+
+/**
+ * Interactive question form rendered inside the permission sheet modal.
+ * Handles radio/checkbox options, "Other" free-text, tabs for multi-question,
+ * submit, and cancel (deny). Reuses useQuestionFormState for shared logic
+ * with the inline AskUserQuestionView.
+ */
+export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ permission, sessionId }) => {
     const { theme } = useUnistyles();
-
-    // Parse input
-    const input = tool.input as AskUserQuestionInput | undefined;
+    const input = permission.toolInput as AskUserQuestionInput | undefined;
     const questions = input?.questions;
-
-    const isRunning = tool.state === 'running';
 
     const form = useQuestionFormState({
         questions,
-        permissionId: tool.permission?.id ?? null,
-        sessionId: sessionId ?? null,
-        canInteract: isRunning,
+        permissionId: permission.permissionId,
+        sessionId,
+        canInteract: true,
     });
+
+    const [isCanceling, setIsCanceling] = React.useState(false);
 
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
         return null;
     }
 
-    // Show submitted state — prefer local form state, fall back to tool.result
-    // (tool.result is populated by CC SDK after the tool completes; local state
-    // may be empty if the question was answered via the permission sheet modal)
-    if (form.isSubmitted || tool.state === 'completed') {
-        const hasLocalState = form.selections.size > 0;
+    const handleCancel = async () => {
+        if (isCanceling) return;
+        setIsCanceling(true);
+        try {
+            await sessionDeny(sessionId, permission.permissionId);
+        } catch (error) {
+            console.error('Failed to cancel question:', error);
+        } finally {
+            setIsCanceling(false);
+        }
+    };
 
-        // Parse tool.result fallback: CC returns Record<string, string> { questionText: "answer" }
-        const resultAnswers: Record<string, string> | null = (() => {
-            if (hasLocalState) return null;
-            const r = tool.result;
-            if (!r) return null;
-            if (typeof r === 'object' && !Array.isArray(r) && !(r as any).error) {
-                return r as Record<string, string>;
-            }
-            return null;
-        })();
-
+    // Show submitted state
+    if (form.isSubmitted) {
         return (
-            <ToolSectionView>
-                <View style={styles.submittedContainer}>
-                    {hasLocalState
-                        ? questions.map((q, qIndex) => {
-                            const selected = form.selections.get(qIndex);
-                            const labels: string[] = [];
-                            if (selected) {
-                                for (const optIndex of Array.from(selected)) {
-                                    if (optIndex === OTHER_INDEX) {
-                                        const text = form.otherTexts.get(qIndex)?.trim();
-                                        if (text) labels.push(`Other: ${text}`);
-                                    } else {
-                                        const label = q.options[optIndex]?.label;
-                                        if (label) labels.push(label);
-                                    }
-                                }
+            <View style={styles.submittedContainer}>
+                {questions.map((q, qIndex) => {
+                    const selected = form.selections.get(qIndex);
+                    const labels: string[] = [];
+                    if (selected) {
+                        for (const optIndex of Array.from(selected)) {
+                            if (optIndex === OTHER_INDEX) {
+                                const text = form.otherTexts.get(qIndex)?.trim();
+                                if (text) labels.push(`Other: ${text}`);
+                            } else {
+                                const label = q.options[optIndex]?.label;
+                                if (label) labels.push(label);
                             }
-                            return (
-                                <View key={qIndex} style={styles.submittedItem}>
-                                    <Text style={styles.submittedHeader}>{q.header}:</Text>
-                                    <Text style={styles.submittedValue}>{labels.join(', ') || '-'}</Text>
-                                </View>
-                            );
-                        })
-                        : resultAnswers
-                            ? Object.entries(resultAnswers).map(([questionText, answer], idx) => {
-                                const matchedQ = questions.find(q => q.question === questionText);
-                                const header = matchedQ?.header ?? questionText;
-                                return (
-                                    <View key={idx} style={styles.submittedItem}>
-                                        <Text style={styles.submittedHeader}>{header}:</Text>
-                                        <Text style={styles.submittedValue}>{answer || '-'}</Text>
-                                    </View>
-                                );
-                            })
-                            : questions.map((q, qIndex) => (
-                                <View key={qIndex} style={styles.submittedItem}>
-                                    <Text style={styles.submittedHeader}>{q.header}:</Text>
-                                    <Text style={styles.submittedValue}>-</Text>
-                                </View>
-                            ))
+                        }
                     }
-                </View>
-            </ToolSectionView>
+                    return (
+                        <View key={qIndex} style={styles.submittedItem}>
+                            <Text style={styles.submittedHeader}>{q.header}:</Text>
+                            <Text style={styles.submittedValue}>{labels.join(', ') || '-'}</Text>
+                        </View>
+                    );
+                })}
+            </View>
         );
     }
 
@@ -113,7 +98,6 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
                 <View style={styles.optionsContainer}>
                     {question.options.map((option, oIndex) => {
                         const isSelected = selectedOptions.has(oIndex);
-
                         return (
                             <TouchableOpacity
                                 key={oIndex}
@@ -192,7 +176,7 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
                                 </TouchableOpacity>
                                 {isOtherSelected && form.canInteract && (
                                     <TextInput
-                                        style={styles.otherInput}
+                                        style={[styles.otherInput, { color: theme.colors.text }]}
                                         placeholder={t('tools.askUserQuestion.otherPlaceholder')}
                                         placeholderTextColor={theme.colors.textSecondary}
                                         value={form.otherTexts.get(qIndex) || ''}
@@ -210,8 +194,14 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
     };
 
     return (
-        <ToolSectionView>
-            <View style={styles.container}>
+        <View style={styles.container}>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+                keyboardShouldPersistTaps="handled"
+            >
                 {hasTabs && (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         <View style={styles.tabStrip}>
@@ -244,35 +234,56 @@ export const AskUserQuestionView = React.memo<ToolViewProps>(({ tool, sessionId 
                     ? renderQuestion(questions[form.activeTab], form.activeTab)
                     : questions.map((question, qIndex) => renderQuestion(question, qIndex))
                 }
+            </ScrollView>
 
-                {form.canInteract && (
-                    <View style={styles.actionsContainer}>
-                        <TouchableOpacity
-                            style={[
-                                styles.submitButton,
-                                (!form.allQuestionsAnswered || form.isSubmitting) && styles.submitButtonDisabled,
-                            ]}
-                            onPress={form.handleSubmit}
-                            disabled={!form.allQuestionsAnswered || form.isSubmitting}
-                            activeOpacity={0.7}
-                        >
-                            {form.isSubmitting ? (
-                                <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
-                            ) : (
-                                <Text style={styles.submitButtonText}>{t('tools.askUserQuestion.submit')}</Text>
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                )}
-            </View>
-        </ToolSectionView>
+            {/* Action buttons */}
+            {form.canInteract && (
+                <View style={styles.actionsContainer}>
+                    <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={handleCancel}
+                        disabled={isCanceling || form.isSubmitting}
+                        activeOpacity={0.7}
+                    >
+                        {isCanceling ? (
+                            <ActivityIndicator size="small" color={theme.colors.permissionButton.deny.background} />
+                        ) : (
+                            <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+                        )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.submitButton,
+                            (!form.allQuestionsAnswered || form.isSubmitting) && styles.submitButtonDisabled,
+                        ]}
+                        onPress={form.handleSubmit}
+                        disabled={!form.allQuestionsAnswered || form.isSubmitting}
+                        activeOpacity={0.7}
+                    >
+                        {form.isSubmitting ? (
+                            <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
+                        ) : (
+                            <Text style={styles.submitButtonText}>{t('tools.askUserQuestion.submit')}</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            )}
+        </View>
     );
 });
 
-// Styles MUST be defined outside the component to prevent infinite re-renders
-// with react-native-unistyles. The theme is passed as a function parameter.
 const styles = StyleSheet.create((theme) => ({
     container: {
+        borderTopWidth: 1,
+        borderColor: theme.colors.divider,
+    },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
         gap: 16,
     },
     questionSection: {
@@ -311,10 +322,10 @@ const styles = StyleSheet.create((theme) => ({
         borderWidth: 1,
         borderColor: theme.colors.divider,
         gap: 10,
-        minHeight: 44, // Minimum touch target for mobile
+        minHeight: 44,
     },
     optionButtonSelected: {
-        backgroundColor: theme.colors.surfaceHigh,
+        backgroundColor: theme.colors.surfaceHighest,
         borderColor: theme.colors.radio.active,
     },
     optionButtonDisabled: {
@@ -366,48 +377,6 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.textSecondary,
         marginTop: 2,
     },
-    actionsContainer: {
-        flexDirection: 'row',
-        gap: 12,
-        marginTop: 8,
-        justifyContent: 'flex-end',
-    },
-    submitButton: {
-        backgroundColor: theme.colors.button.primary.background,
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 8,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        minHeight: 44, // Minimum touch target for mobile
-    },
-    submitButtonDisabled: {
-        opacity: 0.5,
-    },
-    submitButtonText: {
-        color: theme.colors.button.primary.tint,
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    submittedContainer: {
-        gap: 8,
-    },
-    submittedItem: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    submittedHeader: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: theme.colors.textSecondary,
-    },
-    submittedValue: {
-        fontSize: 13,
-        color: theme.colors.text,
-        flex: 1,
-    },
     otherInput: {
         borderWidth: 1,
         borderColor: theme.colors.divider,
@@ -415,13 +384,9 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 12,
         paddingVertical: 10,
         fontSize: 14,
-        color: theme.colors.text,
         backgroundColor: theme.colors.surface,
         marginTop: 8,
         minHeight: 40,
-    },
-    otherInputFocused: {
-        borderColor: theme.colors.radio.active,
     },
     tabStrip: {
         flexDirection: 'row',
@@ -458,5 +423,65 @@ const styles = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.radio.active,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    actionsContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        justifyContent: 'flex-end',
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.divider,
+    },
+    cancelButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 8,
+        minHeight: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cancelText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: theme.colors.permissionButton.deny.background,
+    },
+    submitButton: {
+        backgroundColor: theme.colors.button.primary.background,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        minHeight: 44,
+    },
+    submitButtonDisabled: {
+        opacity: 0.5,
+    },
+    submitButtonText: {
+        color: theme.colors.button.primary.tint,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    submittedContainer: {
+        gap: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    submittedItem: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    submittedHeader: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: theme.colors.textSecondary,
+    },
+    submittedValue: {
+        fontSize: 13,
+        color: theme.colors.text,
+        flex: 1,
     },
 }));

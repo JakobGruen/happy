@@ -75,6 +75,7 @@ export const en: TranslationStructure = {
         retry: 'Retry',
         delete: 'Delete',
         optional: 'optional',
+        deny: 'Deny',
     },
 
     profile: {
@@ -842,6 +843,7 @@ export const en: TranslationStructure = {
         setMode: ({ mode, scope }: { mode: string; scope: string }) => `Set ${mode} for ${scope}`,
         addDirectories: ({ scope }: { scope: string }) => `Add directories for ${scope}`,
         applySuggestion: 'Apply suggestion',
+        tapToExpand: 'Tap to expand',
     },
 
     textSelection: {

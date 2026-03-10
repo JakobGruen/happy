@@ -60,6 +60,7 @@ export const pt: TranslationStructure = {
         retry: 'Tentar novamente',
         delete: 'Excluir',
         optional: 'Opcional',
+        deny: 'Negar',
     },
 
     profile: {
@@ -827,6 +828,7 @@ export const pt: TranslationStructure = {
         setMode: ({ mode, scope }: { mode: string; scope: string }) => `Definir ${mode} para ${scope}`,
         addDirectories: ({ scope }: { scope: string }) => `Adicionar diretórios para ${scope}`,
         applySuggestion: 'Aplicar sugestão',
+        tapToExpand: 'Toque para expandir',
     },
 
     textSelection: {

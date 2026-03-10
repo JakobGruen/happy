@@ -62,6 +62,7 @@ export const zhHans: TranslationStructure = {
         retry: '重试',
         delete: '删除',
         optional: '可选的',
+        deny: '拒绝',
     },
 
     profile: {
@@ -829,6 +830,7 @@ export const zhHans: TranslationStructure = {
         setMode: ({ mode, scope }: { mode: string; scope: string }) => `为${scope}设置 ${mode}`,
         addDirectories: ({ scope }: { scope: string }) => `为${scope}添加目录`,
         applySuggestion: '应用建议',
+        tapToExpand: '点击展开',
     },
 
     textSelection: {

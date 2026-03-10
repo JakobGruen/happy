@@ -63,6 +63,7 @@ export const ja: TranslationStructure = {
         delete: '削除',
         optional: '任意',
         saveAs: '名前を付けて保存',
+        deny: '拒否',
     },
 
     profile: {
@@ -859,6 +860,7 @@ export const ja: TranslationStructure = {
         setMode: ({ mode, scope }: { mode: string; scope: string }) => `${scope}で${mode}を設定`,
         addDirectories: ({ scope }: { scope: string }) => `${scope}にディレクトリを追加`,
         applySuggestion: '提案を適用',
+        tapToExpand: 'タップして展開',
     },
 
     textSelection: {

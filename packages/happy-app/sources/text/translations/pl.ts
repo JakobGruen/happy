@@ -71,6 +71,7 @@ export const pl: TranslationStructure = {
         retry: 'Ponów',
         delete: 'Usuń',
         optional: 'opcjonalnie',
+        deny: 'Odrzuć',
     },
 
     profile: {
@@ -837,6 +838,7 @@ export const pl: TranslationStructure = {
         setMode: ({ mode, scope }: { mode: string; scope: string }) => `Ustaw ${mode} dla ${scope}`,
         addDirectories: ({ scope }: { scope: string }) => `Dodaj katalogi dla ${scope}`,
         applySuggestion: 'Zastosuj sugestię',
+        tapToExpand: 'Dotknij, aby rozwinąć',
     },
 
     textSelection: {

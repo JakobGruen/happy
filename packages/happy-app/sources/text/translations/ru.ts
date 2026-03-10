@@ -71,6 +71,7 @@ export const ru: TranslationStructure = {
         retry: 'Повторить',
         delete: 'Удалить',
         optional: 'необязательно',
+        deny: 'Отклонить',
     },
 
     connect: {
@@ -825,6 +826,7 @@ export const ru: TranslationStructure = {
         setMode: ({ mode, scope }: { mode: string; scope: string }) => `Установить ${mode} для ${scope}`,
         addDirectories: ({ scope }: { scope: string }) => `Добавить директории для ${scope}`,
         applySuggestion: 'Применить предложение',
+        tapToExpand: 'Нажмите, чтобы развернуть',
     },
 
     settingsLanguage: {

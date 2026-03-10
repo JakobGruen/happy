@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Dimensions, Pressable, View } from 'react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -17,6 +17,7 @@ import { StyleSheet } from 'react-native-unistyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCurrentSessionPermissions } from '@/hooks/useCurrentSessionPermissions';
 import { usePermissionActions } from '@/hooks/usePermissionActions';
+import { isNotificationOnlyTool } from '@/utils/web/browserNotifications';
 import { PermissionSheetBar } from './PermissionSheetBar';
 import { PermissionSheetExpanded } from './PermissionSheetExpanded';
 
@@ -32,7 +33,8 @@ interface SessionPermissionSheetProps {
  *
  * Two states:
  * - Expanded (default): Floating card with full context, backdrop overlay.
- *   Swipe down or tap backdrop → minimize to compact bar.
+ *   Swipe down on drag handle or tap backdrop → minimize to compact bar.
+ *   For rich content tools (plan/question), card is taller (near full screen).
  * - Minimized: Compact bar pinned at bottom with quick Allow/Deny.
  *   Tap or chevron → expand back.
  */
@@ -47,6 +49,12 @@ export const SessionPermissionSheet = React.memo<SessionPermissionSheetProps>(({
         firstPermission?.tool ?? '',
         firstPermission?.toolInput,
         firstPermission !== null,
+    );
+
+    // Rich content tools (plan/question/edit) get a larger card with flex layout
+    const isRichContent = firstPermission !== null && (
+        isNotificationOnlyTool(firstPermission.tool) ||
+        ['Edit', 'Write', 'MultiEdit'].includes(firstPermission.tool)
     );
 
     // Animation state for drag gestures
@@ -75,7 +83,8 @@ export const SessionPermissionSheet = React.memo<SessionPermissionSheetProps>(({
         handleMinimizeRef.current();
     }, []);
 
-    // Pan gesture on the expanded card — swipe down to minimize (not deny)
+    // Pan gesture for swipe-to-minimize (always enabled — attached to
+    // either the full card for regular tools, or just the drag handle for rich content)
     const panGesture = useMemo(() => Gesture.Pan()
         .onUpdate((e) => {
             translateY.value = Math.max(0, e.translationY);
@@ -107,8 +116,48 @@ export const SessionPermissionSheet = React.memo<SessionPermissionSheetProps>(({
         return null;
     }
 
+    // Card sizing — rich content extends near to the top of the screen
+    const screenHeight = Dimensions.get('window').height;
+    const richMaxHeight = screenHeight - safeArea.top - 16;
+    const cardMarginBottom = isRichContent
+        ? Math.max(safeArea.bottom, 16)
+        : Math.max(safeArea.bottom, 16) + 40;
+
     // --- Expanded: floating card with backdrop ---
     if (isExpanded) {
+        // For rich content: pan gesture only on the drag handle (avoids ScrollView conflicts)
+        // For regular tools: pan gesture on the whole card
+        const cardContent = (
+            <Animated.View
+                entering={SlideInDown.springify().damping(20).stiffness(200)}
+                style={[
+                    styles.floatingCard,
+                    { marginBottom: cardMarginBottom },
+                    isRichContent && { maxHeight: richMaxHeight },
+                    cardAnimatedStyle,
+                ]}
+            >
+                <View style={[styles.cardInner, isRichContent && { flex: 1 }]}>
+                    {/* Drag handle — for rich content, wrapped in its own GestureDetector */}
+                    {isRichContent ? (
+                        <GestureDetector gesture={panGesture}>
+                            <Animated.View style={styles.handleContainer}>
+                                <View style={styles.handle} />
+                            </Animated.View>
+                        </GestureDetector>
+                    ) : null}
+                    <PermissionSheetExpanded
+                        permission={firstPermission}
+                        queueCount={queueCount}
+                        actions={actions}
+                        sessionId={sessionId}
+                        hideHandle={isRichContent}
+                        isRichContent={isRichContent}
+                    />
+                </View>
+            </Animated.View>
+        );
+
         return (
             <View style={styles.backdrop}>
                 {/* Backdrop fades in */}
@@ -120,21 +169,11 @@ export const SessionPermissionSheet = React.memo<SessionPermissionSheetProps>(({
                     <Pressable style={styles.backdropTouchable} onPress={handleMinimize} />
                 </Animated.View>
 
-                {/* Card slides up from bottom */}
-                <GestureDetector gesture={panGesture}>
-                    <Animated.View
-                        entering={SlideInDown.springify().damping(20).stiffness(200)}
-                        style={[styles.floatingCard, { marginBottom: Math.max(safeArea.bottom, 16) + 40 }, cardAnimatedStyle]}
-                    >
-                        <View style={styles.cardInner}>
-                            <PermissionSheetExpanded
-                                permission={firstPermission}
-                                queueCount={queueCount}
-                                actions={actions}
-                            />
-                        </View>
-                    </Animated.View>
-                </GestureDetector>
+                {/* Card — full-card gesture for regular, handle-only for rich */}
+                {isRichContent
+                    ? cardContent
+                    : <GestureDetector gesture={panGesture}>{cardContent}</GestureDetector>
+                }
             </View>
         );
     }
@@ -166,7 +205,7 @@ const styles = StyleSheet.create((theme) => ({
         bottom: 0,
         left: 0,
         right: 0,
-        zIndex: 50,
+        zIndex: 1100,
         justifyContent: 'flex-end',
     },
     // Semi-transparent overlay that fades in
@@ -198,13 +237,24 @@ const styles = StyleSheet.create((theme) => ({
         borderRadius: 16,
         overflow: 'hidden',
     },
+    // Drag handle — extracted to SessionPermissionSheet for rich content gesture control
+    handleContainer: {
+        alignItems: 'center',
+        paddingVertical: 8,
+    },
+    handle: {
+        width: 36,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: theme.colors.textSecondary + '40',
+    },
     // Bottom bar overlay for minimized state
     barOverlay: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        zIndex: 50,
+        zIndex: 1100,
         backgroundColor: theme.colors.surfaceHigh,
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,

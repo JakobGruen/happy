@@ -7,22 +7,36 @@ import { UsePermissionActionsResult } from '@/hooks/usePermissionActions';
 import { CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
 import { getSuggestionLabel } from './permissionUtils';
 import { knownTools } from '@/components/tools/knownTools';
+import { PlanSheetContent } from './PlanSheetContent';
+import { QuestionSheetContent } from './QuestionSheetContent';
+import { EditSheetContent } from './EditSheetContent';
 import { t } from '@/text';
 
 interface PermissionSheetExpandedProps {
     permission: CurrentSessionPermissionItem;
     queueCount: number;
     actions: UsePermissionActionsResult;
+    sessionId: string;
+    /** When true, the parent renders the drag handle (for gesture isolation) */
+    hideHandle?: boolean;
+    /** When true, content has scrollable body — apply flex: 1 for proper layout */
+    isRichContent?: boolean;
 }
 
 /**
  * Expanded panel for the permission sheet — shows full details,
  * all suggestion buttons, and deny-with-feedback flow.
+ *
+ * For ExitPlanMode: renders scrollable plan markdown above action buttons.
+ * For AskUserQuestion: renders interactive question form (hides standard buttons).
  */
 export const PermissionSheetExpanded = React.memo<PermissionSheetExpandedProps>(({
     permission,
     queueCount,
     actions,
+    sessionId,
+    hideHandle = false,
+    isRichContent = false,
 }) => {
     const { theme } = useUnistyles();
     const [showFeedback, setShowFeedback] = useState(false);
@@ -33,9 +47,17 @@ export const PermissionSheetExpanded = React.memo<PermissionSheetExpandedProps>(
 
     const knownTool = knownTools[permission.tool as keyof typeof knownTools] as any;
 
-    // Resolve tool title
+    const isQuestion = permission.tool === 'AskUserQuestion';
+    const isPlan = permission.tool === 'ExitPlanMode' || permission.tool === 'exit_plan_mode';
+    const isEditContent = ['Edit', 'Write', 'MultiEdit'].includes(permission.tool);
+
+    // Resolve tool title — use contextual titles for rich content tools
     let toolTitle = permission.tool;
-    if (knownTool?.title) {
+    if (isQuestion) {
+        toolTitle = t('notifications.permissionQuestion');
+    } else if (isPlan) {
+        toolTitle = t('notifications.permissionPlanReview');
+    } else if (knownTool?.title) {
         if (typeof knownTool.title === 'function') {
             toolTitle = knownTool.title({ tool: { name: permission.tool, input: permission.toolInput }, metadata: null });
         } else {
@@ -43,9 +65,9 @@ export const PermissionSheetExpanded = React.memo<PermissionSheetExpandedProps>(
         }
     }
 
-    // Resolve description/subtitle
+    // Resolve description/subtitle (skip for rich content tools)
     let subtitle: string | null = null;
-    if (knownTool && typeof knownTool.extractSubtitle === 'function') {
+    if (!isQuestion && !isPlan && knownTool && typeof knownTool.extractSubtitle === 'function') {
         const extracted = knownTool.extractSubtitle({ tool: { name: permission.tool, input: permission.toolInput }, metadata: null });
         if (typeof extracted === 'string' && extracted) {
             subtitle = extracted;
@@ -62,7 +84,6 @@ export const PermissionSheetExpanded = React.memo<PermissionSheetExpandedProps>(
             setShowFeedback(true);
             return;
         }
-        // Second tap submits the deny with current feedback
         handleDenySubmit();
     };
 
@@ -70,17 +91,31 @@ export const PermissionSheetExpanded = React.memo<PermissionSheetExpandedProps>(
         actions.handleDeny(feedbackText.trim() || undefined);
     };
 
+    // Resolve icon — prefer knownTools icon factory, fall back to type-based icons
+    let toolIcon: React.ReactNode;
+    if (isQuestion) {
+        toolIcon = <Ionicons name="chatbubble-ellipses-outline" size={20} color={theme.colors.textLink} />;
+    } else if (isPlan) {
+        toolIcon = <Ionicons name="document-text-outline" size={20} color={theme.colors.textLink} />;
+    } else if (knownTool && typeof knownTool.icon === 'function') {
+        toolIcon = knownTool.icon(20, theme.colors.text);
+    } else {
+        toolIcon = <Ionicons name="shield-outline" size={20} color={theme.colors.box.warning.border} />;
+    }
+
     return (
-        <View style={styles.container}>
-            {/* Drag handle */}
-            <View style={styles.handleContainer}>
-                <View style={styles.handle} />
-            </View>
+        <View style={[styles.container, isRichContent && { flex: 1 }]}>
+            {/* Drag handle — hidden when parent renders it for gesture isolation */}
+            {!hideHandle && (
+                <View style={styles.handleContainer}>
+                    <View style={styles.handle} />
+                </View>
+            )}
 
             {/* Tool header */}
             <View style={styles.toolHeader}>
-                <View style={styles.toolIconContainer}>
-                    <Ionicons name="shield-outline" size={20} style={styles.shieldIcon} />
+                <View style={[styles.toolIconContainer, (isQuestion || isPlan) && styles.toolIconContainerRich]}>
+                    {toolIcon}
                 </View>
                 <View style={styles.toolInfo}>
                     <Text style={styles.toolTitle}>{toolTitle}</Text>
@@ -92,95 +127,102 @@ export const PermissionSheetExpanded = React.memo<PermissionSheetExpandedProps>(
                 </View>
             </View>
 
-            {/* LLM Summary / Decision Reason */}
-            {(permission.llmSummary || permission.decisionReason) && (
+            {/* LLM Summary / Decision Reason (skip for rich content tools) */}
+            {!isQuestion && !isPlan && (permission.llmSummary || permission.decisionReason) && (
                 <Text style={styles.summary} numberOfLines={4}>
                     {permission.llmSummary ?? permission.decisionReason}
                 </Text>
             )}
 
-            {/* Action buttons */}
-            <View style={styles.buttonContainer}>
-                {/* Allow once */}
-                <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={actions.handleAllowOnce}
-                    disabled={actions.loadingKey !== null}
-                    activeOpacity={0.7}
-                >
-                    {actions.loadingKey === 'allow-once' ? (
-                        <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allow.background} />
-                    ) : (
-                        <Text style={styles.allowText}>{t('common.yes')}</Text>
+            {/* Rich content area */}
+            {isPlan && <PlanSheetContent permission={permission} />}
+            {isQuestion && <QuestionSheetContent permission={permission} sessionId={sessionId} />}
+            {isEditContent && <EditSheetContent permission={permission} />}
+
+            {/* Action buttons — hidden for AskUserQuestion (it has its own submit/cancel) */}
+            {!isQuestion && (
+                <View style={styles.buttonContainer}>
+                    {/* Allow once */}
+                    <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={actions.handleAllowOnce}
+                        disabled={actions.loadingKey !== null}
+                        activeOpacity={0.7}
+                    >
+                        {actions.loadingKey === 'allow-once' ? (
+                            <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allow.background} />
+                        ) : (
+                            <Text style={styles.allowText}>{t('common.yes')}</Text>
+                        )}
+                    </TouchableOpacity>
+
+                    {/* Dynamic suggestion buttons */}
+                    {hasSuggestions && permission.permissionSuggestions!.map((suggestion, index) => (
+                        <TouchableOpacity
+                            key={`suggestion-${index}`}
+                            style={styles.actionButton}
+                            onPress={() => actions.handleSuggestion(index, suggestion)}
+                            disabled={actions.loadingKey !== null}
+                            activeOpacity={0.7}
+                        >
+                            {actions.loadingKey === `suggestion-${index}` ? (
+                                <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allowAll.background} />
+                            ) : (
+                                <Text style={styles.suggestionText} numberOfLines={2}>
+                                    {getSuggestionLabel(suggestion)}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    ))}
+
+                    {/* Legacy fallback buttons (when no CC suggestions) */}
+                    {!hasSuggestions && isEditTool && (
+                        <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={actions.handleApproveAllEdits}
+                            disabled={actions.loadingKey !== null}
+                            activeOpacity={0.7}
+                        >
+                            {actions.loadingKey === 'all-edits' ? (
+                                <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allowAll.background} />
+                            ) : (
+                                <Text style={styles.suggestionText}>{t('claude.permissions.yesAllowAllEdits')}</Text>
+                            )}
+                        </TouchableOpacity>
                     )}
-                </TouchableOpacity>
-
-                {/* Dynamic suggestion buttons */}
-                {hasSuggestions && permission.permissionSuggestions!.map((suggestion, index) => (
-                    <TouchableOpacity
-                        key={`suggestion-${index}`}
-                        style={styles.actionButton}
-                        onPress={() => actions.handleSuggestion(index, suggestion)}
-                        disabled={actions.loadingKey !== null}
-                        activeOpacity={0.7}
-                    >
-                        {actions.loadingKey === `suggestion-${index}` ? (
-                            <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allowAll.background} />
-                        ) : (
-                            <Text style={styles.suggestionText} numberOfLines={2}>
-                                {getSuggestionLabel(suggestion)}
-                            </Text>
-                        )}
-                    </TouchableOpacity>
-                ))}
-
-                {/* Legacy fallback buttons (when no CC suggestions) */}
-                {!hasSuggestions && isEditTool && (
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={actions.handleApproveAllEdits}
-                        disabled={actions.loadingKey !== null}
-                        activeOpacity={0.7}
-                    >
-                        {actions.loadingKey === 'all-edits' ? (
-                            <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allowAll.background} />
-                        ) : (
-                            <Text style={styles.suggestionText}>{t('claude.permissions.yesAllowAllEdits')}</Text>
-                        )}
-                    </TouchableOpacity>
-                )}
-                {!hasSuggestions && !isEditTool && permission.tool && (
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={actions.handleApproveForSession}
-                        disabled={actions.loadingKey !== null}
-                        activeOpacity={0.7}
-                    >
-                        {actions.loadingKey === 'for-session' ? (
-                            <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allowAll.background} />
-                        ) : (
-                            <Text style={styles.suggestionText}>{t('claude.permissions.yesForTool')}</Text>
-                        )}
-                    </TouchableOpacity>
-                )}
-
-                {/* Deny */}
-                <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={handleDenyTap}
-                    disabled={actions.loadingKey !== null}
-                    activeOpacity={0.7}
-                >
-                    {actions.loadingKey === 'deny' ? (
-                        <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.deny.background} />
-                    ) : (
-                        <Text style={styles.denyText}>{t('claude.permissions.noTellClaude')}</Text>
+                    {!hasSuggestions && !isEditTool && permission.tool && (
+                        <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={actions.handleApproveForSession}
+                            disabled={actions.loadingKey !== null}
+                            activeOpacity={0.7}
+                        >
+                            {actions.loadingKey === 'for-session' ? (
+                                <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allowAll.background} />
+                            ) : (
+                                <Text style={styles.suggestionText}>{t('claude.permissions.yesForTool')}</Text>
+                            )}
+                        </TouchableOpacity>
                     )}
-                </TouchableOpacity>
-            </View>
+
+                    {/* Deny */}
+                    <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={handleDenyTap}
+                        disabled={actions.loadingKey !== null}
+                        activeOpacity={0.7}
+                    >
+                        {actions.loadingKey === 'deny' ? (
+                            <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.deny.background} />
+                        ) : (
+                            <Text style={styles.denyText}>{t('claude.permissions.noTellClaude')}</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            )}
 
             {/* Deny feedback input */}
-            {showFeedback && (
+            {!isQuestion && showFeedback && (
                 <View style={styles.feedbackRow}>
                     <TextInput
                         style={[styles.feedbackInput, { color: theme.colors.text }]}
@@ -244,8 +286,8 @@ const styles = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         marginRight: 12,
     },
-    shieldIcon: {
-        color: theme.colors.box.warning.border,
+    toolIconContainerRich: {
+        backgroundColor: theme.colors.textLink + '20',
     },
     toolInfo: {
         flex: 1,

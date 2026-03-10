@@ -62,6 +62,7 @@ export const zhHant: TranslationStructure = {
         retry: '重試',
         delete: '刪除',
         optional: '選填',
+        deny: '拒絕',
     },
 
     profile: {
@@ -828,6 +829,7 @@ export const zhHant: TranslationStructure = {
         setMode: ({ mode, scope }: { mode: string; scope: string }) => `為${scope}設定 ${mode}`,
         addDirectories: ({ scope }: { scope: string }) => `為${scope}新增目錄`,
         applySuggestion: '套用建議',
+        tapToExpand: '點擊展開',
     },
 
     textSelection: {

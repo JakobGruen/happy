@@ -249,6 +249,18 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 </View>
             )}
 
+            {/* Answer summary — shown for completed AskUserQuestion (like deny-feedback) */}
+            {tool.name === 'AskUserQuestion' && tool.permission?.status === 'approved' && tool.result &&
+                typeof tool.result === 'object' && !Array.isArray(tool.result) && !(tool.result as any).error && (
+                <View style={styles.answerSummaryContainer}>
+                    {Object.entries(tool.result as Record<string, string>).map(([, answer], idx) => (
+                        <Text key={idx} style={styles.answerSummaryText} numberOfLines={2}>
+                            {answer}
+                        </Text>
+                    ))}
+                </View>
+            )}
+
             {/* Content area - either custom children or tool-specific view */}
             {isContentExpanded && (() => {
                 // Check if minimal first - minimal tools don't show content
@@ -390,6 +402,15 @@ const styles = StyleSheet.create((theme) => ({
     denyReasonText: {
         fontSize: 13,
         color: theme.colors.permissionButton.deny.background,
+        fontStyle: 'italic',
+    },
+    answerSummaryContainer: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    answerSummaryText: {
+        fontSize: 13,
+        color: theme.colors.textLink,
         fontStyle: 'italic',
     },
 }));
