@@ -18,8 +18,8 @@ self.addEventListener('message', function (event) {
         var actions = isNotificationOnly
             ? []
             : [
-                  { action: 'allow', title: 'Allow' },
-                  { action: 'deny', title: 'Deny' },
+                  { action: 'allow', title: data.allowLabel || 'Allow' },
+                  { action: 'deny', title: data.denyLabel || 'Deny' },
               ];
 
         var options = {

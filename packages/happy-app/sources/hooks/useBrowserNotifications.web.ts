@@ -67,7 +67,12 @@ export function useBrowserNotifications() {
     const shownPermissions = useRef<Set<string>>(new Set());
     // Holds the SW registration once it resolves
     const swRegRef = useRef<ServiceWorkerRegistration | null>(null);
-    // Current notification permission — updated after the initial request
+    // Current notification permission — updated after the initial request.
+    // TODO: This does not handle live permission changes (e.g. the user grants
+    // permission from browser settings without reloading). A future improvement
+    // would use `Permissions.query({ name: 'notifications' }).then(status => {
+    //   status.onchange = () => { permissionRef.current = status.state; }; })`
+    // to keep this in sync without requiring a page reload.
     const permissionRef = useRef<NotificationPermission | 'unavailable'>(
         getNotificationPermission(),
     );
@@ -153,6 +158,11 @@ export function useBrowserNotifications() {
                                 isNotificationOnly: isNotificationOnlyTool(item.tool),
                                 sessionId: item.sessionId,
                                 permissionId: item.permissionId,
+                                // Pass localised labels so the SW can use them — the SW
+                                // runs in an isolated context and cannot access the app's
+                                // i18n system directly.
+                                allowLabel: t('notifications.browserAllow'),
+                                denyLabel: t('notifications.browserDeny'),
                             });
                         } else {
                             // Fallback: raw Notification API (no action buttons)
@@ -170,6 +180,11 @@ export function useBrowserNotifications() {
                     }
                 }
 
+                // Close stale notifications unconditionally — we want dismissed
+                // notifications to disappear even when the tab is visible (i.e. when
+                // shouldShowNotification() returned false and nothing was added to
+                // shownPermissions above). Deleting IDs that were never inserted into
+                // shownPermissions is safe: Set.delete() is a no-op for missing values.
                 for (const id of toClose) {
                     if (reg) {
                         sendToServiceWorker(reg, {
