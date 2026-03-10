@@ -123,10 +123,6 @@ function ZoomableImage({ image, onDismiss }: { image: ImageAttachmentData; onDis
             }
         });
 
-    const composed = Gesture.Race(
-        doubleTapGesture,
-        Gesture.Simultaneous(pinchGesture, panGesture),
-    );
 
     // Wrap single tap to not interfere with double tap
     const allGestures = Gesture.Exclusive(doubleTapGesture, singleTapGesture);
@@ -160,13 +156,22 @@ function ZoomableImage({ image, onDismiss }: { image: ImageAttachmentData; onDis
 
 export const ImageViewer = React.memo(function ImageViewer() {
     const [state, setState] = React.useState<ImageViewerState>({ visible: false, images: [], initialIndex: 0 });
+    const [currentIndex, setCurrentIndex] = React.useState(0);
 
     React.useEffect(() => {
-        return ImageViewerManager.subscribe(setState);
+        return ImageViewerManager.subscribe((newState) => {
+            setState(newState);
+            setCurrentIndex(newState.initialIndex);
+        });
     }, []);
 
     const handleDismiss = React.useCallback(() => {
         ImageViewerManager.close();
+    }, []);
+
+    const handleScroll = React.useCallback((e: { nativeEvent: { contentOffset: { x: number } } }) => {
+        const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN.width);
+        setCurrentIndex(index);
     }, []);
 
     if (!state.visible || state.images.length === 0) {
@@ -219,6 +224,8 @@ export const ImageViewer = React.memo(function ImageViewer() {
                         index,
                     })}
                     showsHorizontalScrollIndicator={false}
+                    onScroll={handleScroll}
+                    scrollEventThrottle={16}
                     keyExtractor={(_, i) => i.toString()}
                     renderItem={({ item }) => (
                         <ZoomableImage image={item} onDismiss={handleDismiss} />
@@ -244,7 +251,7 @@ export const ImageViewer = React.memo(function ImageViewer() {
                                 width: 6,
                                 height: 6,
                                 borderRadius: 3,
-                                backgroundColor: i === state.initialIndex ? 'white' : 'rgba(255,255,255,0.4)',
+                                backgroundColor: i === currentIndex ? 'white' : 'rgba(255,255,255,0.4)',
                             }}
                         />
                     ))}
