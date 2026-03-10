@@ -88,11 +88,11 @@ describe('requestNotificationPermission', () => {
         expect(result).toBe('denied');
     });
 
-    it('returns default when Notification is unavailable', async () => {
+    it('returns unavailable when Notification is unavailable', async () => {
         vi.stubGlobal('Notification', undefined);
 
         const result = await requestNotificationPermission();
-        expect(result).toBe('default');
+        expect(result).toBe('unavailable');
     });
 });
 
@@ -127,7 +127,7 @@ describe('registerNotificationServiceWorker', () => {
         const result = await registerNotificationServiceWorker();
 
         expect(mockRegister).toHaveBeenCalledOnce();
-        expect(mockRegister).toHaveBeenCalledWith(expect.stringContaining('sw'));
+        expect(mockRegister).toHaveBeenCalledWith('/notification-sw.js');
         expect(result).toBe(mockRegistration);
     });
 

@@ -37,11 +37,11 @@ export function shouldShowNotification(
 
 /**
  * Requests notification permission from the browser.
- * Returns 'default' if the Notification API is unavailable (e.g. native app context).
+ * Returns 'unavailable' if the Notification API is absent (e.g. native app context).
  */
-export async function requestNotificationPermission(): Promise<NotificationPermission> {
+export async function requestNotificationPermission(): Promise<NotificationPermission | 'unavailable'> {
     if (typeof Notification === 'undefined') {
-        return 'default';
+        return 'unavailable';
     }
     return Notification.requestPermission();
 }
