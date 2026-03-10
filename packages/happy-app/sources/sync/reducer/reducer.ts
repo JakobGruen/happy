@@ -252,6 +252,23 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
     for (const msg of nonSidechainMessages) {
         // Check if we've already processed this message
         if (msg.role === 'user' && msg.localId && state.localIds.has(msg.localId)) {
+            // Allow command expansion to update existing message
+            const textContent = msg.content.type === 'text'
+                ? msg.content.text
+                : msg.content.type === 'multimodal'
+                    ? msg.content.blocks.filter((b): b is { type: 'text'; text: string } => b.type === 'text').map(b => b.text).join('\n')
+                    : '';
+            const parsedCommand = textContent ? parseCommandMessage(textContent) : null;
+            if (parsedCommand) {
+                const existingMid = state.localIds.get(msg.localId)!;
+                const existing = state.messages.get(existingMid);
+                if (existing && !existing.commandName) {
+                    existing.commandName = parsedCommand.commandName;
+                    existing.commandBody = parsedCommand.commandBody;
+                    existing.text = textContent;
+                    changed.add(existingMid);
+                }
+            }
             continue;
         }
         if (state.messageIds.has(msg.id)) {
