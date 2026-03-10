@@ -1,0 +1,23 @@
+diff --git a/node_modules/web-secure-encryption/src/index.tsx b/node_modules/web-secure-encryption/src/index.tsx
+index 4cc97b4..04f884b 100644
+--- a/node_modules/web-secure-encryption/src/index.tsx
++++ b/node_modules/web-secure-encryption/src/index.tsx
+@@ -81,8 +81,16 @@ export interface Keypair {
+       encodedData
+     );
+ 
+-    const combined = new Uint8Array([...iv, ...new Uint8Array(encrypted)]);
+-    return btoa(String.fromCharCode(...combined));
++    const encryptedArray = new Uint8Array(encrypted);
++    const combined = new Uint8Array(iv.length + encryptedArray.length);
++    combined.set(iv);
++    combined.set(encryptedArray, iv.length);
++    const CHUNK = 0x2000;
++    const parts = [];
++    for (let i = 0; i < combined.length; i += CHUNK) {
++      parts.push(String.fromCharCode.apply(null, combined.subarray(i, i + CHUNK)));
++    }
++    return btoa(parts.join(""));
+   }
+ 
+   export async function encryptAsyncAES(

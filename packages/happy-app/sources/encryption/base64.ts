@@ -25,7 +25,7 @@ export function decodeBase64(base64: string, encoding: 'base64' | 'base64url' = 
 
 export function encodeBase64(buffer: Uint8Array, encoding: 'base64' | 'base64url' = 'base64'): string {
     // Process in chunks to avoid stack overflow from Function.apply() argument limits
-    const CHUNK_SIZE = 0x8000;
+    const CHUNK_SIZE = 0x2000;
     const parts: string[] = [];
     for (let i = 0; i < buffer.length; i += CHUNK_SIZE) {
         const chunk = buffer.subarray(i, i + CHUNK_SIZE);
