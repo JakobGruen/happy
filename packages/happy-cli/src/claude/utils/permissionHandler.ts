@@ -269,7 +269,8 @@ export class PermissionHandler {
                     requestId: id,
                     tool: toolName,
                     type: 'permission_request'
-                }
+                },
+                'PERMISSION_REQUEST'
             );
 
             // Update agent state with CC's permission suggestions and context

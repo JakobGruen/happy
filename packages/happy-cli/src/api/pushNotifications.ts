@@ -127,7 +127,7 @@ export class PushNotificationClient {
      * @param body - Notification body
      * @param data - Additional data to send with the notification
      */
-    sendToAllDevices(title: string, body: string, data?: Record<string, any>): void {
+    sendToAllDevices(title: string, body: string, data?: Record<string, any>, categoryId?: string): void {
         logger.debug(`[PUSH] sendToAllDevices called with title: "${title}", body: "${body}"`);
         
         // Execute async operations without awaiting
@@ -157,7 +157,8 @@ export class PushNotificationClient {
                         body,
                         data,
                         sound: 'default',
-                        priority: 'high'
+                        priority: 'high',
+                        ...(categoryId && { categoryId }),
                     }
                 })
 
