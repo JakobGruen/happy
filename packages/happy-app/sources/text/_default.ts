@@ -655,6 +655,8 @@ export const en = {
         permissionQuestion: 'Has a question for you',
         permissionPlanReview: 'Plan ready for review',
         morePermissions: ({ count }: { count: number }) => `+${count} more`,
+        browserAllow: 'Allow',
+        browserDeny: 'Deny',
     },
 
     changelog: {

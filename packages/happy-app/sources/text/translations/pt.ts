@@ -656,6 +656,8 @@ export const pt: TranslationStructure = {
         permissionQuestion: 'Tem uma pergunta para você',
         permissionPlanReview: 'Plano pronto para revisão',
         morePermissions: ({ count }: { count: number }) => `+${count} mais`,
+        browserAllow: 'Permitir',
+        browserDeny: 'Negar',
     },
 
     changelog: {

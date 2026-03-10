@@ -22,6 +22,7 @@ import { useTrackScreens } from '@/track/useTrackScreens';
 import { useViewingSession } from '@/hooks/useViewingSession';
 import { useNotificationActions } from '@/hooks/useNotificationActions';
 import { registerNotificationCategories } from '@/utils/notificationCategories';
+import { useBrowserNotifications } from '@/hooks/useBrowserNotifications';
 import { RealtimeProvider } from '@/realtime/RealtimeProvider';
 import { FaviconPermissionIndicator } from '@/components/web/FaviconPermissionIndicator';
 import { PermissionBanner } from '@/components/PermissionBanner';
@@ -219,6 +220,9 @@ export default function RootLayout() {
 
     // Handle notification action responses (Allow/Deny buttons + body taps)
     useNotificationActions()
+
+    // Request and manage browser notification permissions (web only)
+    useBrowserNotifications()
 
     //
     // Not inited

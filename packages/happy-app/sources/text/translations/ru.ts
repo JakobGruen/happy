@@ -654,6 +654,8 @@ export const ru: TranslationStructure = {
         permissionQuestion: 'Есть вопрос к вам',
         permissionPlanReview: 'План готов к проверке',
         morePermissions: ({ count }: { count: number }) => `+${count} ещё`,
+        browserAllow: 'Разрешить',
+        browserDeny: 'Запретить',
     },
 
     changelog: {

@@ -688,6 +688,8 @@ export const ja: TranslationStructure = {
         permissionQuestion: '質問があります',
         permissionPlanReview: 'プランのレビュー準備完了',
         morePermissions: ({ count }: { count: number }) => `+${count} 件`,
+        browserAllow: '許可',
+        browserDeny: '拒否',
     },
 
     changelog: {

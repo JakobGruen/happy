@@ -9,12 +9,7 @@ import { sessionAllow, sessionDeny } from '@/sync/ops';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { getSessionName } from '@/utils/sessionUtils';
 import { t } from '@/text';
-
-const NOTIFICATION_ONLY_TOOLS = ['AskUserQuestion', 'ExitPlanMode', 'exit_plan_mode'];
-
-function isNotificationOnly(tool: string): boolean {
-    return NOTIFICATION_ONLY_TOOLS.includes(tool);
-}
+import { isNotificationOnlyTool } from '@/utils/web/browserNotifications';
 
 function isPlanTool(tool: string): boolean {
     return tool === 'ExitPlanMode' || tool === 'exit_plan_mode';
@@ -40,7 +35,7 @@ export const PermissionBanner = React.memo(() => {
     const current = queue[0];
     const remaining = queue.length - 1;
     const sessionName = getSessionName(current.session);
-    const notificationOnly = isNotificationOnly(current.tool);
+    const notificationOnly = isNotificationOnlyTool(current.tool);
 
     const toolLine = notificationOnly
         ? (isPlanTool(current.tool) ? t('notifications.permissionPlanReview') : t('notifications.permissionQuestion'))

@@ -1,0 +1,36 @@
+[    2493ms] [WARNING] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect. @ http://localhost:8081/packages/happy-app/index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fsources%2Fapp&unstable_transformProfile=hermes-stable:189538
+[    2738ms] [WARNING] props.pointerEvents is deprecated. Use style.pointerEvents @ http://localhost:8081/packages/happy-app/index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fsources%2Fapp&unstable_transformProfile=hermes-stable:11412
+[  886642ms] Error: InternalError Metro has encountered an error: While trying to resolve module `@jakobgruen/happy-wire` from file `/home/jakob/repos/happy/packages/happy-app/sources/sync/apiTypes.ts`, the package `/home/jakob/repos/happy/node_modules/@jakobgruen/happy-wire/package.json` was successfully found. However, this package itself specifies a `main` module field that could not be resolved (`/home/jakob/repos/happy/node_modules/@jakobgruen/happy-wire/dist/index.mjs`. Indeed, none of these files exist:
+
+  * /home/jakob/repos/happy/node_modules/@jakobgruen/happy-wire/dist/index.mjs(.web.ts|.ts|.web.tsx|.tsx|.web.mjs|.mjs|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css)
+  * /home/jakob/repos/happy/node_modules/@jakobgruen/happy-wire/dist/index.mjs/index(.web.ts|.ts|.web.tsx|.tsx|.web.mjs|.mjs|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css): /home/jakob/repos/happy/node_modules/metro/src/node-haste/DependencyGraph.js (267:17)
+
+[0m [90m 265 |[39m         }
+ [90m 266 |[39m         [36mif[39m (error [36minstanceof[39m _metroResolver[33m.[39m[33mInvalidPackageError[39m) {
+[31m[1m>[22m[39m[90m 267 |[39m           [36mthrow[39m [36mnew[39m _metroCore[33m.[39m[33mPackageResolutionError[39m({
+ [90m     |[39m                 [31m[1m^[22m[39m
+ [90m 268 |[39m             packageError[33m:[39m error[33m,[39m
+ [90m 269 |[39m             originModulePath[33m,[39m
+ [90m 270 |[39m             targetModuleName[33m:[39m to[33m,[39m[0m
+    at showCompileError (http://localhost:8081/packages/happy-app/index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fsources%2Fapp&unstable_transformProfile=hermes-stable:53998:19)
+    at HMRClient.<anonymous> (http://localhost:8081/packages/happy-app/index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fsources%2Fapp&unstable_transformProfile=hermes-stable:53918:13)
+    at HMRClient.emit (http://localhost:8081/packages/happy-app/index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fsources%2Fapp&unstable_transformProfile=hermes-stable:54248:31)
+    at HMRClient._ws.onmessage (http://localhost:8081/packages/happy-app/index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fsources%2Fapp&unstable_transformProfile=hermes-stable:54063:18)
+[  886651ms] Error: InternalError Metro has encountered an error: While trying to resolve module `@jakobgruen/happy-wire` from file `/home/jakob/repos/happy/packages/happy-app/sources/sync/apiTypes.ts`, the package `/home/jakob/repos/happy/node_modules/@jakobgruen/happy-wire/package.json` was successfully found. However, this package itself specifies a `main` module field that could not be resolved (`/home/jakob/repos/happy/node_modules/@jakobgruen/happy-wire/dist/index.mjs`. Indeed, none of these files exist:
+
+  * /home/jakob/repos/happy/node_modules/@jakobgruen/happy-wire/dist/index.mjs(.web.ts|.ts|.web.tsx|.tsx|.web.mjs|.mjs|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css)
+  * /home/jakob/repos/happy/node_modules/@jakobgruen/happy-wire/dist/index.mjs/index(.web.ts|.ts|.web.tsx|.tsx|.web.mjs|.mjs|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css): /home/jakob/repos/happy/node_modules/metro/src/node-haste/DependencyGraph.js (267:17)
+
+[0m [90m 265 |[39m         }
+ [90m 266 |[39m         [36mif[39m (error [36minstanceof[39m _metroResolver[33m.[39m[33mInvalidPackageError[39m) {
+[31m[1m>[22m[39m[90m 267 |[39m           [36mthrow[39m [36mnew[39m _metroCore[33m.[39m[33mPackageResolutionError[39m({
+ [90m     |[39m                 [31m[1m^[22m[39m
+ [90m 268 |[39m             packageError[33m:[39m error[33m,[39m
+ [90m 269 |[39m             originModulePath[33m,[39m
+ [90m 270 |[39m             targetModuleName[33m:[39m to[33m,[39m[0m
+    at showCompileError (http://localhost:8081/packages/happy-app/index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fsources%2Fapp&unstable_transformProfile=hermes-stable:53998:19)
+    at HMRClient.<anonymous> (http://localhost:8081/packages/happy-app/index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fsources%2Fapp&unstable_transformProfile=hermes-stable:53918:13)
+    at HMRClient.emit (http://localhost:8081/packages/happy-app/index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fsources%2Fapp&unstable_transformProfile=hermes-stable:54248:31)
+    at HMRClient._ws.onmessage (http://localhost:8081/packages/happy-app/index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=.%2Fsources%2Fapp&unstable_transformProfile=hermes-stable:54063:18)
+[  886657ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8081/symbolicate:0
+[  886666ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8081/symbolicate:0
