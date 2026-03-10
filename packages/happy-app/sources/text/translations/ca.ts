@@ -656,6 +656,8 @@ export const ca: TranslationStructure = {
         permissionQuestion: 'Té una pregunta per a tu',
         permissionPlanReview: 'Pla llest per revisar',
         morePermissions: ({ count }: { count: number }) => `+${count} més`,
+        browserAllow: 'Permetre',
+        browserDeny: 'Denegar',
     },
 
     changelog: {

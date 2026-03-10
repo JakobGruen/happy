@@ -20,6 +20,7 @@ import { tracking } from '@/track/tracking';
 import { sync, syncRestore } from '@/sync/sync';
 import { useTrackScreens } from '@/track/useTrackScreens';
 import { useViewingSession } from '@/hooks/useViewingSession';
+import { useBrowserNotifications } from '@/hooks/useBrowserNotifications';
 import { RealtimeProvider } from '@/realtime/RealtimeProvider';
 import { FaviconPermissionIndicator } from '@/components/web/FaviconPermissionIndicator';
 import { PermissionBanner } from '@/components/PermissionBanner';
@@ -210,6 +211,9 @@ export default function RootLayout() {
 
     // Track which session is currently being viewed (for PermissionBanner filtering)
     useViewingSession()
+
+    // Request and manage browser notification permissions (web only)
+    useBrowserNotifications()
 
     //
     // Not inited

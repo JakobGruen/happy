@@ -658,6 +658,8 @@ export const zhHans: TranslationStructure = {
         permissionQuestion: '有问题要问你',
         permissionPlanReview: '计划已准备好审核',
         morePermissions: ({ count }: { count: number }) => `+${count} 更多`,
+        browserAllow: '允许',
+        browserDeny: '拒绝',
     },
 
     changelog: {
