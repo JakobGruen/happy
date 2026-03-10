@@ -55,6 +55,7 @@ export const AgentStateSchema = z.object({
         permissionSuggestions: z.array(z.any()).nullish(),
         decisionReason: z.string().nullish(),
         description: z.string().nullish(),
+        llmSummary: z.string().nullish(),
     })).nullish(),
     completedRequests: z.record(z.string(), z.object({
         tool: z.string(),

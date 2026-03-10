@@ -311,6 +311,8 @@ export type AgentState = {
       decisionReason?: string,
       /** Human-readable description of the tool action */
       description?: string,
+      /** Haiku-generated summary of what this tool call will do */
+      llmSummary?: string,
     }
   }
   completedRequests?: {
