@@ -241,6 +241,19 @@ function SessionInfoContent({ session }: { session: Session }) {
                         }}>
                             {sessionName}
                         </Text>
+                        {session.metadata?.summary?.text && (
+                            <Text style={{
+                                fontSize: 13,
+                                color: theme.colors.textSecondary,
+                                marginTop: 4,
+                                textAlign: 'center',
+                                paddingHorizontal: 16,
+                                lineHeight: 18,
+                                ...Typography.default()
+                            }} numberOfLines={3}>
+                                {session.metadata.summary.text}
+                            </Text>
+                        )}
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                             <StatusDot color={sessionStatus.statusDotColor} isPulsing={sessionStatus.isPulsing} size={10} />
                             <Text style={{
