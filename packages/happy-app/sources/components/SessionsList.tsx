@@ -456,7 +456,7 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
 
                 {/* Subtitle line */}
                 <Text style={styles.sessionSubtitle} numberOfLines={1}>
-                    {session.metadata?.summary?.text || sessionSubtitle}
+                    {sessionSubtitle}
                 </Text>
 
                 {/* Status line with dot */}
