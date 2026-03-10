@@ -23,6 +23,7 @@ import { useViewingSession } from '@/hooks/useViewingSession';
 import { RealtimeProvider } from '@/realtime/RealtimeProvider';
 import { FaviconPermissionIndicator } from '@/components/web/FaviconPermissionIndicator';
 import { PermissionBanner } from '@/components/PermissionBanner';
+import { ImageViewer } from '@/components/ImageViewer';
 import { CommandPaletteProvider } from '@/components/CommandPalette/CommandPaletteProvider';
 import { StatusBarProvider } from '@/components/StatusBarProvider';
 // import * as SystemUI from 'expo-system-ui';
@@ -237,6 +238,7 @@ export default function RootLayout() {
                                             <SidebarNavigator />
                                             <PermissionBanner />
                                         </HorizontalSafeAreaWrapper>
+                                        <ImageViewer />
                                     </RealtimeProvider>
                                 </CommandPaletteProvider>
                             </ModalProvider>
