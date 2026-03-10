@@ -12,6 +12,7 @@ import { knownTools } from '@/components/tools/knownTools';
 import { Metadata } from '@/sync/storageTypes';
 import { useRouter } from 'expo-router';
 import { PermissionFooter } from './PermissionFooter';
+import { useIsPermissionSheetActive } from './permissionSheetContext';
 import { parseToolUseError } from '@/utils/toolErrorParser';
 import { formatMCPTitle } from './views/MCPToolView';
 import { t } from '@/text';
@@ -180,6 +181,13 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         minimal = true;
     }
 
+    // When the permission sheet is active and this tool has a pending permission,
+    // collapse to one-liner in chat — the sheet shows the full context instead
+    const isSheetActive = useIsPermissionSheetActive();
+    if (isSheetActive && isClaude && tool.permission?.status === 'pending') {
+        minimal = true;
+    }
+
     // Computed after all minimal mutations (incl. isToolUseError) are finalized
     const hasCollapsibleContent = !minimal && tool.name !== 'AskUserQuestion';
 
@@ -231,6 +239,15 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                     </Pressable>
                 )}
             </View>
+
+            {/* Deny feedback — shown when user denied with a reason */}
+            {tool.permission?.status === 'denied' && tool.permission.reason && (
+                <View style={styles.denyReasonContainer}>
+                    <Text style={styles.denyReasonText} numberOfLines={3}>
+                        {tool.permission.reason}
+                    </Text>
+                </View>
+            )}
 
             {/* Content area - either custom children or tool-specific view */}
             {isContentExpanded && (() => {
@@ -365,5 +382,14 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 12,
         paddingTop: 8,
         overflow: 'visible'
+    },
+    denyReasonContainer: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    denyReasonText: {
+        fontSize: 13,
+        color: theme.colors.permissionButton.deny.background,
+        fontStyle: 'italic',
     },
 }));
