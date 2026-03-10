@@ -165,6 +165,8 @@ export function useBrowserNotifications() {
                                 navigateToSession(item.sessionId);
                             };
                         }
+
+                        shownPermissions.current.add(item.permissionId);
                     }
                 }
 
@@ -177,10 +179,6 @@ export function useBrowserNotifications() {
                     }
                 }
 
-                // Update tracked set
-                for (const item of toShow) {
-                    shownPermissions.current.add(item.permissionId);
-                }
                 for (const id of toClose) {
                     shownPermissions.current.delete(id);
                 }
