@@ -98,7 +98,7 @@ export class ApiSessionClient extends EventEmitter {
         activeSubagents: new Set<string>(),
     };
     private pollInterval: NodeJS.Timeout | null = null;
-    private lastSeq = 0;
+    private lastSeq: number;
     private pendingOutbox: Array<{ content: string; localId: string }> = [];
     private readonly sendSync: InvalidateSync;
     private readonly receiveSync: InvalidateSync;
@@ -113,6 +113,7 @@ export class ApiSessionClient extends EventEmitter {
         this.agentStateVersion = session.agentStateVersion;
         this.encryptionKey = session.encryptionKey;
         this.encryptionVariant = session.encryptionVariant;
+        this.lastSeq = session.seq;
         this.sendSync = new InvalidateSync(() => this.flushOutbox());
         this.receiveSync = new InvalidateSync(() => this.fetchMessages());
 
