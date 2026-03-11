@@ -84,50 +84,22 @@ export async function claudeRemote(opts: {
         });
     }
 
-    // Get initial message
-    const initial = await opts.nextMessage();
-    if (!initial) { // No initial message - exit
-        return;
-    }
-
-    // Handle special commands (extract text for command parsing)
-    const initialText = typeof initial.message === 'string' ? initial.message : '';
-    const specialCommand = parseSpecialCommand(initialText);
-
-    // Handle /clear command
-    if (specialCommand.type === 'clear') {
-        if (opts.onCompletionEvent) {
-            opts.onCompletionEvent('Context was reset');
-        }
-        if (opts.onSessionReset) {
-            opts.onSessionReset();
-        }
-        return;
-    }
-
-    // Handle /compact command
+    // Start with default mode (will be updated when first user message arrives)
+    let mode: EnhancedMode = {
+        permissionMode: 'default',
+    };
     let isCompactCommand = false;
-    if (specialCommand.type === 'compact') {
-        logger.debug('[claudeRemote] /compact command detected - will process as normal but with compaction behavior');
-        isCompactCommand = true;
-        if (opts.onCompletionEvent) {
-            opts.onCompletionEvent('Compaction started');
-        }
-    }
-
-    // Prepare SDK options
-    let mode = initial.mode;
-    const sdkOptions: QueryOptions = {
+    const buildSdkOptions = (modeSettings: EnhancedMode): QueryOptions => ({
         cwd: opts.path,
         resume: startFrom ?? undefined,
         mcpServers: opts.mcpServers,
-        permissionMode: mapToClaudeMode(initial.mode.permissionMode),
-        model: initial.mode.model,
-        fallbackModel: initial.mode.fallbackModel,
-        customSystemPrompt: initial.mode.customSystemPrompt ? initial.mode.customSystemPrompt + '\n\n' + systemPrompt : undefined,
-        appendSystemPrompt: initial.mode.appendSystemPrompt ? initial.mode.appendSystemPrompt + '\n\n' + systemPrompt : systemPrompt,
-        allowedTools: initial.mode.allowedTools ? initial.mode.allowedTools.concat(opts.allowedTools) : opts.allowedTools,
-        disallowedTools: initial.mode.disallowedTools,
+        permissionMode: mapToClaudeMode(modeSettings.permissionMode),
+        model: modeSettings.model,
+        fallbackModel: modeSettings.fallbackModel,
+        customSystemPrompt: modeSettings.customSystemPrompt ? modeSettings.customSystemPrompt + '\n\n' + systemPrompt : undefined,
+        appendSystemPrompt: modeSettings.appendSystemPrompt ? modeSettings.appendSystemPrompt + '\n\n' + systemPrompt : systemPrompt,
+        allowedTools: modeSettings.allowedTools ? modeSettings.allowedTools.concat(opts.allowedTools) : opts.allowedTools,
+        disallowedTools: modeSettings.disallowedTools,
         canCallTool: (toolName: string, input: unknown, options: ToolPermissionContext) => opts.canCallTool(toolName, input, mode, options),
         executable: opts.jsRuntime ?? 'node',
         abort: opts.signal,
@@ -135,7 +107,9 @@ export async function claudeRemote(opts: {
             return resolve(join(projectPath(), 'scripts', 'claude_remote_launcher.cjs'));
         })(),
         settingsPath: opts.hookSettingsPath,
-    }
+    });
+
+    let sdkOptions = buildSdkOptions(mode);
 
     // Track thinking state
     let thinking = false;
@@ -149,23 +123,74 @@ export async function claudeRemote(opts: {
         }
     };
 
-    // Push initial message
+    // Create message stream for SDK (initially empty - will be filled as messages arrive)
     let messages = new PushableAsyncIterable<SDKUserMessage>();
-    messages.push({
-        type: 'user',
-        message: {
-            role: 'user',
-            content: initial.message,
-        },
-    });
 
-    // Start the loop
+    // Start Claude immediately (eager initialization - no need to wait for first message)
+    logger.debug(`[claudeRemote] Starting Claude immediately without waiting for first message`);
     const response = query({
         prompt: messages,
         options: sdkOptions,
     });
 
     updateThinking(true);
+
+    // Push initial message in parallel (if available from first nextMessage call)
+    (async () => {
+        try {
+            const initial = await opts.nextMessage();
+
+            if (!initial) {
+                // No message sent - just end the stream when ready
+                // (user might use voice agent or other interaction method)
+                return;
+            }
+
+            // Handle special commands on first message
+            const initialText = typeof initial.message === 'string' ? initial.message : '';
+            const specialCommand = parseSpecialCommand(initialText);
+
+            // Handle /clear command
+            if (specialCommand.type === 'clear') {
+                if (opts.onCompletionEvent) {
+                    opts.onCompletionEvent('Context was reset');
+                }
+                if (opts.onSessionReset) {
+                    opts.onSessionReset();
+                }
+                messages.end();
+                return;
+            }
+
+            // Handle /compact command
+            if (specialCommand.type === 'compact') {
+                logger.debug('[claudeRemote] /compact command detected - will process as normal but with compaction behavior');
+                isCompactCommand = true;
+                if (opts.onCompletionEvent) {
+                    opts.onCompletionEvent('Compaction started');
+                }
+            }
+
+            // Update mode and SDK options if first message provides different settings
+            if (initial.mode) {
+                mode = initial.mode;
+                sdkOptions = buildSdkOptions(mode);
+            }
+
+            // Push first message to SDK
+            messages.push({
+                type: 'user',
+                message: {
+                    role: 'user',
+                    content: initial.message,
+                },
+            });
+        } catch (error) {
+            logger.debug('[claudeRemote] Error in first message handler:', error);
+            messages.setError(error instanceof Error ? error : new Error(String(error)));
+        }
+    })();
+
     try {
         logger.debug(`[claudeRemote] Starting to iterate over response`);
 
