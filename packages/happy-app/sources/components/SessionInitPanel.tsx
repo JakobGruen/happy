@@ -5,7 +5,9 @@ import Animated, { FadeIn, FadeOut, SlideInDown } from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/constants/Typography';
 import { SessionInitCard, SessionInitCardOption } from './SessionInitCard';
+import { MachinePathSelector } from './MachinePathSelector';
 import type { PermissionMode, ModelMode } from './PermissionModeSelector';
+import type { Machine } from '@/sync/storageTypes';
 
 interface SessionInitPanelProps {
     // Tab state
@@ -27,10 +29,12 @@ interface SessionInitPanelProps {
     onModeChange: (mode: PermissionMode) => void;
 
     // Machine and directory
-    machineName?: string;
-    machineHost?: string;
-    currentPath?: string;
-    onChangeMachine: () => void;
+    machines: Machine[];
+    selectedMachineId: string | null;
+    selectedPath: string;
+    onMachineSelect: (machineId: string) => void;
+    onPathChange: (path: string) => void;
+    recentPathsForMachine?: string[];
 
     // Activation
     onActivate: () => void;
@@ -49,10 +53,12 @@ export const SessionInitPanel = React.memo<SessionInitPanelProps>(({
     availableModes,
     selectedMode,
     onModeChange,
-    machineName,
-    machineHost,
-    currentPath,
-    onChangeMachine,
+    machines,
+    selectedMachineId,
+    selectedPath,
+    onMachineSelect,
+    onPathChange,
+    recentPathsForMachine = [],
     onActivate,
     isActivating = false,
     canActivate = true,
@@ -66,34 +72,56 @@ export const SessionInitPanel = React.memo<SessionInitPanelProps>(({
             id: 'simple',
             label: '🎯 Simple Session',
             description: 'Quick & lightweight - Single directory focus',
-            icon: 'radio-button-on',
+            icon: 'pin',
             isSelected: sessionType === 'simple',
         },
         {
             id: 'worktree',
             label: '🌳 Worktree Session',
             description: 'Isolated development - Separate git branch',
-            icon: 'radio-button-on',
+            icon: 'git-branch',
             isSelected: sessionType === 'worktree',
         },
     ];
 
-    // Build options for model card
+    // Build options for model card with color tier (low/medium/high capability)
+    const getModelColorTier = (modelKey: string): 'low' | 'medium' | 'high' => {
+        if (modelKey === 'haiku') return 'low';
+        if (modelKey === 'sonnet') return 'medium';
+        if (modelKey === 'opus') return 'high';
+        return 'medium';
+    };
+
+    const getModelIcon = (modelKey: string): React.ComponentProps<typeof Ionicons>['name'] => {
+        if (modelKey === 'haiku') return 'flash';
+        if (modelKey === 'opus') return 'diamond';
+        return 'musical-note';
+    };
+
     const modelOptions: SessionInitCardOption[] = availableModels.map((model) => ({
         id: model.key,
-        label: `${model.icon} ${model.displayName}`,
+        label: model.name,
         description: model.description || '',
-        icon: 'radio-button-on',
+        icon: getModelIcon(model.key),
         isSelected: selectedModel?.key === model.key,
         badge: model.key === 'sonnet' ? 'Recommended' : undefined,
+        colorTier: getModelColorTier(model.key),
     }));
 
     // Build options for permission mode card
+    const getModeIcon = (modeKey: string): React.ComponentProps<typeof Ionicons>['name'] => {
+        if (modeKey === 'default') return 'shield-checkmark-outline';
+        if (modeKey === 'acceptEdits') return 'create-outline';
+        if (modeKey === 'plan') return 'map-outline';
+        if (modeKey === 'bypassPermissions') return 'flash-outline';
+        return 'shield-checkmark-outline';
+    };
+
     const modeOptions: SessionInitCardOption[] = availableModes.map((mode) => ({
         id: mode.key,
-        label: `${mode.displayName}`,
+        label: mode.name,
         description: mode.description || '',
-        icon: 'shield-checkmark-outline',
+        icon: getModeIcon(mode.key),
         isSelected: selectedMode?.key === mode.key,
     }));
 
@@ -123,7 +151,7 @@ export const SessionInitPanel = React.memo<SessionInitPanelProps>(({
                     <Ionicons
                         name="radio-button-on"
                         size={16}
-                        color={agentType === 'claude' ? theme.colors.button.primary.background : theme.colors.textSecondary}
+                        color={agentType === 'claude' ? '#10B981' : theme.colors.textSecondary}
                         style={{ marginRight: 6 }}
                     />
                     <Text style={[
@@ -145,7 +173,7 @@ export const SessionInitPanel = React.memo<SessionInitPanelProps>(({
                     <Ionicons
                         name="radio-button-on"
                         size={16}
-                        color={agentType === 'codex' ? theme.colors.button.primary.background : theme.colors.textSecondary}
+                        color={agentType === 'codex' ? '#10B981' : theme.colors.textSecondary}
                         style={{ marginRight: 6 }}
                     />
                     <Text style={[
@@ -194,33 +222,14 @@ export const SessionInitPanel = React.memo<SessionInitPanelProps>(({
 
             {/* Machine & Directory Card */}
             <Animated.View entering={SlideInDown.duration(400).delay(350)}>
-                <View style={styles.cardContainer}>
-                <View style={styles.header}>
-                    <Text style={styles.title}>🖥️ Machine & Directory</Text>
-                </View>
-                <View style={styles.machineCardContent}>
-                    <View style={styles.machineInfo}>
-                        <Ionicons name="desktop-outline" size={16} color={theme.colors.textSecondary} />
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.machineLabel}>
-                                {machineName || machineHost || 'Unknown Machine'}
-                            </Text>
-                            <Text style={styles.machineHost}>
-                                {currentPath ? `📁 ${currentPath}` : ''}
-                            </Text>
-                        </View>
-                        <Pressable
-                            onPress={onChangeMachine}
-                            style={({ pressed }) => [
-                                styles.changeButton,
-                                pressed && styles.changeButtonPressed,
-                            ]}
-                        >
-                            <Text style={styles.changeButtonText}>Change</Text>
-                        </Pressable>
-                    </View>
-                </View>
-                </View>
+                <MachinePathSelector
+                    machines={machines}
+                    selectedMachineId={selectedMachineId}
+                    selectedPath={selectedPath}
+                    onMachineSelect={onMachineSelect}
+                    onPathChange={onPathChange}
+                    recentPaths={recentPathsForMachine}
+                />
             </Animated.View>
 
             {/* Activation Button */}
@@ -296,16 +305,16 @@ const stylesheet = StyleSheet.create((theme) => ({
         paddingVertical: 10,
         paddingHorizontal: 12,
         borderRadius: 8,
-        backgroundColor: theme.colors.surface,
+        backgroundColor: theme.colors.surfaceHighest,
         borderWidth: 1.5,
-        borderColor: theme.colors.divider,
+        borderColor: `${theme.colors.textSecondary}30`,
     },
     tabActive: {
-        backgroundColor: `${theme.colors.button.primary.background}12`,
-        borderColor: theme.colors.button.primary.background,
+        backgroundColor: '#10B98120',
+        borderColor: '#10B981',
     },
     tabPressed: {
-        backgroundColor: theme.colors.surfacePressed,
+        backgroundColor: '#10B98115',
     },
     tabText: {
         fontSize: 14,
@@ -314,7 +323,8 @@ const stylesheet = StyleSheet.create((theme) => ({
         ...Typography.default('semiBold'),
     },
     tabTextActive: {
-        color: theme.colors.button.primary.background,
+        color: '#10B981',
+        fontWeight: '600',
     },
     cardContainer: {
         backgroundColor: theme.colors.surface,
@@ -323,10 +333,12 @@ const stylesheet = StyleSheet.create((theme) => ({
         marginVertical: 8,
         overflow: 'hidden',
         shadowColor: theme.colors.shadow.color,
-        shadowOffset: { width: 0, height: 0.33 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: theme.colors.shadow.opacity,
-        shadowRadius: 0,
-        elevation: 1,
+        shadowRadius: 4,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: `${theme.colors.divider}50`,
     },
     header: {
         paddingHorizontal: 16,
@@ -340,57 +352,21 @@ const stylesheet = StyleSheet.create((theme) => ({
         color: theme.colors.text,
         ...Typography.default('semiBold'),
     },
-    machineCardContent: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-    },
-    machineInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    machineLabel: {
-        fontSize: 15,
-        fontWeight: '500',
-        color: theme.colors.text,
-        ...Typography.default('semiBold'),
-    },
-    machineHost: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-        marginTop: 2,
-        ...Typography.default('regular'),
-    },
-    changeButton: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 6,
-        backgroundColor: theme.colors.surfaceHighest,
-    },
-    changeButtonPressed: {
-        backgroundColor: theme.colors.groupped.sectionTitle,
-        opacity: 0.5,
-    },
-    changeButtonText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: theme.colors.button.primary.background,
-        ...Typography.default('semiBold'),
-    },
+
     activateButton: {
         marginHorizontal: 16,
         marginVertical: 16,
         paddingVertical: 14,
         borderRadius: 10,
-        backgroundColor: theme.colors.button.primary.background,
+        backgroundColor: '#F59E0B',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: theme.colors.shadow.color,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: theme.colors.shadow.opacity,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowColor: '#F59E0B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
     },
     activateButtonDisabled: {
         opacity: 0.5,

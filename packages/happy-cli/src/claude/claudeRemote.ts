@@ -133,7 +133,9 @@ export async function claudeRemote(opts: {
         options: sdkOptions,
     });
 
-    updateThinking(true);
+    // Don't set thinking=true at startup (even for new sessions with eager init)
+    // Claude is just starting up and waiting for input - not actively thinking yet
+    // thinking will be set to true when system.init is received, indicating Claude is ready
 
     // Push initial message in parallel (if available from first nextMessage call)
     (async () => {

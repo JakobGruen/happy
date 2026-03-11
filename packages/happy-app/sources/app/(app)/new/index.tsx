@@ -1146,10 +1146,12 @@ function NewSessionWizard() {
                     availableModes={availableModes}
                     selectedMode={permissionMode}
                     onModeChange={handlePermissionModeChange}
-                    machineName={selectedMachine?.metadata?.displayName}
-                    machineHost={selectedMachine?.metadata?.host}
-                    currentPath={selectedPath}
-                    onChangeMachine={handleMachineClick}
+                    machines={machines}
+                    selectedMachineId={selectedMachineId}
+                    selectedPath={selectedPath}
+                    onMachineSelect={setSelectedMachineId}
+                    onPathChange={setSelectedPath}
+                    recentPathsForMachine={recentPaths}
                     onActivate={handleCreateSession}
                     isActivating={isCreating}
                     canActivate={canCreate}

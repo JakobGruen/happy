@@ -72,7 +72,7 @@ const styles = StyleSheet.create((theme) => ({
     tabHeader: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
+        borderBottomColor: theme.colors.surfaceRipple,
         backgroundColor: theme.colors.surfaceHighest,
     },
     tabButton: {

@@ -28,7 +28,6 @@ export const ToolModal = React.memo<ToolModalProps>(
                 <Pressable
                     style={styles.backdrop}
                     onPress={onClose}
-                    activeOpacity={0.3}
                 />
                 <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surfaceHigh }]}>
                     {/* Modal Header */}

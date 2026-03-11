@@ -16,6 +16,7 @@ export interface SessionInitCardOption {
     icon: React.ComponentProps<typeof Ionicons>['name'];
     isSelected?: boolean;
     badge?: string; // e.g., "Recommended"
+    colorTier?: 'low' | 'medium' | 'high'; // For model power visualization
 }
 
 interface SessionInitCardProps {
@@ -68,13 +69,14 @@ export const SessionInitCard = React.memo<SessionInitCardProps>(({
                                 <Ionicons
                                     name={option.icon}
                                     size={20}
-                                    color={option.isSelected ? theme.colors.button.primary.background : theme.colors.textSecondary}
+                                    color={option.isSelected ? '#10B981' : theme.colors.textSecondary}
                                     style={styles.optionIcon}
                                 />
                                 <View style={{ flex: 1 }}>
                                     <Text style={[
                                         styles.optionLabel,
                                         option.isSelected && styles.optionLabelSelected,
+                                        option.isSelected && { color: '#10B981' },
                                     ]}>
                                         {option.label}
                                     </Text>
@@ -95,9 +97,9 @@ export const SessionInitCard = React.memo<SessionInitCardProps>(({
                         {option.isSelected && (
                             <View style={styles.checkmark}>
                                 <Ionicons
-                                    name="checkmark-circle"
+                                    name="checkmark-circle-sharp"
                                     size={24}
-                                    color={theme.colors.button.primary.background}
+                                    color="#10B981"
                                 />
                             </View>
                         )}
@@ -115,13 +117,15 @@ const stylesheet = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.surface,
         borderRadius: Platform.select({ ios: 10, default: 16 }),
         marginHorizontal: 16,
-        marginVertical: 8,
+        marginVertical: 12,
         overflow: 'hidden',
         shadowColor: theme.colors.shadow.color,
-        shadowOffset: { width: 0, height: 0.33 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: theme.colors.shadow.opacity,
-        shadowRadius: 0,
-        elevation: 1,
+        shadowRadius: 4,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: `${theme.colors.divider}50`,
     },
     header: {
         paddingHorizontal: 16,
@@ -168,7 +172,9 @@ const stylesheet = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.surfacePressed,
     },
     optionSelected: {
-        backgroundColor: `${theme.colors.button.primary.background}08`,
+        backgroundColor: '#10B98115',
+        borderLeftWidth: 3,
+        borderLeftColor: '#10B981',
     },
     optionContent: {
         flex: 1,
@@ -188,7 +194,6 @@ const stylesheet = StyleSheet.create((theme) => ({
         ...Typography.default('semiBold'),
     },
     optionLabelSelected: {
-        color: theme.colors.button.primary.background,
         fontWeight: '600',
     },
     optionDescription: {

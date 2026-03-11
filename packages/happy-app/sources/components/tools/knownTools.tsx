@@ -946,7 +946,25 @@ export const knownTools = {
             return t('tools.names.skill');
         },
         icon: ICON_SKILL,
-        minimal: true,
+        minimal: (opts: { metadata: Metadata | null, tool: ToolCall }) => {
+            // Show expanded view if there's skill content in the result
+            if (opts.tool.result) {
+                if (typeof opts.tool.result === 'string' && opts.tool.result.length > 0) {
+                    return false;
+                }
+                if (typeof opts.tool.result === 'object' && 'content' in opts.tool.result) {
+                    return false;
+                }
+            }
+            // Show expanded if content is in input
+            if (opts.tool.input && typeof opts.tool.input === 'object' && 'content' in opts.tool.input) {
+                const content = (opts.tool.input as any).content;
+                if (content && typeof content === 'string' && content.length > 0) {
+                    return false;
+                }
+            }
+            return true;
+        },
         noStatus: true,
         extractSubtitle: (opts: { metadata: Metadata | null, tool: ToolCall }) => {
             if (typeof opts.tool.input?.args === 'string' && opts.tool.input.args.length > 0) {
