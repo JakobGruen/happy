@@ -16,7 +16,6 @@ import { useIsPermissionSheetActive } from './permissionSheetContext';
 import { parseToolUseError } from '@/utils/toolErrorParser';
 import { formatMCPTitle } from './views/MCPToolView';
 import { t } from '@/text';
-import { AdaptiveToolDisplay } from './adaptive/AdaptiveToolDisplay';
 import { ToolModal } from './modal/ToolModal';
 import { ContentPreview } from './modal/ContentPreview';
 
@@ -333,7 +332,7 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderTopWidth: 1,
-        borderTopColor: theme.colors.border,
+        borderTopColor: theme.colors.surfaceRipple,
     },
     denyReasonContainer: {
         paddingHorizontal: 12,
