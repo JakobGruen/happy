@@ -163,6 +163,8 @@ if [[ $DO_METRO -eq 1 ]]; then
     sleep 3
     if kill -0 "$METRO_PID" 2>/dev/null; then
         ok "Metro started (PID $METRO_PID, log: $METRO_LOG)"
+        echo "  To keep it alive: scripts/metro-watchdog.sh"
+        echo "  For logs: tail -f $METRO_LOG"
         tail -5 "$METRO_LOG" 2>/dev/null | sed 's/^/  /'
     else
         fail "Metro failed to start"

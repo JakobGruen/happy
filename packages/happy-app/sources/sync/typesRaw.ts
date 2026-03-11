@@ -69,6 +69,8 @@ const sessionToolCallStartEventSchema = z.object({
 const sessionToolCallEndEventSchema = z.object({
     t: z.literal('tool-call-end'),
     call: z.string(),
+    result: z.string().optional(),
+    isError: z.boolean().optional(),
 });
 
 const sessionFileEventSchema = z.object({

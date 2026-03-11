@@ -51,6 +51,10 @@ yarn dev:reset -s                     # restart server only
 yarn dev:reset -m                     # reset Metro bundler only
 yarn dev:reset -i                     # reinstall dependencies only
 
+# Metro watchdog (keeps Metro alive on crash)
+yarn metro:watchdog                   # auto-restart on crash or 10min inactivity
+yarn metro:watchdog 300               # auto-restart on 5min inactivity (pass timeout as arg)
+
 # CLI with local server
 cd packages/happy-cli && yarn dev:local-server
 
