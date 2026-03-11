@@ -174,6 +174,7 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
 
     // Reactivation: skip forwarding messages until system.init (history replay phase)
     let skipMessageForwarding = session.isReactivation;
+    const wasReactivated = session.isReactivation; // Capture for diagnostics logging (flag will be cleared after first use)
     let reactivationSkippedCount = 0;
     let reactivationForwardedCount = 0;
     if (skipMessageForwarding) {
@@ -395,6 +396,14 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                 logger.debug(`[remote]: Continuing existing session: ${session.sessionId}`);
             }
 
+            // On reactivation, clear message queue to prevent old messages from being sent to Claude
+            if (session.isReactivation) {
+                session.queue.reset();
+                logger.debug('[remote]: Reactivation mode — cleared message queue to prevent old message replay');
+                // Clear flag after first use to prevent queue reset on subsequent loop iterations
+                session.isReactivation = false;
+            }
+
             previousSessionId = session.sessionId;
             const controller = new AbortController();
             abortController = controller;
@@ -569,10 +578,8 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     }
 
     // Log reactivation diagnostics
-    if (session.isReactivation) {
+    if (wasReactivated) {
         logger.debug(`[remote] Reactivation diagnostics: skipped=${reactivationSkippedCount}, forwarded=${reactivationForwardedCount}, skipActive=${skipMessageForwarding}`);
-        // Clear reactivation flag for subsequent loops (only first run needs it)
-        session.isReactivation = false;
     }
 
     return exitReason || 'exit';
