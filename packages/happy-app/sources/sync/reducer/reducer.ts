@@ -195,6 +195,19 @@ export function createReducer(): ReducerState {
 
 const ENABLE_LOGGING = false;
 
+/**
+ * Detects if text is skill expansion content that should be attached to a Skill tool
+ */
+function isSkillExpansionContent(text: string): boolean {
+    if (!text) return false;
+    return (
+        text.includes('Base directory for this skill:') ||
+        text.includes('Base directory:') ||
+        (text.includes('This skill guides') && text.includes('implementation')) ||
+        (text.includes('Design Thinking') && text.length > 500)
+    );
+}
+
 export type ReducerResult = {
     messages: Message[];
     todos?: Array<{
@@ -1148,6 +1161,51 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                 meta: msg.meta,
             });
             changed.add(mid);
+        }
+    }
+
+    //
+    // Phase 6: Post-processing - Attach skill expansion content to Skill tools
+    //
+    
+    // Find skill expansion messages and attach them to the preceding Skill tool
+    const messageArray = Array.from(state.messages.values()).sort((a, b) => a.createdAt - b.createdAt);
+    for (let i = 0; i < messageArray.length; i++) {
+        const msg = messageArray[i];
+        if (msg.role === 'agent' && msg.text && !msg.tool && isSkillExpansionContent(msg.text)) {
+            // Find the last Skill tool before this message
+            let lastSkillTool: ReducerMessage | null = null;
+            let lastSkillToolInternalId: string | null = null;
+            for (let j = i - 1; j >= 0; j--) {
+                const prevMsg = messageArray[j];
+                if (prevMsg.tool?.name === 'Skill') {
+                    lastSkillTool = prevMsg;
+                    // Find the internal ID for this message
+                    for (let [id, message] of state.messages) {
+                        if (message === prevMsg) {
+                            lastSkillToolInternalId = id;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+            
+            // Attach to the Skill tool if found
+            if (lastSkillTool && lastSkillToolInternalId) {
+                lastSkillTool.tool!.result = msg.text;
+                changed.add(lastSkillToolInternalId);
+                
+                // Mark the skill expansion message for removal from main chat
+                // by finding its internal ID and removing it from changed
+                for (let [id, message] of state.messages) {
+                    if (message === msg) {
+                        // Remove from changed so it won't be rendered in main chat
+                        changed.delete(id);
+                        break;
+                    }
+                }
+            }
         }
     }
 

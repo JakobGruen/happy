@@ -16,6 +16,24 @@ import { useSetting } from "@/sync/storage";
 import { useRouter } from 'expo-router';
 import { ImageViewerManager } from './ImageViewer';
 
+/**
+ * Detects if an agent message contains skill expansion content.
+ * Skill expansion messages typically contain markers like:
+ * - "Base directory for this skill:"
+ * - "This skill guides creation of..."
+ * - Multiple section headings (Design Thinking, etc.)
+ */
+function isSkillExpansionMessage(text: string): boolean {
+    if (!text) return false;
+    // Check for skill-specific markers
+    return (
+        text.includes('Base directory for this skill:') ||
+        text.includes('Base directory:') ||
+        (text.includes('This skill guides') && text.includes('implementation')) ||
+        (text.includes('Design Thinking') && text.length > 500) // Skill content is substantial
+    );
+}
+
 export const MessageView = (props: {
   message: Message;
   metadata: Metadata | null;
@@ -143,6 +161,11 @@ function AgentTextBlock(props: {
 
   // Hide thinking messages unless experiments is enabled
   if (props.message.isThinking && !experiments) {
+    return null;
+  }
+
+  // Hide skill expansion messages — they belong in the Skill tool detail view
+  if (isSkillExpansionMessage(props.message.text)) {
     return null;
   }
 
