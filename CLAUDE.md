@@ -45,9 +45,11 @@ yarn workspace happy-server redis     # Docker redis
 yarn workspace happy-server generate  # Prisma client codegen
 
 # Dev reset (rebuild + restart services)
-yarn dev:reset                        # full reset: wire → cli → daemon → server
+yarn dev:reset                        # full reset: install → wire → cli → daemon → server → metro
 yarn dev:reset -c -d                  # rebuild CLI + restart daemon
 yarn dev:reset -s                     # restart server only
+yarn dev:reset -m                     # reset Metro bundler only
+yarn dev:reset -i                     # reinstall dependencies only
 
 # CLI with local server
 cd packages/happy-cli && yarn dev:local-server

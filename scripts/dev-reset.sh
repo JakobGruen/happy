@@ -21,19 +21,22 @@ usage() {
     echo "  -c, --cli        Rebuild CLI (implies --wire)"
     echo "  -s, --server     Restart dev server (port 3005)"
     echo "  -d, --daemon     Restart CLI daemon (dev variant)"
+    echo "  -i, --install    Reinstall all dependencies (yarn cache clean + install)"
+    echo "  -m, --metro      Reset Metro bundler (kill + reinstall + clear cache + restart)"
     echo "  -t, --typecheck  Run app typecheck"
     echo "  -h, --help       Show this help"
     echo ""
     echo "Examples:"
-    echo "  $0               Full reset (wire > cli > daemon > server)"
+    echo "  $0               Full reset (install > wire > cli > daemon > server > metro)"
     echo "  $0 -w -c         Rebuild wire + CLI only"
     echo "  $0 -s            Restart server only"
-    echo "  $0 -d            Restart daemon only"
+    echo "  $0 -m            Reset Metro only"
+    echo "  $0 -i            Reinstall dependencies only"
     echo "  $0 -c -d         Rebuild CLI and restart daemon"
     exit 0
 }
 
-DO_WIRE=0; DO_CLI=0; DO_SERVER=0; DO_DAEMON=0; DO_TYPECHECK=0
+DO_WIRE=0; DO_CLI=0; DO_SERVER=0; DO_DAEMON=0; DO_TYPECHECK=0; DO_INSTALL=0; DO_METRO=0
 HAD_FLAGS=0; DO_ALL=0
 
 while [[ $# -gt 0 ]]; do
@@ -43,6 +46,8 @@ while [[ $# -gt 0 ]]; do
         -c|--cli)       DO_CLI=1; HAD_FLAGS=1 ;;
         -s|--server)    DO_SERVER=1; HAD_FLAGS=1 ;;
         -d|--daemon)    DO_DAEMON=1; HAD_FLAGS=1 ;;
+        -i|--install)   DO_INSTALL=1; HAD_FLAGS=1 ;;
+        -m|--metro)     DO_METRO=1; HAD_FLAGS=1 ;;
         -t|--typecheck) DO_TYPECHECK=1; HAD_FLAGS=1 ;;
         -h|--help)      usage ;;
         *)              echo "Unknown option: $1"; usage ;;
@@ -52,7 +57,7 @@ done
 
 # No flags or --all = do everything
 if [[ $HAD_FLAGS -eq 0 ]] || [[ $DO_ALL -eq 1 ]]; then
-    DO_WIRE=1; DO_CLI=1; DO_SERVER=1; DO_DAEMON=1
+    DO_INSTALL=1; DO_WIRE=1; DO_CLI=1; DO_SERVER=1; DO_DAEMON=1; DO_METRO=1
 fi
 
 # --daemon needs a built CLI — auto-build if dist is missing
@@ -65,6 +70,16 @@ fi
 [[ $DO_CLI -eq 1 ]] && DO_WIRE=1
 
 ERRORS=0
+
+# --- Install ---
+if [[ $DO_INSTALL -eq 1 ]]; then
+    step "Reinstalling dependencies (yarn cache clean + yarn install)"
+    if yarn cache clean 2>&1 && yarn install 2>&1; then
+        ok "Dependencies reinstalled"
+    else
+        fail "Install failed"; ERRORS=$((ERRORS + 1))
+    fi
+fi
 
 # --- Wire ---
 if [[ $DO_WIRE -eq 1 ]]; then
@@ -125,6 +140,34 @@ if [[ $DO_TYPECHECK -eq 1 ]]; then
         ok "Typecheck passed"
     else
         fail "Typecheck failed"; ERRORS=$((ERRORS + 1))
+    fi
+fi
+
+# --- Metro ---
+if [[ $DO_METRO -eq 1 ]]; then
+    step "Resetting Metro bundler"
+
+    # Kill existing Metro process
+    pkill -f "expo start" 2>/dev/null || true
+    lsof -ti:8081 | xargs kill -9 2>/dev/null || true
+    sleep 1
+    ok "Stopped existing Metro process (if any)"
+
+    # Reinstall app deps (yarn install already done if DO_INSTALL, but Metro reset is self-sufficient)
+    yarn install 2>&1 || { fail "yarn install failed"; ERRORS=$((ERRORS + 1)); }
+
+    # Start Metro with cache cleared
+    METRO_LOG="/tmp/happy-metro-dev-$$.log"
+    nohup yarn workspace happy-app start --clear > "$METRO_LOG" 2>&1 &
+    METRO_PID=$!
+    sleep 3
+    if kill -0 "$METRO_PID" 2>/dev/null; then
+        ok "Metro started (PID $METRO_PID, log: $METRO_LOG)"
+        tail -5 "$METRO_LOG" 2>/dev/null | sed 's/^/  /'
+    else
+        fail "Metro failed to start"
+        tail -10 "$METRO_LOG" 2>/dev/null | sed 's/^/  /'
+        ERRORS=$((ERRORS + 1))
     fi
 fi
 
