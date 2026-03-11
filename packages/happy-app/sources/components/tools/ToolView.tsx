@@ -16,6 +16,9 @@ import { useIsPermissionSheetActive } from './permissionSheetContext';
 import { parseToolUseError } from '@/utils/toolErrorParser';
 import { formatMCPTitle } from './views/MCPToolView';
 import { t } from '@/text';
+import { AdaptiveToolDisplay } from './adaptive/AdaptiveToolDisplay';
+import { ToolModal } from './modal/ToolModal';
+import { ContentPreview } from './modal/ContentPreview';
 
 interface ToolViewProps {
     metadata: Metadata | null;
@@ -31,17 +34,16 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     const router = useRouter();
     const { theme } = useUnistyles();
 
-    // Create default onPress handler for navigation
-    const handlePress = React.useCallback(() => {
-        if (onPress) {
-            onPress();
-        } else if (sessionId && messageId) {
-            router.push(`/session/${sessionId}/message/${messageId}`);
-        }
-    }, [onPress, sessionId, messageId, router]);
+    // Modal state for full content view
+    const [isModalVisible, setIsModalVisible] = React.useState(false);
 
-    // Enable pressable if either onPress is provided or we have navigation params
-    const isPressable = !!(onPress || (sessionId && messageId));
+    // Open modal on header press
+    const handlePress = React.useCallback(() => {
+        setIsModalVisible(true);
+    }, []);
+
+    // Always make header pressable to open modal
+    const isPressable = true;
 
     let knownTool = knownTools[tool.name as keyof typeof knownTools] as any;
 
@@ -56,7 +58,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     let icon = <Ionicons name="construct-outline" size={18} color={theme.colors.textSecondary} />;
     let noStatus = false;
     let hideDefaultError = false;
-    
+
     // For Gemini: unknown tools should be rendered as minimal (hidden)
     // This prevents showing raw INPUT/OUTPUT for internal Gemini tools
     // that we haven't explicitly added to knownTools
@@ -75,7 +77,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
     // Handle optional title and function type
     let toolTitle = tool.name;
-    
+
     // Special handling for MCP tools — compact summary with key params
     if (tool.name.startsWith('mcp__')) {
         toolTitle = formatMCPTitle(tool.name);
@@ -116,7 +118,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
             minimal = knownTool.minimal;
         }
     }
-    
+
     // Special handling for CodexBash to determine icon based on parsed_cmd
     if (tool.name === 'CodexBash' && tool.input?.parsed_cmd && Array.isArray(tool.input.parsed_cmd) && tool.input.parsed_cmd.length > 0) {
         const parsedCmd = tool.input.parsed_cmd[0];
@@ -130,16 +132,13 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     } else if (knownTool && typeof knownTool.icon === 'function') {
         icon = knownTool.icon(18, theme.colors.text);
     }
-    
+
     if (knownTool && typeof knownTool.noStatus === 'boolean') {
         noStatus = knownTool.noStatus;
     }
     if (knownTool && typeof knownTool.hideDefaultError === 'boolean') {
         hideDefaultError = knownTool.hideDefaultError;
     }
-
-    // Collapse/expand state for content area
-    const [isContentExpanded, setIsContentExpanded] = React.useState(true);
 
     let statusIcon = null;
 
@@ -188,9 +187,6 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         minimal = true;
     }
 
-    // Computed after all minimal mutations (incl. isToolUseError) are finalized
-    const hasCollapsibleContent = !minimal && tool.name !== 'AskUserQuestion';
-
     const headerContent = (
         <View style={styles.headerLeft}>
             <View style={styles.iconContainer}>
@@ -225,19 +221,6 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                         {headerContent}
                     </View>
                 )}
-                {hasCollapsibleContent && (
-                    <Pressable
-                        onPress={() => setIsContentExpanded(v => !v)}
-                        style={styles.collapseButton}
-                        hitSlop={8}
-                    >
-                        <Ionicons
-                            name={isContentExpanded ? 'chevron-down' : 'chevron-forward'}
-                            size={18}
-                            color={theme.colors.textSecondary}
-                        />
-                    </Pressable>
-                )}
             </View>
 
             {/* Deny feedback — shown when user denied with a reason */}
@@ -261,59 +244,21 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 </View>
             )}
 
-            {/* Content area - either custom children or tool-specific view */}
-            {isContentExpanded && (() => {
-                // Check if minimal first - minimal tools don't show content
-                if (minimal) {
-                    return null;
-                }
+            {/* 2-Line Preview (static, always visible) */}
+            {!minimal && (
+                <View style={styles.previewContainer}>
+                    <ContentPreview tool={tool} />
+                </View>
+            )}
 
-                // Try to use a specific tool view component first
-                const SpecificToolView = getToolViewComponent(tool.name);
-                if (SpecificToolView) {
-                    return (
-                        <View style={styles.content}>
-                            <SpecificToolView tool={tool} metadata={props.metadata} messages={props.messages ?? []} sessionId={sessionId} />
-                            {tool.state === 'error' && tool.result &&
-                                !(tool.permission && (tool.permission.status === 'denied' || tool.permission.status === 'canceled')) &&
-                                !hideDefaultError && (
-                                    <ToolError message={String(tool.result)} />
-                                )}
-                        </View>
-                    );
-                }
-
-                // Show error state if present (but not for denied/canceled permissions and not when hideDefaultError is true)
-                if (tool.state === 'error' && tool.result &&
-                    !(tool.permission && (tool.permission.status === 'denied' || tool.permission.status === 'canceled')) &&
-                    !isToolUseError) {
-                    return (
-                        <View style={styles.content}>
-                            <ToolError message={String(tool.result)} />
-                        </View>
-                    );
-                }
-
-                // Fall back to default view
-                return (
-                    <View style={styles.content}>
-                        {/* Default content when no custom view available */}
-                        {tool.input && (
-                            <ToolSectionView title={t('toolView.input')}>
-                                <CodeView code={JSON.stringify(tool.input, null, 2)} />
-                            </ToolSectionView>
-                        )}
-
-                        {tool.state === 'completed' && tool.result && (
-                            <ToolSectionView title={t('toolView.output')}>
-                                <CodeView
-                                    code={typeof tool.result === 'string' ? tool.result : JSON.stringify(tool.result, null, 2)}
-                                />
-                            </ToolSectionView>
-                        )}
-                    </View>
-                );
-            })()}
+            {/* Modal (opens on preview tap) */}
+            <ToolModal
+                visible={isModalVisible}
+                tool={tool}
+                metadata={props.metadata}
+                onClose={() => setIsModalVisible(false)}
+                hideOutput={tool.permission?.status === 'pending'}
+            />
 
             {/* Permission footer - always renders when permission exists to maintain consistent height */}
             {/* AskUserQuestion has its own Submit button UI - no permission footer needed */}
@@ -345,12 +290,6 @@ const styles = StyleSheet.create((theme) => ({
     },
     headerMain: {
         flex: 1,
-    },
-    collapseButton: {
-        paddingLeft: 8,
-        paddingVertical: 4,
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     headerLeft: {
         flexDirection: 'row',
@@ -390,10 +329,11 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.textSecondary,
         marginTop: 2,
     },
-    content: {
+    previewContainer: {
         paddingHorizontal: 12,
-        paddingTop: 8,
-        overflow: 'visible'
+        paddingVertical: 8,
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.border,
     },
     denyReasonContainer: {
         paddingHorizontal: 12,
