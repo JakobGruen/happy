@@ -33,9 +33,11 @@ Happy CLI (`happy-coder`) is a command-line tool that wraps Claude Code to enabl
 
 ### Testing
 - Unit tests using Vitest
-- No mocking - tests make real API calls
+- Mock setup via `vi.hoisted()` for early availability before imports
+- `vi.mock()` for module-level mocking with return values
 - Test files colocated with source files (`.test.ts`)
 - Descriptive test names and proper async handling
+- Test isolation: each test manages its own mock resolution
 
 ### Logging
 - All debugging through file logs to avoid disturbing Claude sessions
@@ -64,7 +66,7 @@ Core Claude Code integration layer.
 
 - **`loop.ts`**: Main control loop managing interactive/remote modes
 - **`types.ts`**: Claude message type definitions with parsers
-
+- **`claudeRemote.ts`**: Eager session initialization with async first-message handling
 - **`claudeSdk.ts`**: Direct SDK integration using `@anthropic-ai/claude-code`
 - **`interactive.ts`**: **LIKELY WILL BE DEPRECATED in favor of running through SDK** PTY-based interactive Claude sessions
 - **`watcher.ts`**: File system watcher for Claude session files (for interactive mode snooping)
@@ -74,8 +76,10 @@ Core Claude Code integration layer.
 **Key Features:**
 - Dual mode operation: interactive (terminal) and remote (mobile control)
 - Session persistence and resumption
+- **Eager session initialization**: SDK starts immediately with empty message stream, first user message added asynchronously
 - Real-time message streaming
 - Permission intercepting via MCP [Permission checking not implemented yet]
+- Support for `/clear` and `/compact` commands on first message
 
 ### 3. UI Module (`/src/ui/`)
 User interface components.
@@ -226,3 +230,35 @@ When using --resume:
 2. Original session remains as historical record
 3. All context preserved but under new session identity
 4. Session ID in stream-json output will be the new one, not the resumed one
+
+# Eager Session Initialization
+
+## Overview
+When a session is created or resumed, Claude Code SDK now starts immediately without waiting for the first user message. This enables:
+- Type-hints for slash commands (`/compact`, etc.) from session start
+- File reference completion
+- Voice agent availability before first message
+
+## Implementation Details
+
+### `claudeRemote.ts` - Core Logic
+- **Startup**: `query()` called immediately with empty `PushableAsyncIterable<SDKUserMessage>()`
+- **First message handling**: Async IIFE spawned (non-blocking) to wait for `nextMessage()`
+- **Message injection**: When first message arrives, it's pushed to the stream for SDK to process
+- **Special commands**: `/clear` ends the stream; `/compact` sets flag but continues
+- **Mode switching**: First message can provide different `permissionMode` or `model`
+
+### `apiSession.ts` - Session Reactivation Fix
+- **Bug fixed**: `lastSeq` initialization was set to `0`, causing full message history replay on reactivation
+- **Fix**: Initialize `lastSeq` from `session.seq` in constructor (already provided by server)
+- **Effect**: Prevents historical messages from being refetched and replayed to Claude on session reactivation
+- **Result**: Reactivated sessions maintain context without duplicate message processing
+
+### Test Coverage (`claudeRemote.test.ts`)
+Six tests validate eager initialization:
+1. SDK starts immediately (query called before nextMessage resolves)
+2. First message pushed to stream when available
+3. `/clear` command ends stream, prevents message push
+4. `/compact` command continues stream, message is pushed
+5. Default mode used when no first message provided
+6. SDK doesn't block on nextMessage at startup

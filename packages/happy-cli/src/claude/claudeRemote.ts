@@ -252,7 +252,10 @@ export async function claudeRemote(opts: {
                     return;
                 }
                 mode = next.mode;
-                messages.push({ type: 'user', message: { role: 'user', content: next.message } });
+                // Only push if stream is still open (it might have been ended by /clear command)
+                if (!messages.done) {
+                    messages.push({ type: 'user', message: { role: 'user', content: next.message } });
+                }
             }
 
             // Handle tool result
