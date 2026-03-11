@@ -30,6 +30,7 @@ import {
 import { AIBackendProfile, getProfileEnvironmentVariables, validateProfileForAgent } from '@/sync/settings';
 import { getBuiltInProfile, DEFAULT_PROFILES } from '@/sync/profileUtils';
 import { AgentInput } from '@/components/AgentInput';
+import { SessionInitPanel } from '@/components/SessionInitPanel';
 import { StyleSheet } from 'react-native-unistyles';
 import { randomUUID } from 'expo-crypto';
 import { useCLIDetection } from '@/hooks/useCLIDetection';
@@ -1133,52 +1134,27 @@ function NewSessionWizard() {
     // ========================================================================
     if (!useEnhancedSessionWizard) {
         return (
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? Constants.statusBarHeight + useHeaderHeight() : 0}
-                style={styles.container}
-            >
-                <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-                    {/* Session type selector */}
-                    <View style={{ paddingHorizontal: screenWidth > 700 ? 16 : 8, marginBottom: 16 }}>
-                        <View style={{ maxWidth: layout.maxWidth, width: '100%', alignSelf: 'center' }}>
-                            <SessionTypeSelector
-                                value={sessionType}
-                                onChange={setSessionType}
-                            />
-                        </View>
-                    </View>
-
-                    {/* AgentInput with inline chips - sticky at bottom */}
-                    <View style={{ paddingHorizontal: screenWidth > 700 ? 16 : 8, paddingBottom: Math.max(16, safeArea.bottom) }}>
-                        <View style={{ maxWidth: layout.maxWidth, width: '100%', alignSelf: 'center' }}>
-                            <AgentInput
-                                value={sessionPrompt}
-                                onChangeText={setSessionPrompt}
-                                onSend={handleCreateSession}
-                                isSendDisabled={!canCreate}
-                                isSending={isCreating}
-                                placeholder="What would you like to work on?"
-                                autocompletePrefixes={[]}
-                                autocompleteSuggestions={async () => []}
-                                agentType={agentType}
-                                onAgentClick={handleAgentClick}
-                                permissionMode={permissionMode}
-                                availableModes={availableModes}
-                                onPermissionModeChange={handlePermissionModeChange}
-                                modelMode={modelMode}
-                                availableModels={availableModels}
-                                onModelModeChange={handleModelModeChange}
-                                connectionStatus={connectionStatus}
-                                machineName={selectedMachine?.metadata?.displayName || selectedMachine?.metadata?.host}
-                                onMachineClick={handleMachineClick}
-                                currentPath={selectedPath}
-                                onPathClick={handlePathClick}
-                            />
-                        </View>
-                    </View>
-                </View>
-            </KeyboardAvoidingView>
+            <View style={styles.container}>
+                <SessionInitPanel
+                    agentType={agentType}
+                    onAgentTypeChange={setAgentType}
+                    sessionType={sessionType}
+                    onSessionTypeChange={setSessionType}
+                    availableModels={availableModels}
+                    selectedModel={modelMode}
+                    onModelChange={handleModelModeChange}
+                    availableModes={availableModes}
+                    selectedMode={permissionMode}
+                    onModeChange={handlePermissionModeChange}
+                    machineName={selectedMachine?.metadata?.displayName}
+                    machineHost={selectedMachine?.metadata?.host}
+                    currentPath={selectedPath}
+                    onChangeMachine={handleMachineClick}
+                    onActivate={handleCreateSession}
+                    isActivating={isCreating}
+                    canActivate={canCreate}
+                />
+            </View>
         );
     }
 

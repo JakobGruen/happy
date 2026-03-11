@@ -213,6 +213,22 @@ The agent should be called whenever new user-facing text is introduced to the co
 - `sources/auth/AuthContext.tsx` - Authentication state management
 - `sources/app/_layout.tsx` - Root navigation structure
 
+### Session Initialization UI Pattern
+
+The app uses a card-based launch pad UI for session initialization (`SessionInitPanel` + `SessionInitCard` components). This pattern provides:
+
+- **Rich visual cards** for configuration options (Session Type, Model, Permission Mode, Machine/Directory)
+- **Tab-based agent selection** (Claude/Codex) with dynamic model/mode switching
+- **Staggered animations** (FadeIn + SlideInDown) for progressive reveal
+- **Modal overlay support** for machine/path picker via `[Change]` button
+- **In-place session creation** without navigation
+
+Key components:
+- `SessionInitCard.tsx` - Reusable card component for options with icons, descriptions, badges, and selected state
+- `SessionInitPanel.tsx` - Main panel orchestrating all cards, tabs, and activation logic
+
+Usage: Replace text input-based session creation with `<SessionInitPanel>` for a modern, visually prominent initialization experience.
+
 ### Custom Header Component
 
 The app includes a custom header component (`sources/components/Header.tsx`) that provides consistent header rendering across platforms and integrates with React Navigation.
