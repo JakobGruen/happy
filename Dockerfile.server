@@ -1,12 +1,12 @@
 # Stage 1: install dependencies with workspace context
-FROM node:20 AS deps
+FROM oven/bun:1 AS deps
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y python3 make g++ build-essential && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /repo
 
-COPY package.json yarn.lock ./
+COPY package.json yarn.lock bun.lock ./
 COPY scripts ./scripts
 COPY patches ./patches
 
@@ -26,9 +26,9 @@ COPY packages/happy-server/prisma packages/happy-server/prisma
 
 # Install with --ignore-scripts, then manually run what we need
 # NODE_ENV=development ensures devDependencies (typescript etc.) are installed
-RUN NODE_ENV=development SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines --ignore-scripts
-RUN SKIP_HAPPY_WIRE_BUILD=1 node scripts/postinstall.cjs
-RUN cd packages/happy-server && npx prisma generate
+RUN NODE_ENV=development SKIP_HAPPY_WIRE_BUILD=1 bun install --ignore-scripts
+RUN SKIP_HAPPY_WIRE_BUILD=1 bun scripts/postinstall.cjs
+RUN cd packages/happy-server && bunx prisma generate
 
 # Stage 2: build the server
 FROM deps AS builder
@@ -36,11 +36,11 @@ FROM deps AS builder
 COPY packages/happy-wire ./packages/happy-wire
 COPY packages/happy-server ./packages/happy-server
 
-RUN yarn workspace @jakobgruen/happy-wire build
-RUN yarn workspace happy-server build
+RUN bun run --filter @jakobgruen/happy-wire build
+RUN bun run --filter happy-server build
 
 # Stage 3: runtime (slim image, dist-only)
-FROM node:20-slim AS runner
+FROM oven/bun:1-slim AS runner
 
 WORKDIR /repo
 
@@ -66,4 +66,4 @@ COPY --from=builder /repo/packages/happy-server/prisma /repo/packages/happy-serv
 EXPOSE 3005
 
 # Run migrations then start the server
-CMD sh -c "cd packages/happy-server && npx prisma migrate deploy && cd /repo && yarn --cwd packages/happy-server start"
+CMD sh -c "cd packages/happy-server && bunx prisma migrate deploy && cd /repo && bun run --filter happy-server start"
