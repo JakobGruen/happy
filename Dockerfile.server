@@ -39,21 +39,28 @@ COPY packages/happy-server ./packages/happy-server
 RUN yarn workspace @jakobgruen/happy-wire build
 RUN yarn workspace happy-server build
 
-# Stage 3: runtime
-FROM node:20 AS runner
+# Stage 3: runtime (slim image, dist-only)
+FROM node:20-slim AS runner
 
 WORKDIR /repo
 
-# Runtime dependencies
-RUN apt-get update && apt-get install -y python3 ffmpeg && rm -rf /var/lib/apt/lists/*
+# Runtime dependencies (ffmpeg for media processing)
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 # Set environment to production
 ENV NODE_ENV=production
 
-# Copy necessary files from the builder stage
+# Copy only node_modules (with devDependencies pruned)
 COPY --from=builder /repo/node_modules /repo/node_modules
-COPY --from=builder /repo/packages/happy-wire /repo/packages/happy-wire
-COPY --from=builder /repo/packages/happy-server /repo/packages/happy-server
+
+# Copy only dist/ folders (compiled code, no source .ts files)
+COPY --from=builder /repo/packages/happy-wire/dist /repo/packages/happy-wire/dist
+COPY --from=builder /repo/packages/happy-server/dist /repo/packages/happy-server/dist
+
+# Copy only runtime-necessary config files
+COPY --from=builder /repo/packages/happy-server/package.json /repo/packages/happy-server/
+COPY --from=builder /repo/packages/happy-wire/package.json /repo/packages/happy-wire/
+COPY --from=builder /repo/packages/happy-server/prisma /repo/packages/happy-server/prisma
 
 # Expose the port the app will run on
 EXPOSE 3005
