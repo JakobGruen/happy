@@ -40,11 +40,13 @@ export const VerticalParameterStack = React.memo<VerticalParameterStackProps>(
                             <Text style={[styles.paramName, { color: theme.colors.textSecondary }]}>
                                 {key}
                             </Text>
-                            <VariableFormatter
-                                name={key}
-                                value={value}
-                                isVertical={isVertical}
-                            />
+                            <View style={styles.valueContainer}>
+                                <VariableFormatter
+                                    name={key}
+                                    value={value}
+                                    isVertical={isVertical}
+                                />
+                            </View>
                         </View>
                     );
                 })}
@@ -81,5 +83,11 @@ const styles = StyleSheet.create((theme) => ({
         marginBottom: 4,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+    },
+    valueContainer: {
+        backgroundColor: theme.colors.surfaceRipple,
+        borderRadius: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
     },
 }));

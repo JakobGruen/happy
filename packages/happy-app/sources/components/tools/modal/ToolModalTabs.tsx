@@ -60,7 +60,7 @@ export const ToolModalTabs = React.memo<ToolModalTabsProps>(
                         <VerticalParameterStack parameters={tool.input} />
                     )}
                     {activeTab === 'output' && !hideOutput && (
-                        <OutputContent content={tool.result} />
+                        <OutputContent result={tool.result} testID="output-content" />
                     )}
                 </View>
             </View>
