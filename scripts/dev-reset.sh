@@ -69,12 +69,25 @@ fi
 # --cli implies --wire (dependency)
 [[ $DO_CLI -eq 1 ]] && DO_WIRE=1
 
+# Detect package manager (Bun or Yarn)
+if command -v bun &>/dev/null && [[ -f "$REPO_ROOT/bun.lock" ]]; then
+    PM="bun"
+    PM_INSTALL="bun install"
+    PM_CACHE_CLEAN="bun pm cache rm"
+    ws() { bun run --filter "$1" "${@:2}"; }
+else
+    PM="yarn"
+    PM_INSTALL="yarn install"
+    PM_CACHE_CLEAN="yarn cache clean"
+    ws() { yarn workspace "$1" "${@:2}"; }
+fi
+
 ERRORS=0
 
 # --- Install ---
 if [[ $DO_INSTALL -eq 1 ]]; then
-    step "Reinstalling dependencies (yarn cache clean + yarn install)"
-    if yarn cache clean 2>&1 && yarn install 2>&1; then
+    step "Reinstalling dependencies ($PM_CACHE_CLEAN + $PM_INSTALL)"
+    if eval "$PM_CACHE_CLEAN" 2>&1 && eval "$PM_INSTALL" 2>&1; then
         ok "Dependencies reinstalled"
     else
         fail "Install failed"; ERRORS=$((ERRORS + 1))
@@ -84,7 +97,7 @@ fi
 # --- Wire ---
 if [[ $DO_WIRE -eq 1 ]]; then
     step "Building happy-wire"
-    if yarn workspace @jakobgruen/happy-wire build 2>&1; then
+    if ws @jakobgruen/happy-wire build 2>&1; then
         ok "Wire built"
     else
         fail "Wire build failed"; ERRORS=$((ERRORS + 1))
@@ -97,7 +110,7 @@ fi
 # --- CLI ---
 if [[ $DO_CLI -eq 1 ]]; then
     step "Building happy-coder (CLI)"
-    if yarn workspace happy-coder build 2>&1; then
+    if ws happy-coder build 2>&1; then
         ok "CLI built"
     else
         fail "CLI build failed"; ERRORS=$((ERRORS + 1))
@@ -107,9 +120,9 @@ fi
 # --- Daemon ---
 if [[ $DO_DAEMON -eq 1 ]]; then
     step "Restarting CLI daemon (dev)"
-    yarn workspace happy-coder dev:daemon:stop 2>&1 || true
+    ws happy-coder dev:daemon:stop 2>&1 || true
     sleep 1
-    if yarn workspace happy-coder dev:daemon:start 2>&1; then
+    if ws happy-coder dev:daemon:start 2>&1; then
         ok "Daemon restarted"
     else
         fail "Daemon failed to start"; ERRORS=$((ERRORS + 1))
@@ -120,7 +133,7 @@ fi
 if [[ $DO_SERVER -eq 1 ]]; then
     step "Restarting dev server (port 3005)"
     SERVER_LOG="/tmp/happy-server-dev-$$.log"
-    nohup yarn workspace happy-server dev > "$SERVER_LOG" 2>&1 &
+    nohup ws happy-server dev > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     sleep 3
     if kill -0 "$SERVER_PID" 2>/dev/null; then
@@ -136,7 +149,7 @@ fi
 # --- Typecheck ---
 if [[ $DO_TYPECHECK -eq 1 ]]; then
     step "Running app typecheck"
-    if yarn workspace happy-app typecheck 2>&1; then
+    if ws happy-app typecheck 2>&1; then
         ok "Typecheck passed"
     else
         fail "Typecheck failed"; ERRORS=$((ERRORS + 1))
@@ -153,12 +166,12 @@ if [[ $DO_METRO -eq 1 ]]; then
     sleep 1
     ok "Stopped existing Metro process (if any)"
 
-    # Reinstall app deps (yarn install already done if DO_INSTALL, but Metro reset is self-sufficient)
-    yarn install 2>&1 || { fail "yarn install failed"; ERRORS=$((ERRORS + 1)); }
+    # Reinstall app deps ($PM_INSTALL already done if DO_INSTALL, but Metro reset is self-sufficient)
+    eval "$PM_INSTALL" 2>&1 || { fail "$PM_INSTALL failed"; ERRORS=$((ERRORS + 1)); }
 
     # Start Metro with cache cleared
     METRO_LOG="/tmp/happy-metro-dev-$$.log"
-    nohup yarn workspace happy-app start --clear > "$METRO_LOG" 2>&1 &
+    nohup ws happy-app start --clear > "$METRO_LOG" 2>&1 &
     METRO_PID=$!
     sleep 3
     if kill -0 "$METRO_PID" 2>/dev/null; then
