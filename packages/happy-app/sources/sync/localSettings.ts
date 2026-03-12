@@ -15,6 +15,8 @@ export const LocalSettingsSchema = z.object({
     pipecatAuthSecret: z.string().describe('Access secret for direct Pipecat server connections'),
     // CLI version acknowledgments - keyed by machineId
     acknowledgedCliVersions: z.record(z.string(), z.string()).describe('Acknowledged CLI versions per machine'),
+    // Tool modal heights - keyed by tool name
+    toolModalHeights: z.record(z.string(), z.number()).describe('Saved tool modal heights per tool as fraction of screen (0–1)'),
 });
 
 //
@@ -39,6 +41,7 @@ export const localSettingsDefaults: LocalSettings = {
     pipecatUrl: '',
     pipecatAuthSecret: '',
     acknowledgedCliVersions: {},
+    toolModalHeights: {},
 };
 Object.freeze(localSettingsDefaults);
 
