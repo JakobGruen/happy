@@ -1,45 +1,49 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// --- Hoisted test state ---
-const testState = vi.hoisted(() => {
+// --- Hoisted test state and mocks ---
+const mocks = vi.hoisted(() => {
     const sessions: Record<string, { id: string; accountId: string; active: boolean; lastActiveAt: Date }> = {};
-    return { sessions };
+
+    const dbMock = {
+        session: {
+            findUnique: vi.fn(async ({ where }: any) => {
+                const session = sessions[where.id];
+                if (!session || (where.accountId && session.accountId !== where.accountId)) {
+                    return null;
+                }
+                return session;
+            }),
+            update: vi.fn(async ({ where, data }: any) => {
+                const session = sessions[where.id];
+                if (session) {
+                    Object.assign(session, data);
+                }
+                return session;
+            }),
+        },
+    };
+
+    const emitEphemeralMock = vi.fn();
+    const buildSessionActivityEphemeralMock = vi.fn(
+        (sid: string, active: boolean, time: number, thinking: boolean) => ({
+            type: 'session-activity',
+            sid,
+            active,
+            time,
+            thinking,
+        })
+    );
+
+    return { sessions, dbMock, emitEphemeralMock, buildSessionActivityEphemeralMock };
 });
 
-const dbMock = {
-    session: {
-        findUnique: vi.fn(async ({ where }: any) => {
-            const session = testState.sessions[where.id];
-            if (!session || (where.accountId && session.accountId !== where.accountId)) {
-                return null;
-            }
-            return session;
-        }),
-        update: vi.fn(async ({ where, data }: any) => {
-            const session = testState.sessions[where.id];
-            if (session) {
-                Object.assign(session, data);
-            }
-            return session;
-        }),
-    },
-};
-
-const emitEphemeralMock = vi.fn();
-const buildSessionActivityEphemeralMock = vi.fn(
-    (sid: string, active: boolean, time: number, thinking: boolean) => ({
-        type: 'session-activity',
-        sid,
-        active,
-        time,
-        thinking,
-    })
-);
-
-vi.mock('@/storage/db', () => ({ db: dbMock }));
+vi.mock('@/storage/db', () => {
+    // Diagnostic: confirm mock is being created
+    return { db: mocks.dbMock };
+});
 vi.mock('@/app/events/eventRouter', () => ({
-    eventRouter: { emitEphemeral: emitEphemeralMock },
-    buildSessionActivityEphemeral: buildSessionActivityEphemeralMock,
+    eventRouter: { emitEphemeral: mocks.emitEphemeralMock },
+    buildSessionActivityEphemeral: mocks.buildSessionActivityEphemeralMock,
     buildNewMessageUpdate: vi.fn(),
     buildUpdateSessionUpdate: vi.fn(),
 }));
@@ -57,7 +61,8 @@ vi.mock('@/storage/seq', () => ({
 vi.mock('@/utils/log', () => ({ log: vi.fn() }));
 vi.mock('@/utils/randomKeyNaked', () => ({ randomKeyNaked: vi.fn(() => 'test-key') }));
 
-const { sessionUpdateHandler } = await import('./sessionUpdateHandler');
+// Import handler AFTER mocks are registered (using regular import, not dynamic)
+import { sessionUpdateHandler } from './sessionUpdateHandler';
 
 // Helper: extract a registered socket handler by event name
 function extractHandler(eventName: string): (...args: any[]) => Promise<void> {
@@ -78,26 +83,26 @@ describe('session-start handler', () => {
     beforeEach(() => {
         handler = extractHandler('session-start');
         // Reset state
-        for (const key of Object.keys(testState.sessions)) {
-            delete testState.sessions[key];
+        for (const key of Object.keys(mocks.sessions)) {
+            delete mocks.sessions[key];
         }
-        testState.sessions['s1'] = {
+        mocks.sessions['s1'] = {
             id: 's1',
             accountId: 'user-1',
             active: false,
             lastActiveAt: new Date(0),
         };
-        dbMock.session.findUnique.mockClear();
-        dbMock.session.update.mockClear();
-        emitEphemeralMock.mockClear();
-        buildSessionActivityEphemeralMock.mockClear();
+        mocks.dbMock.session.findUnique.mockClear();
+        mocks.dbMock.session.update.mockClear();
+        mocks.emitEphemeralMock.mockClear();
+        mocks.buildSessionActivityEphemeralMock.mockClear();
     });
 
     it('marks session as active', async () => {
         const now = Date.now();
         await handler({ sid: 's1', time: now });
 
-        expect(dbMock.session.update).toHaveBeenCalledWith({
+        expect(mocks.dbMock.session.update).toHaveBeenCalledWith({
             where: { id: 's1' },
             data: { lastActiveAt: expect.any(Date), active: true },
         });
@@ -107,7 +112,7 @@ describe('session-start handler', () => {
         const now = Date.now();
         await handler({ sid: 's1', time: now });
 
-        expect(emitEphemeralMock).toHaveBeenCalledWith({
+        expect(mocks.emitEphemeralMock).toHaveBeenCalledWith({
             userId: 'user-1',
             payload: expect.objectContaining({ type: 'session-activity', sid: 's1', active: true }),
             recipientFilter: { type: 'user-scoped-only' },
@@ -118,8 +123,8 @@ describe('session-start handler', () => {
         const futureTime = Date.now() + 60_000;
         await handler({ sid: 's1', time: futureTime });
 
-        expect(dbMock.session.update).toHaveBeenCalled();
-        const updateData = dbMock.session.update.mock.calls[0][0].data;
+        expect(mocks.dbMock.session.update).toHaveBeenCalled();
+        const updateData = mocks.dbMock.session.update.mock.calls[0][0].data;
         expect(updateData.lastActiveAt.getTime()).toBeLessThanOrEqual(Date.now());
     });
 
@@ -127,29 +132,29 @@ describe('session-start handler', () => {
         const staleTime = Date.now() - 11 * 60 * 1000;
         await handler({ sid: 's1', time: staleTime });
 
-        expect(dbMock.session.findUnique).not.toHaveBeenCalled();
-        expect(dbMock.session.update).not.toHaveBeenCalled();
+        expect(mocks.dbMock.session.findUnique).not.toHaveBeenCalled();
+        expect(mocks.dbMock.session.update).not.toHaveBeenCalled();
     });
 
     it('rejects non-numeric time', async () => {
         await handler({ sid: 's1', time: 'not-a-number' });
 
-        expect(dbMock.session.findUnique).not.toHaveBeenCalled();
-        expect(dbMock.session.update).not.toHaveBeenCalled();
+        expect(mocks.dbMock.session.findUnique).not.toHaveBeenCalled();
+        expect(mocks.dbMock.session.update).not.toHaveBeenCalled();
     });
 
     it('rejects session not owned by user', async () => {
-        testState.sessions['s1'].accountId = 'other-user';
+        mocks.sessions['s1'].accountId = 'other-user';
         await handler({ sid: 's1', time: Date.now() });
 
-        expect(dbMock.session.findUnique).toHaveBeenCalled();
-        expect(dbMock.session.update).not.toHaveBeenCalled();
+        expect(mocks.dbMock.session.findUnique).toHaveBeenCalled();
+        expect(mocks.dbMock.session.update).not.toHaveBeenCalled();
     });
 
     it('does nothing for non-existent session', async () => {
         await handler({ sid: 'nonexistent', time: Date.now() });
 
-        expect(dbMock.session.update).not.toHaveBeenCalled();
-        expect(emitEphemeralMock).not.toHaveBeenCalled();
+        expect(mocks.dbMock.session.update).not.toHaveBeenCalled();
+        expect(mocks.emitEphemeralMock).not.toHaveBeenCalled();
     });
 });
