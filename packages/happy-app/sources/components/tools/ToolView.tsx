@@ -209,10 +209,10 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     );
 
     return (
-        <View style={styles.container}>
+        <View style={styles.container} testID="tool-view">
             <View style={styles.header}>
                 {isPressable ? (
-                    <TouchableOpacity style={styles.headerMain} onPress={handlePress} activeOpacity={0.8}>
+                    <TouchableOpacity testID="tool-header" style={styles.headerMain} onPress={handlePress} activeOpacity={0.8}>
                         {headerContent}
                     </TouchableOpacity>
                 ) : (
@@ -245,7 +245,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
             {/* 2-Line Preview (static, always visible) */}
             {!minimal && (
-                <View style={styles.previewContainer}>
+                <View style={styles.previewContainer} testID="content-preview">
                     <ContentPreview tool={tool} />
                 </View>
             )}
@@ -257,6 +257,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 metadata={props.metadata}
                 onClose={() => setIsModalVisible(false)}
                 hideOutput={tool.permission?.status === 'pending'}
+                testID="tool-modal"
             />
 
             {/* Permission footer - always renders when permission exists to maintain consistent height */}

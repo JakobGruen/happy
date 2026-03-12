@@ -5,7 +5,7 @@ import { CodeView } from '@/components/CodeView';
 
 interface VariableFormatterProps {
     name: string;
-    value: any;
+    value: unknown;
     isVertical?: boolean;
 }
 

@@ -12,10 +12,11 @@ interface ToolModalProps {
     metadata: Metadata | null;
     onClose: () => void;
     hideOutput?: boolean;
+    testID?: string;
 }
 
 export const ToolModal = React.memo<ToolModalProps>(
-    ({ visible, tool, metadata, onClose, hideOutput }) => {
+    ({ visible, tool, metadata, onClose, hideOutput, testID }) => {
         const { theme } = useUnistyles();
 
         return (
@@ -24,18 +25,20 @@ export const ToolModal = React.memo<ToolModalProps>(
                 animationType="slide"
                 transparent={true}
                 onRequestClose={onClose}
+                testID={testID}
             >
                 <Pressable
                     style={styles.backdrop}
                     onPress={onClose}
+                    testID="modal-backdrop"
                 />
-                <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surfaceHigh }]}>
+                <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surfaceHigh }]} testID="modal-safe-area">
                     {/* Modal Header */}
                     <View style={[styles.header, { borderBottomColor: theme.colors.surfaceRipple }]}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.toolName}>{tool.name}</Text>
+                            <Text style={styles.toolName} testID="modal-title">{tool.name}</Text>
                         </View>
-                        <Pressable onPress={onClose} hitSlop={8}>
+                        <Pressable testID="modal-close-button" onPress={onClose} hitSlop={8}>
                             <Ionicons name="close" size={24} color={theme.colors.text} />
                         </Pressable>
                     </View>

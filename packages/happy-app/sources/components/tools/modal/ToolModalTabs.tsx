@@ -20,10 +20,11 @@ export const ToolModalTabs = React.memo<ToolModalTabsProps>(
         const outputCount = tool.result ? Object.keys(tool.result).length : 0;
 
         return (
-            <View style={styles.container}>
+            <View style={styles.container} testID="modal-tabs">
                 {/* Tab Headers */}
                 <View style={styles.tabHeader}>
                     <Pressable
+                        testID="tab-input"
                         style={[
                             styles.tabButton,
                             activeTab === 'input' && styles.tabButtonActive,
@@ -37,6 +38,7 @@ export const ToolModalTabs = React.memo<ToolModalTabsProps>(
 
                     {!hideOutput && (
                         <Pressable
+                            testID="tab-output"
                             style={[
                                 styles.tabButton,
                                 activeTab === 'output' && styles.tabButtonActive,
@@ -51,12 +53,12 @@ export const ToolModalTabs = React.memo<ToolModalTabsProps>(
                 </View>
 
                 {/* Tab Content */}
-                <View style={styles.tabContent}>
+                <View style={styles.tabContent} testID="tab-content">
                     {activeTab === 'input' && (
-                        <VerticalParameterStack parameters={tool.input} />
+                        <VerticalParameterStack parameters={tool.input} testID="input-parameters" />
                     )}
                     {activeTab === 'output' && !hideOutput && (
-                        <VerticalParameterStack parameters={tool.result} />
+                        <VerticalParameterStack parameters={tool.result} testID="output-parameters" />
                     )}
                 </View>
             </View>

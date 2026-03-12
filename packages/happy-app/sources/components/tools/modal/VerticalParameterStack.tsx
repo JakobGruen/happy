@@ -4,12 +4,13 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { VariableFormatter } from '../adaptive/VariableFormatter';
 
 interface VerticalParameterStackProps {
-    parameters: Record<string, any>;
+    parameters: Record<string, unknown>;
     hideOutput?: boolean; // For permission pending state
+    testID?: string;
 }
 
 export const VerticalParameterStack = React.memo<VerticalParameterStackProps>(
-    ({ parameters, hideOutput }) => {
+    ({ parameters, hideOutput, testID }) => {
         const { theme } = useUnistyles();
 
         const entries = Object.entries(parameters || {}).filter(
@@ -18,14 +19,14 @@ export const VerticalParameterStack = React.memo<VerticalParameterStackProps>(
 
         if (entries.length === 0) {
             return (
-                <View style={styles.emptyContainer}>
+                <View style={styles.emptyContainer} testID={testID ? `${testID}-empty` : undefined}>
                     <Text style={styles.emptyText}>No parameters</Text>
                 </View>
             );
         }
 
         return (
-            <View style={styles.container}>
+            <View style={styles.container} testID={testID}>
                 {entries.map(([key, value], idx) => (
                     <View key={`${key}-${idx}`} style={styles.parameterGroup}>
                         <Text style={styles.parameterName}>{key}</Text>

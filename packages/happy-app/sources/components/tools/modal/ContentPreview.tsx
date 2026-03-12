@@ -6,9 +6,10 @@ import { analyzeContent, formatSize } from '../adaptive/contentAnalyzer';
 
 interface ContentPreviewProps {
     tool: ToolCall;
+    testID?: string;
 }
 
-export const ContentPreview = React.memo<ContentPreviewProps>(({ tool }) => {
+export const ContentPreview = React.memo<ContentPreviewProps>(({ tool, testID }) => {
     const { theme } = useUnistyles();
 
     // Get first line of output or first parameter
@@ -41,12 +42,12 @@ export const ContentPreview = React.memo<ContentPreviewProps>(({ tool }) => {
     }, [tool.result]);
 
     return (
-        <View>
-            <Text style={[styles.previewLine, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+        <View testID={testID}>
+            <Text testID={testID ? `${testID}-line` : undefined} style={[styles.previewLine, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                 {previewLine}
             </Text>
             {badge && (
-                <Text style={[styles.badge, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                <Text testID={testID ? `${testID}-badge` : undefined} style={[styles.badge, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                     {badge}
                 </Text>
             )}

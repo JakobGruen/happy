@@ -11,6 +11,8 @@ describe('Reducer - Skill Expansion Message Linking', () => {
             role: 'agent',
             id: 'msg-skill-1',
             createdAt: Date.now(),
+            isSidechain: false,
+            localId: null,
             content: [
                 {
                     type: 'tool-call',
@@ -20,7 +22,9 @@ describe('Reducer - Skill Expansion Message Linking', () => {
                         skill: 'test:skill',
                         args: 'test args'
                     },
-                    description: 'Skill call'
+                    description: 'Skill call',
+                    uuid: 'uuid-skill-1',
+                    parentUUID: null
                 }
             ]
         };
@@ -30,10 +34,14 @@ describe('Reducer - Skill Expansion Message Linking', () => {
             role: 'agent',
             id: 'msg-skill-expansion-1',
             createdAt: Date.now() + 1000,
+            isSidechain: false,
+            localId: null,
             content: [
                 {
                     type: 'text',
-                    text: 'Base directory for this skill: /home/user/.claude/skills\n\n# Skill Documentation\n\nThis is detailed skill content that should appear in the detail view.'
+                    text: 'Base directory for this skill: /home/user/.claude/skills\\n\\n# Skill Documentation\\n\\nThis is detailed skill content that should appear in the detail view.',
+                    uuid: 'uuid-skill-expansion-1',
+                    parentUUID: null
                 }
             ]
         };
