@@ -2,6 +2,12 @@
 
 This document describes how to deploy the Happy backend (`packages/happy-server`) and the infrastructure it expects.
 
+## Package Manager: Bun
+
+This project uses **Bun 1.3.10** as the primary package manager. Production Docker image (`Dockerfile.server`) compiles to a standalone Bun binary, eliminating Node.js runtime dependency.
+
+Local development auto-detects Bun or falls back to Yarn (`dev-reset.sh` handles both).
+
 ## Runtime overview
 - **App server:** Node.js running `tsx ./sources/main.ts` (Fastify + Socket.IO).
 - **Database:** Postgres via Prisma.
@@ -62,11 +68,11 @@ The deployment config expects:
 
 ## Local dev helpers
 The server package includes scripts for local infrastructure:
-- `yarn workspace happy-server db` (Postgres in Docker)
-- `yarn workspace happy-server redis`
-- `yarn workspace happy-server s3` + `s3:init`
+- `bun run --filter happy-server db` (Postgres in Docker)
+- `bun run --filter happy-server redis`
+- `bun run --filter happy-server s3` + `s3:init`
 
-Use `.env`/`.env.dev` to load local settings when running `yarn workspace happy-server dev`.
+Use `.env`/`.env.dev` to load local settings when running `bun run --filter happy-server dev`.
 
 ## Implementation references
 - Entrypoint: `packages/happy-server/sources/main.ts`
