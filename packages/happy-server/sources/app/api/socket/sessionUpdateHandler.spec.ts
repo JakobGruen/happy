@@ -59,11 +59,23 @@ describe('session-start handler', () => {
   beforeEach(async () => {
     handler = extractHandler('session-start');
 
+    // Create test account first (foreign key requirement)
+    await db.account.upsert({
+      where: { id: 'user-1' },
+      update: {},
+      create: {
+        id: 'user-1',
+        publicKey: 'test-public-key-user-1',
+      },
+    });
+
     // Create real test session in database
     await db.session.create({
       data: {
         id: 's1',
+        tag: 'test-session',
         accountId: 'user-1',
+        metadata: '{}',
         active: false,
         lastActiveAt: new Date(0),
       },
@@ -71,9 +83,12 @@ describe('session-start handler', () => {
   });
 
   afterEach(async () => {
-    // Clean up test session
+    // Clean up test session and account
     await db.session.deleteMany({
       where: { id: 's1' },
+    });
+    await db.account.deleteMany({
+      where: { id: 'user-1' },
     });
   });
 
@@ -132,11 +147,23 @@ describe('session-start handler', () => {
   });
 
   it('rejects session not owned by user', async () => {
+    // Create account for different user
+    await db.account.upsert({
+      where: { id: 'other-user' },
+      update: {},
+      create: {
+        id: 'other-user',
+        publicKey: 'test-public-key-other-user',
+      },
+    });
+
     // Create a session with different owner
     await db.session.create({
       data: {
         id: 's2',
+        tag: 'test-session-2',
         accountId: 'other-user',
+        metadata: '{}',
         active: false,
         lastActiveAt: new Date(0),
       },
@@ -151,6 +178,7 @@ describe('session-start handler', () => {
 
     // Clean up
     await db.session.deleteMany({ where: { id: 's2' } });
+    await db.account.deleteMany({ where: { id: 'other-user' } });
   });
 
   it('does nothing for non-existent session', async () => {
