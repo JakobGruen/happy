@@ -37,33 +37,37 @@ COPY packages/happy-wire ./packages/happy-wire
 COPY packages/happy-server ./packages/happy-server
 
 RUN bun run --filter @jakobgruen/happy-wire build
-RUN bun run --filter happy-server build
+RUN bun run --filter happy-server build:standalone
 
-# Stage 3: runtime (slim image, dist-only)
-FROM oven/bun:1-slim AS runner
+# Stage 3: runtime (minimal debian + compiled binary only)
+FROM debian:bookworm-slim AS runner
 
 WORKDIR /repo
 
-# Runtime dependencies (ffmpeg for media processing)
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+# Runtime dependencies (ca-certificates for TLS, ffmpeg for media processing)
+RUN apt-get update && apt-get install -y ca-certificates libssl3 ffmpeg && rm -rf /var/lib/apt/lists/*
 
 # Set environment to production
 ENV NODE_ENV=production
 
-# Copy only node_modules (with devDependencies pruned)
-COPY --from=builder /repo/node_modules /repo/node_modules
+# Copy only the compiled standalone binary
+COPY --from=builder /repo/packages/happy-server/dist/happy-server /repo/packages/happy-server/dist/happy-server
 
-# Copy only dist/ folders (compiled code, no source .ts files)
-COPY --from=builder /repo/packages/happy-wire/dist /repo/packages/happy-wire/dist
-COPY --from=builder /repo/packages/happy-server/dist /repo/packages/happy-server/dist
+# Copy PGlite WASM files (required by standalone binary)
+COPY --from=builder /repo/packages/happy-server/dist/pglite.wasm /repo/packages/happy-server/dist/
+COPY --from=builder /repo/packages/happy-server/dist/pglite.data /repo/packages/happy-server/dist/
 
-# Copy only runtime-necessary config files
-COPY --from=builder /repo/packages/happy-server/package.json /repo/packages/happy-server/
-COPY --from=builder /repo/packages/happy-wire/package.json /repo/packages/happy-wire/
+# Copy Prisma files for migrations
 COPY --from=builder /repo/packages/happy-server/prisma /repo/packages/happy-server/prisma
+
+# Copy package.json for prisma CLI
+COPY --from=builder /repo/packages/happy-server/package.json /repo/packages/happy-server/
+COPY --from=builder /repo/package.json ./
 
 # Expose the port the app will run on
 EXPOSE 3005
 
-# Run migrations then start the server
-CMD sh -c "cd packages/happy-server && bunx prisma migrate deploy && cd /repo && bun run --filter happy-server start"
+# Run migrations then start the compiled binary
+# standalone migrate applies PGlite migrations; standalone serve starts the server
+# (If DATABASE_URL is set, serve connects to external Postgres instead of PGlite)
+CMD sh -c "/repo/packages/happy-server/dist/happy-server migrate && /repo/packages/happy-server/dist/happy-server serve"
