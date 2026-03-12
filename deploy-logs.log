@@ -1,0 +1,118 @@
+2026-Mar-12 20:07:54.663329 Starting deployment of JakobGruen/happy.git:main to localhost.
+2026-Mar-12 20:07:55.161862 Preparing container with helper image: ghcr.io/coollabsio/coolify-helper:1.0.12
+2026-Mar-12 20:07:57.084630 ----------------------------------------
+2026-Mar-12 20:07:57.089240 Importing JakobGruen/happy.git:main (commit sha 12d1e8929f87a8b186dc47f36c53937601c6d7e8) to /artifacts/qc4s48wo8880ockg04c8csg4.
+2026-Mar-12 20:08:03.977231 Image not found (e84kg4wg8kgc84cs0wc8go00:12d1e8929f87a8b186dc47f36c53937601c6d7e8). Building new image.
+2026-Mar-12 20:08:07.090698 ----------------------------------------
+2026-Mar-12 20:08:07.099312 Building docker image started.
+2026-Mar-12 20:08:07.104648 To check the current progress, click on Show Debug Logs.
+2026-Mar-12 20:08:09.773206 ========================================
+2026-Mar-12 20:08:09.778728 Deployment failed: Command execution failed (exit code 1): docker exec qc4s48wo8880ockg04c8csg4 bash -c 'bash /artifacts/build.sh'
+2026-Mar-12 20:08:09.778728 Error: #0 building with "default" instance using docker driver
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #1 [internal] load build definition from Dockerfile.server
+2026-Mar-12 20:08:09.778728 #1 transferring dockerfile: 3.82kB done
+2026-Mar-12 20:08:09.778728 #1 DONE 0.0s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #2 [internal] load metadata for docker.io/oven/bun:1
+2026-Mar-12 20:08:09.778728 #2 ...
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #3 [internal] load metadata for docker.io/library/debian:bookworm-slim
+2026-Mar-12 20:08:09.778728 #3 DONE 0.5s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #2 [internal] load metadata for docker.io/oven/bun:1
+2026-Mar-12 20:08:09.778728 #2 DONE 0.5s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #4 [internal] load .dockerignore
+2026-Mar-12 20:08:09.778728 #4 transferring context: 163B done
+2026-Mar-12 20:08:09.778728 #4 DONE 0.0s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #5 [deps  1/16] FROM docker.io/oven/bun:1@sha256:b86c67b531d87b4db11470d9b2bd0c519b1976eee6fcd71634e73abfa6230d2e
+2026-Mar-12 20:08:09.778728 #5 resolve docker.io/oven/bun:1@sha256:b86c67b531d87b4db11470d9b2bd0c519b1976eee6fcd71634e73abfa6230d2e 0.0s done
+2026-Mar-12 20:08:09.778728 #5 DONE 0.0s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #6 [runner 1/9] FROM docker.io/library/debian:bookworm-slim@sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
+2026-Mar-12 20:08:09.778728 #6 resolve docker.io/library/debian:bookworm-slim@sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421 0.0s done
+2026-Mar-12 20:08:09.778728 #6 DONE 0.0s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #7 [internal] load build context
+2026-Mar-12 20:08:09.778728 #7 transferring context: 1.66MB 0.0s done
+2026-Mar-12 20:08:09.778728 #7 DONE 0.0s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #8 [deps  4/16] COPY package.json yarn.lock bun.lock ./
+2026-Mar-12 20:08:09.778728 #8 CACHED
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #9 [deps  2/16] RUN apt-get update && apt-get install -y python3 make g++ build-essential && rm -rf /var/lib/apt/lists/*
+2026-Mar-12 20:08:09.778728 #9 CACHED
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #10 [deps  6/16] COPY patches ./patches
+2026-Mar-12 20:08:09.778728 #10 CACHED
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #11 [deps  7/16] RUN mkdir -p packages/happy-app packages/happy-server packages/happy-cli packages/happy-wire packages/happy-agent
+2026-Mar-12 20:08:09.778728 #11 CACHED
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #12 [deps  5/16] COPY scripts ./scripts
+2026-Mar-12 20:08:09.778728 #12 CACHED
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #13 [deps  3/16] WORKDIR /repo
+2026-Mar-12 20:08:09.778728 #13 CACHED
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #14 [deps  8/16] COPY packages/happy-wire/package.json packages/happy-wire/
+2026-Mar-12 20:08:09.778728 #14 CACHED
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #15 [deps  9/16] COPY packages/happy-server/package.json packages/happy-server/
+2026-Mar-12 20:08:09.778728 #15 DONE 0.1s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #16 [deps 10/16] RUN echo '{"name":"happy-app","version":"1.0.0","private":true}' > packages/happy-app/package.json
+2026-Mar-12 20:08:09.778728 #16 DONE 0.1s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #17 [deps 11/16] RUN echo '{"name":"happy-coder","version":"0.1.0","private":true}' > packages/happy-cli/package.json
+2026-Mar-12 20:08:09.778728 #17 DONE 0.1s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #18 [deps 12/16] RUN echo '{"name":"@slopus/agent","version":"0.1.0","private":true}' > packages/happy-agent/package.json
+2026-Mar-12 20:08:09.778728 #18 DONE 0.1s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #19 [deps 13/16] COPY packages/happy-server/prisma packages/happy-server/prisma
+2026-Mar-12 20:08:09.778728 #19 DONE 0.0s
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 #20 [deps 14/16] RUN NODE_ENV=development SKIP_HAPPY_WIRE_BUILD=1 bun install --ignore-scripts
+2026-Mar-12 20:08:09.778728 #20 0.137 bun install v1.3.10 (30e609e0)
+2026-Mar-12 20:08:09.778728 #20 0.175 35 |     \"yaml\": \"^2.4.2\",
+2026-Mar-12 20:08:09.778728 #20 0.175          ^
+2026-Mar-12 20:08:09.778728 #20 0.175 error: Unexpected escaped double quote '"'
+2026-Mar-12 20:08:09.778728 #20 0.175     at /repo/packages/happy-server/package.json:35:5
+2026-Mar-12 20:08:09.778728 #20 0.175
+2026-Mar-12 20:08:09.778728 #20 0.175 17 |             "packages/happy-server",
+2026-Mar-12 20:08:09.778728 #20 0.175                  ^
+2026-Mar-12 20:08:09.778728 #20 0.175 error: SyntaxError reading package.json for workspace package "packages/happy-server" from "/repo"
+2026-Mar-12 20:08:09.778728 #20 0.175     at /repo/package.json:17:13
+2026-Mar-12 20:08:09.778728 #20 ERROR: process "/bin/sh -c NODE_ENV=development SKIP_HAPPY_WIRE_BUILD=1 bun install --ignore-scripts" did not complete successfully: exit code: 1
+2026-Mar-12 20:08:09.778728 ------
+2026-Mar-12 20:08:09.778728 > [deps 14/16] RUN NODE_ENV=development SKIP_HAPPY_WIRE_BUILD=1 bun install --ignore-scripts:
+2026-Mar-12 20:08:09.778728 0.137 bun install v1.3.10 (30e609e0)
+2026-Mar-12 20:08:09.778728 0.175 35 |     \"yaml\": \"^2.4.2\",
+2026-Mar-12 20:08:09.778728 0.175          ^
+2026-Mar-12 20:08:09.778728 0.175 error: Unexpected escaped double quote '"'
+2026-Mar-12 20:08:09.778728 0.175     at /repo/packages/happy-server/package.json:35:5
+2026-Mar-12 20:08:09.778728 0.175
+2026-Mar-12 20:08:09.778728 0.175 17 |             "packages/happy-server",
+2026-Mar-12 20:08:09.778728 0.175                  ^
+2026-Mar-12 20:08:09.778728 0.175 error: SyntaxError reading package.json for workspace package "packages/happy-server" from "/repo"
+2026-Mar-12 20:08:09.778728 0.175     at /repo/package.json:17:13
+2026-Mar-12 20:08:09.778728 ------
+2026-Mar-12 20:08:09.778728 
+2026-Mar-12 20:08:09.778728 1 warning found (use docker --debug to expand):
+2026-Mar-12 20:08:09.778728 - JSONArgsRecommended: JSON arguments recommended for CMD to prevent unintended behavior related to OS signals (line 88)
+2026-Mar-12 20:08:09.778728 Dockerfile.server:33
+2026-Mar-12 20:08:09.778728 --------------------
+2026-Mar-12 20:08:09.778728 31 |     # Install with --ignore-scripts, then manually run what we need
+2026-Mar-12 20:08:09.778728 32 |     # NODE_ENV=development ensures devDependencies (typescript etc.) are installed
+2026-Mar-12 20:08:09.778728 33 | >>> RUN NODE_ENV=development SKIP_HAPPY_WIRE_BUILD=1 bun install --ignore-scripts
+2026-Mar-12 20:08:09.778728 34 |     RUN SKIP_HAPPY_WIRE_BUILD=1 bun scripts/postinstall.cjs
+2026-Mar-12 20:08:09.778728 35 |     RUN cd packages/happy-server && bunx prisma generate
+2026-Mar-12 20:08:09.778728 --------------------
+2026-Mar-12 20:08:09.778728 ERROR: failed to build: failed to solve: process "/bin/sh -c NODE_ENV=development SKIP_HAPPY_WIRE_BUILD=1 bun install --ignore-scripts" did not complete successfully: exit code: 1
+2026-Mar-12 20:08:09.778728 exit status 1
+2026-Mar-12 20:08:09.837538 ========================================
+2026-Mar-12 20:08:09.843827 Deployment failed. Removing the new version of your application.
+2026-Mar-12 20:08:10.826515 Gracefully shutting down build container: qc4s48wo8880ockg04c8csg4

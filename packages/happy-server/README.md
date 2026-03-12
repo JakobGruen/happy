@@ -33,7 +33,7 @@ That said, Happy Server is open source and self-hostable if you prefer running y
 The standalone Docker image runs everything in a single container with no external dependencies (no Postgres, no Redis, no S3).
 
 ```bash
-docker build -t happy-server -f Dockerfile .
+docker build -t happy-server -f Dockerfile.server .
 ```
 
 Run from the monorepo root:

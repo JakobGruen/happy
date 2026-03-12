@@ -184,11 +184,12 @@ Requires Docker to be running.
 
 ## Docker Deployment
 
-The project includes a multi-stage Dockerfile:
-1. Builder stage: Installs dependencies and builds the application
-2. Runner stage: Minimal runtime with only necessary files
-3. Exposes port 3000
-4. Requires FFmpeg and Python3 in the runtime
+The project includes a multi-stage `Dockerfile.server` (Bun-based) that replaces the legacy Node.js Dockerfile:
+1. Builder stage: Installs dependencies with Bun and builds standalone binary
+2. Prisma client generation: Regenerated in builder before standalone compile (critical for embedded mode)
+3. Runtime stage: Minimal `debian:bookworm-slim` base with only the standalone Bun binary
+4. Exposes port 3005 (note: changed from 3000)
+5. Uses PGlite (embedded PostgreSQL) by default, supports external Postgres via `DATABASE_URL`
 
 ## Important Reminders
 
