@@ -43,7 +43,7 @@ class ActivityCache {
             this.flushPendingUpdates().catch(error => {
                 log({ module: 'session-cache', level: 'error' }, `Error flushing updates: ${error}`);
             });
-        }, this.BATCH_INTERVAL);
+        }, this.BATCH_INTERVAL) as unknown as NodeJS.Timeout;
     }
 
     async isSessionValid(sessionId: string, userId: string): Promise<boolean> {

@@ -82,9 +82,9 @@ export const logger = pino(
                 };
             }
         },
-        timestamp: () => `,\"time\":${Date.now()},\"localTime\":\"${formatLocalTime()}\"`,
-    },
-    transports.length > 0 ? { targets: transports } : undefined
+        timestamp: () => `,\\\"time\\\":${Date.now()},\\\"localTime\\\":\\\"${formatLocalTime()}\\\"`,
+        ...(transports.length > 0 && { transport: { targets: transports } }),
+    }
 );
 
 // Optional file-only logger for remote logs from CLI/mobile
