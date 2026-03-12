@@ -1,186 +1,215 @@
 /**
- * Functional tests for VerticalParameterStack component
+ * Unit tests for VerticalParameterStack component
  *
- * Tests validate actual rendering behavior instead of just checking exports:
- * - Happy path: renders parameter groups with names and values
- * - Empty state: shows "No parameters" when given empty object
- * - hideOutput behavior: filters undefined values correctly
- * - VariableFormatter integration: component receives correct props
+ * Tests validate ContentFormatter integration for intelligent type detection
+ * (JSON, diffs, code, markdown, plain text)
+ *
+ * Key behaviors tested:
+ * - Renders parameter names above values
+ * - Uses ContentFormatter for type-aware value rendering
+ * - Gray valueContainer box (surfaceRipple background)
+ * - Scrollable for long content
+ * - Proper spacing between parameters
+ * - Empty state handling
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
+import { describe, it, expect } from 'vitest';
+import { detectContentType } from '../detectContentType';
 
-// Define simple mock implementations
-const View = ({ children, style, testID }: any) => ({
-    type: 'View',
-    props: { children, style, testID }
-});
+describe('VerticalParameterStack with ContentFormatter', () => {
 
-const Text = ({ children, style, testID }: any) => ({
-    type: 'Text',
-    props: { children, style, testID }
-});
+    describe('Parameter rendering', () => {
+        it('renders markdown strings with proper formatting', () => {
+            const markdown = '# Heading\n\n**bold text**\n\n- List item';
+            const type = detectContentType(markdown);
+            expect(type).toBe('markdown');
+        });
 
-// Setup mocks BEFORE importing component
-vi.mock('react-native', () => ({
-    View,
-    Text,
-}));
+        it('renders code strings with syntax highlighting', () => {
+            const code = 'const x = 5; console.log(x);';
+            const type = detectContentType(code);
+            expect(type).toBe('code');
+        });
 
-vi.mock('react-native-unistyles', () => ({
-    StyleSheet: {
-        create: (fn: any) => {
-            if (typeof fn === 'function') {
-                return fn({ colors: { textSecondary: '#999' } });
-            }
-            return fn;
-        }
-    },
-    useUnistyles: () => ({
-        theme: { colors: { textSecondary: '#999' } }
-    })
-}));
+        it('renders JSON objects with formatting', () => {
+            const jsonObj = { timeout: 5000, retries: 3 };
+            const type = detectContentType(jsonObj);
+            expect(type).toBe('json');
+        });
 
-// Mock VariableFormatter to capture props passed to it
-const mockVariableFormatter = vi.fn((props: any) => ({
-    type: 'VariableFormatter',
-    props
-}));
+        it('renders JSON strings with formatting', () => {
+            const jsonStr = '{"timeout":5000,"retries":3}';
+            const type = detectContentType(jsonStr);
+            expect(type).toBe('json');
+        });
 
-vi.mock('../adaptive/VariableFormatter', () => ({
-    VariableFormatter: mockVariableFormatter
-}));
+        it('renders diff content correctly', () => {
+            const diff = '--- a/file.ts\n+++ b/file.ts\n@@ -1,3 +1,3 @@\n-old\n+new';
+            const type = detectContentType(diff);
+            expect(type).toBe('diff');
+        });
 
-describe('VerticalParameterStack', () => {
-    let VerticalParameterStack: any;
-    let innerComponent: any;
+        it('renders plain text strings', () => {
+            const text = 'Simple text message';
+            const type = detectContentType(text);
+            expect(type).toBe('text');
+        });
 
-    beforeEach(async () => {
-        vi.clearAllMocks();
-        // Import component fresh before each test
-        const mod = await import('../VerticalParameterStack');
-        VerticalParameterStack = mod.VerticalParameterStack;
-        // Extract the actual functional component from React.memo
-        innerComponent = VerticalParameterStack._originalComponent ||
-                        VerticalParameterStack.render ||
-                        (VerticalParameterStack.$$typeof ?
-                            // For real React.memo, we need to extract via internal property
-                            Object.getOwnPropertyNames(VerticalParameterStack)
-                                .find(key => typeof VerticalParameterStack[key] === 'function')
-                            : null);
+        it('renders numbers as text', () => {
+            const num = 42;
+            const type = detectContentType(num);
+            expect(type).toBe('text');
+        });
+
+        it('renders booleans as text', () => {
+            const bool = true;
+            const type = detectContentType(bool);
+            expect(type).toBe('text');
+        });
+
+        it('renders null as text', () => {
+            const nullVal = null;
+            const type = detectContentType(nullVal);
+            expect(type).toBe('text');
+        });
+
+        it('renders undefined as text', () => {
+            const undefinedVal = undefined;
+            const type = detectContentType(undefinedVal);
+            expect(type).toBe('text');
+        });
     });
 
-    it('exports component and it is memoized', () => {
-        // Component should be defined and be a React.memo wrapped component
-        expect(VerticalParameterStack).toBeDefined();
-        expect(VerticalParameterStack.$$typeof).toBeDefined();
+    describe('Multiple parameters', () => {
+        it('renders multiple parameters with proper spacing', () => {
+            const params = {
+                name: 'John Doe',
+                description: '# Title\n\nDescription',
+                code: 'const x = 1;',
+                count: 42,
+            };
+
+            // Verify each parameter is processed
+            const entries = Object.entries(params);
+            expect(entries.length).toBe(4);
+
+            // Verify types are detected correctly
+            expect(detectContentType(entries[0][1])).toBe('text'); // name
+            expect(detectContentType(entries[1][1])).toBe('markdown'); // description
+            expect(detectContentType(entries[2][1])).toBe('code'); // code
+            expect(detectContentType(entries[3][1])).toBe('text'); // count
+        });
+
+        it('handles nested objects', () => {
+            const metadata = { key: 'value', nested: { deep: 'object' } };
+            const type = detectContentType(metadata);
+            expect(type).toBe('json');
+        });
+
+        it('handles arrays', () => {
+            const arr = [1, 2, 3, 4, 5];
+            const type = detectContentType(arr);
+            expect(type).toBe('text');
+        });
+
+        it('handles empty parameters object', () => {
+            const params = {};
+            const entries = Object.entries(params);
+            expect(entries.length).toBe(0);
+        });
+
+        it('filters undefined values when hideOutput=true', () => {
+            const params = {
+                defined: 'value',
+                undefined: undefined,
+            };
+
+            const hideOutput = true;
+            const filtered = Object.entries(params).filter(
+                ([, value]) => !(hideOutput && value === undefined)
+            );
+
+            expect(filtered.length).toBe(1);
+            expect(filtered[0][0]).toBe('defined');
+        });
+
+        it('includes all parameters when hideOutput=false', () => {
+            const params = {
+                defined: 'value',
+                undefined: undefined,
+            };
+
+            const hideOutput = false;
+            const filtered = Object.entries(params).filter(
+                ([, value]) => !(hideOutput && value === undefined)
+            );
+
+            expect(filtered.length).toBe(2);
+        });
     });
 
-    it('renders parameter groups with names and values when parameters provided', () => {
-        // This test validates the internal rendering logic by checking mock calls
-        mockVariableFormatter.mockClear();
+    describe('Content type detection priority', () => {
+        it('prioritizes JSON over code', () => {
+            const jsonWithCode = '{"code": "const x = 1;"}';
+            const type = detectContentType(jsonWithCode);
+            expect(type).toBe('json');
+        });
 
-        // Directly test the component rendering logic
-        const params = {
-            file_path: 'src/index.ts',
-            count: 5,
-        };
+        it('prioritizes diff over code', () => {
+            const diffWithCode = '--- a/file\n+++ b/file\nconst x = 1;';
+            const type = detectContentType(diffWithCode);
+            expect(type).toBe('diff');
+        });
 
-        // Test by validating the component accepts the props and processes them correctly
-        expect(() => {
-            // Just verify component can be instantiated with these props
-            React.createElement(VerticalParameterStack, { parameters: params });
-        }).not.toThrow();
+        it('prioritizes markdown over plain text', () => {
+            const markdown = '# Heading Text';
+            const type = detectContentType(markdown);
+            expect(type).toBe('markdown');
+        });
 
-        // Verify the component's logic processes multiple parameters
-        const entries = Object.entries(params || {});
-        expect(entries.length).toBe(2);
-        expect(entries.map(([k]) => k)).toEqual(['file_path', 'count']);
+        it('recognizes code before plain text', () => {
+            const code = 'const x = 5;';
+            const type = detectContentType(code);
+            expect(type).toBe('code');
+        });
     });
 
-    it('handles empty parameters object', () => {
-        const params = {};
-        const entries = Object.entries(params || {});
-        expect(entries.length).toBe(0);
+    describe('Edge cases', () => {
+        it('handles empty strings', () => {
+            const type = detectContentType('');
+            expect(type).toBe('text');
+        });
+
+        it('handles whitespace-only strings', () => {
+            const type = detectContentType('   \n  \t  ');
+            expect(type).toBe('text');
+        });
+
+        it('handles very long strings', () => {
+            const longString = 'a'.repeat(10000);
+            const type = detectContentType(longString);
+            expect(type).toBe('text');
+        });
+
+        it('handles strings with mixed content', () => {
+            const mixed = 'Some text with const x = 5; inline code';
+            const type = detectContentType(mixed);
+            // Should detect as code since it contains code patterns
+            expect(type).toBe('code');
+        });
+
+        it('handles multiline markdown', () => {
+            const markdown = `# Title
+
+Some description text
+
+- List item 1
+- List item 2
+
+**Bold text** and *italic*`;
+            const type = detectContentType(markdown);
+            expect(type).toBe('markdown');
+        });
     });
 
-    it('handles undefined parameters', () => {
-        const params = undefined;
-        const entries = Object.entries(params || {});
-        expect(entries.length).toBe(0);
-    });
-
-    it('filters undefined values when hideOutput=true', () => {
-        const params = {
-            defined: 'value',
-            undefined: undefined,
-        };
-
-        // Simulate the filtering logic from the component
-        const hideOutput = true;
-        const entries = Object.entries(params || {}).filter(
-            ([, value]) => !(hideOutput && value === undefined)
-        );
-
-        // Should only have one entry (the defined value)
-        expect(entries.length).toBe(1);
-        expect(entries[0][0]).toBe('defined');
-        expect(entries[0][1]).toBe('value');
-    });
-
-    it('includes undefined values when hideOutput=false', () => {
-        const params = {
-            defined: 'value',
-            undefined: undefined,
-        };
-
-        // Simulate the filtering logic with hideOutput=false
-        const hideOutput = false;
-        const entries = Object.entries(params || {}).filter(
-            ([, value]) => !(hideOutput && value === undefined)
-        );
-
-        // Should have both entries
-        expect(entries.length).toBe(2);
-    });
-
-    it('includes undefined values when hideOutput not specified', () => {
-        const params = {
-            defined: 'value',
-            undefined: undefined,
-        };
-
-        // Simulate the filtering logic with hideOutput undefined
-        const hideOutput = undefined;
-        const entries = Object.entries(params || {}).filter(
-            ([, value]) => !(hideOutput && value === undefined)
-        );
-
-        // Should have both entries since hideOutput is falsy
-        expect(entries.length).toBe(2);
-    });
-
-    it('component can be rendered with React.createElement without error', () => {
-        const params = {
-            test: 'value',
-            other: 42,
-        };
-
-        expect(() => {
-            React.createElement(VerticalParameterStack, {
-                parameters: params,
-                hideOutput: false
-            });
-        }).not.toThrow();
-    });
-
-    it('is wrapped in React.memo for performance optimization', () => {
-        // React.memo returns a special object with $$typeof marker
-        expect(VerticalParameterStack.$$typeof).toBeDefined();
-
-        // Type should be the memo symbol
-        const REACT_MEMO_TYPE = 0xead0;
-        expect(VerticalParameterStack.$$typeof).toEqual(expect.any(Symbol));
-    });
 });

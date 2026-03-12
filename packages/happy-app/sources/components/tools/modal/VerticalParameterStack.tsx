@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { VariableFormatter } from '../adaptive/VariableFormatter';
+import { ContentFormatter } from './ContentFormatter';
 
 interface VerticalParameterStackProps {
     parameters?: Record<string, any>;
@@ -9,6 +9,18 @@ interface VerticalParameterStackProps {
     isVertical?: boolean;
 }
 
+/**
+ * Renders parameters as vertical stack with names above values
+ * Values are intelligently formatted using ContentFormatter
+ * (detects JSON, diffs, code, markdown, plain text)
+ *
+ * Key features:
+ * - Parameter name displayed above value (uppercase, smaller font)
+ * - Value rendered through ContentFormatter for type detection
+ * - Gray valueContainer box (surfaceRipple background)
+ * - Scrollable for long content
+ * - Proper spacing between parameters (16px)
+ */
 export const VerticalParameterStack = React.memo<VerticalParameterStackProps>(
     ({ parameters, hideOutput = false, isVertical = true }) => {
         const { theme } = useUnistyles();
@@ -40,11 +52,15 @@ export const VerticalParameterStack = React.memo<VerticalParameterStackProps>(
                             <Text style={[styles.paramName, { color: theme.colors.textSecondary }]}>
                                 {key}
                             </Text>
-                            <View style={styles.valueContainer}>
-                                <VariableFormatter
-                                    name={key}
+                            <View
+                                style={[
+                                    styles.valueContainer,
+                                    { backgroundColor: theme.colors.surfaceRipple },
+                                ]}
+                            >
+                                <ContentFormatter
                                     value={value}
-                                    isVertical={isVertical}
+                                    testID={`param-${key}`}
                                 />
                             </View>
                         </View>
@@ -80,14 +96,14 @@ const styles = StyleSheet.create((theme) => ({
     paramName: {
         fontSize: 12,
         fontWeight: '600',
-        marginBottom: 4,
+        marginBottom: 6,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     valueContainer: {
-        backgroundColor: theme.colors.surfaceRipple,
         borderRadius: 6,
         paddingHorizontal: 10,
         paddingVertical: 8,
+        overflow: 'hidden',
     },
 }));
