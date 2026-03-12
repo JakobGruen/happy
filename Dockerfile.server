@@ -63,6 +63,9 @@ COPY --from=builder /repo/packages/happy-server/dist/pglite.data /repo/packages/
 # Copy Prisma files for migrations
 COPY --from=builder /repo/packages/happy-server/prisma /repo/packages/happy-server/prisma
 
+# Copy Prisma query engine binaries (required for runtime)
+COPY --from=builder /repo/node_modules/.prisma /repo/node_modules/.prisma
+
 # Copy package.json for prisma CLI
 COPY --from=builder /repo/packages/happy-server/package.json /repo/packages/happy-server/
 COPY --from=builder /repo/package.json ./

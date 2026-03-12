@@ -54,21 +54,50 @@ jobs:
           cache-to: type=gha,mode=max
           tags: happy-server:test
       
-      - name: Test built image starts
+      - name: Test built image starts and serves
         if: success()
         run: |
           # Build the image with docker build (not just docker/build-push-action)
           docker build -f Dockerfile.server --progress=plain --tag happy-server:test .
-          
-          echo "Testing image startup..."
-          
-          # Run migrations and verify they complete
-          timeout 60s docker run --rm \
+
+          echo "Testing image startup and server functionality..."
+
+          # Start the container in background with timeout
+          CONTAINER_ID=$(docker run --rm -d \
             -e HANDY_MASTER_SECRET="test-secret-32-bytes-minimum" \
-            happy-server:test \
-            /repo/packages/happy-server/dist/happy-server migrate || {
-              echo "❌ Migration failed!"
-              exit 1
-            }
-          
-          echo "✓ Image starts and migrations complete successfully!"
+            -p 3005:3005 \
+            happy-server:test)
+
+          echo "Container started: $CONTAINER_ID"
+
+          # Wait for server to be ready (max 30 seconds)
+          ATTEMPTS=0
+          MAX_ATTEMPTS=30
+          while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
+            if curl -f http://localhost:3005/health 2>/dev/null | grep -q "ok"; then
+              echo "Server is ready!"
+              break
+            fi
+            ATTEMPTS=$((ATTEMPTS + 1))
+            sleep 1
+          done
+
+          if [ $ATTEMPTS -eq $MAX_ATTEMPTS ]; then
+            echo "Server failed to start within 30 seconds"
+            docker logs $CONTAINER_ID
+            docker kill $CONTAINER_ID
+            exit 1
+          fi
+
+          # Test that server responds
+          if curl -f http://localhost:3005/health > /dev/null 2>&1; then
+            echo "Server responds to health checks"
+          else
+            echo "Server health check failed"
+            docker logs $CONTAINER_ID
+            docker kill $CONTAINER_ID
+            exit 1
+          fi
+
+          docker kill $CONTAINER_ID
+          echo "Image builds, starts, and serves successfully!"
