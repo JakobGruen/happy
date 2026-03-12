@@ -3,9 +3,9 @@ import { resolve } from 'node:path'
 
 export default defineConfig({
     test: {
-        globals: false,
+        globals: true,
         environment: 'node',
-        include: ['sources/**/*.{spec,test}.ts'],
+        include: ['sources/**/*.{spec,test}.{ts,tsx}'],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json', 'html'],

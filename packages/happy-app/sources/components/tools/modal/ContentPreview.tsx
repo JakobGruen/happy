@@ -46,7 +46,7 @@ export const ContentPreview = React.memo<ContentPreviewProps>(({ tool }) => {
                 {previewLine}
             </Text>
             {badge && (
-                <Text style={[styles.badge, { color: theme.colors.textTertiary }]} numberOfLines={1}>
+                <Text style={[styles.badge, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                     {badge}
                 </Text>
             )}
@@ -62,7 +62,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     badge: {
         fontSize: 12,
-        color: theme.colors.textTertiary,
+        color: theme.colors.textSecondary,
         marginTop: 1,
     },
 }));

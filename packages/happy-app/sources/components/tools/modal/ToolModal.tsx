@@ -28,11 +28,10 @@ export const ToolModal = React.memo<ToolModalProps>(
                 <Pressable
                     style={styles.backdrop}
                     onPress={onClose}
-                    activeOpacity={0.3}
                 />
                 <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surfaceHigh }]}>
                     {/* Modal Header */}
-                    <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+                    <View style={[styles.header, { borderBottomColor: theme.colors.surfaceRipple }]}>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.toolName}>{tool.name}</Text>
                         </View>
