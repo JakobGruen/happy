@@ -8,7 +8,7 @@ Happy Coder is a mobile/web client for AI coding agents (Claude Code, Codex, Gem
 
 ## Monorepo Structure
 
-Yarn 1.22 workspaces (no Turborepo/Lerna). Package manager: `yarn` — never use npm.
+Bun 1.3.10 workspaces (no Turborepo/Lerna). Package manager: `bun` — never use npm or yarn directly. Dev scripts auto-detect Bun/Yarn fallback.
 
 | Package | npm name | What it is |
 |---|---|---|
@@ -25,50 +25,52 @@ Yarn 1.22 workspaces (no Turborepo/Lerna). Package manager: `yarn` — never use
 
 ```bash
 # Build wire first (required on clean checkout before anything else)
-yarn workspace @jakobgruen/happy-wire build
+bun run --filter @jakobgruen/happy-wire build
 
 # CLI development (from repo root)
-yarn cli                              # dev-run CLI via tsx
-yarn cli codex                        # run in Codex mode
+bun cli                              # dev-run CLI via tsx
+bun cli codex                        # run in Codex mode
 
 # App
-yarn workspace happy-app start        # Expo dev server
-yarn workspace happy-app ios          # iOS simulator
-yarn workspace happy-app web          # web browser
-yarn web                              # shortcut for above
-yarn workspace happy-app typecheck    # MUST run after changes
+bun run --filter happy-app start        # Expo dev server
+bun run --filter happy-app ios          # iOS simulator
+bun run --filter happy-app web          # web browser
+bun web                              # shortcut for above
+bun run --filter happy-app typecheck    # MUST run after changes
 
 # Server
-yarn workspace happy-server dev       # starts with .env + .env.dev, kills port 3005
-yarn workspace happy-server db        # Docker postgres
-yarn workspace happy-server redis     # Docker redis
-yarn workspace happy-server generate  # Prisma client codegen
+bun run --filter happy-server dev       # starts with .env + .env.dev, kills port 3005
+bun run --filter happy-server db        # Docker postgres
+bun run --filter happy-server redis     # Docker redis
+bun run --filter happy-server generate  # Prisma client codegen
 
 # Dev reset (rebuild + restart services)
-yarn dev:reset                        # full reset: install → wire → cli → daemon → server → metro
-yarn dev:reset -c -d                  # rebuild CLI + restart daemon
-yarn dev:reset -s                     # restart server only
-yarn dev:reset -m                     # reset Metro bundler only
-yarn dev:reset -i                     # reinstall dependencies only
+bun dev:reset                        # full reset: install → wire → cli → daemon → server → metro
+bun dev:reset -c -d                  # rebuild CLI + restart daemon
+bun dev:reset -s                     # restart server only
+bun dev:reset -m                     # reset Metro bundler only
+bun dev:reset -i                     # reinstall dependencies only
 
 # Metro watchdog (keeps Metro alive on crash)
-yarn metro:watchdog                   # auto-restart on crash or 10min inactivity
-yarn metro:watchdog 300               # auto-restart on 5min inactivity (pass timeout as arg)
+bun metro:watchdog                   # auto-restart on crash or 10min inactivity
+bun metro:watchdog 300               # auto-restart on 5min inactivity (pass timeout as arg)
 
 # CLI with local server
-cd packages/happy-cli && yarn dev:local-server
+cd packages/happy-cli && bun dev:local-server
 
 # Tests
-yarn workspace @jakobgruen/happy-wire test   # vitest
-yarn workspace happy-coder test          # builds first, then vitest (daemon integration)
-yarn workspace happy-server test         # vitest
+bun run --filter @jakobgruen/happy-wire test   # vitest
+bun run --filter happy-coder test          # builds first, then vitest (daemon integration)
+bun run --filter happy-server test         # vitest
 
 # Release
-yarn release                          # interactive release picker (from root)
+bun release                          # interactive release picker (from root)
 
-# Voice agent (Python, separate from yarn)
+# Voice agent (Python, separate from bun)
 cd packages/happy-voice-agent && . .venv/bin/activate && python agent.py dev
 ```
+
+**Note on backward compatibility**: Root scripts in `package.json` now use the `bun` command directly. If you prefer Yarn for legacy reasons, you can still run `yarn <script>` and it will work via the Yarn wrapper installed globally.
 
 ## CI Checks
 
@@ -204,7 +206,7 @@ Tools are displayed with a **minimized 2-line chat bubble** that opens a **slide
 - Prefer interfaces over types, avoid enums (use maps)
 - Descriptive variable names with auxiliary verbs (`isLoading`, `hasError`)
 - Never import modules mid-code — all imports at the top
-- Use `yarn`, never `npm`
+- Use `bun` commands in shell (never `npm`). Root scripts auto-detect Bun/Yarn.
 
 ## Key Environment Variables
 
