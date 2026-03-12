@@ -154,6 +154,26 @@ The project has pending Prisma migrations that need to be applied:
 - Test files should be named the same as source files with ".spec.ts" suffix
 - For utility functions, write tests BEFORE implementation
 
+### Integration Tests with Docker Postgres
+
+Socket.IO handler tests (`sources/app/api/socket/sessionUpdateHandler.spec.ts`) use Docker Postgres for real database integration:
+
+- **Setup**: `vitest.setup.ts` starts Postgres container automatically on random ephemeral port
+- **Health check**: Waits for container to be healthy before running migrations
+- **Isolation**: Each test runs with real database (no mocks)
+- **Cleanup**: Automatic via test afterEach + container teardown on suite completion
+- **Database**: Real Prisma client (no mocks for db operations), mocks only for events/logging
+
+**Running tests locally:**
+
+```bash
+yarn test
+```
+
+Requires Docker to be running.
+
+**Why no mocks?** Socket.IO handlers are inherently integration concerns. Mocking individual components creates brittle tests that don't catch real bugs (e.g. schema mismatches, missing migrations). Real database tests validate actual behavior.
+
 ## API Development
 
 - API server is in `/sources/apps/api`
