@@ -67,6 +67,9 @@ if (process.env.DANGEROUSLY_LOG_TO_SERVER_FOR_AI_AUTO_DEBUGGING && consolidatedL
 }
 
 // Main server logger with local time formatting
+// Note: pino has quirks with transport config in test environments.
+// When transports is empty (tests, Bun standalone without pino-pretty),
+// pino defaults to writing to stdout, which works fine.
 export const logger = pino(
     {
         level: 'debug',
@@ -81,7 +84,6 @@ export const logger = pino(
         },
         timestamp: () => `,\"time\":${Date.now()},\"localTime\":\"${formatLocalTime()}\"`,
     },
-    // Fallback to console if no transports (e.g., Bun standalone without pino-pretty)
     transports.length > 0 ? { targets: transports } : undefined
 );
 
