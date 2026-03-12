@@ -72,10 +72,48 @@ cd packages/happy-voice-agent && . .venv/bin/activate && python agent.py dev
 
 **Note on backward compatibility**: Root scripts in `package.json` now use the `bun` command directly. If you prefer Yarn for legacy reasons, you can still run `yarn <script>` and it will work via the Yarn wrapper installed globally.
 
-## CI Checks
+## CI/CD Pipeline
 
-- **CLI smoke test**: builds CLI, installs globally, runs `--help`, `--version`, `doctor`, `daemon status` (Linux + Windows, Node 20 + 24)
-- **App typecheck**: `bun run --filter happy-app typecheck` on PRs touching `packages/happy-app/`
+### Branch Protection (Main Branch)
+All three status checks must pass before merging to main:
+- ✅ **docker-build-test** — Docker image builds successfully, migrations run
+- ✅ **typecheck** — TypeScript strict mode checks pass
+- ✅ **test** — All tests pass
+
+**Enforced rules:**
+- Cannot push directly to main (requires PR)
+- Cannot merge PR without all checks passing
+- Cannot force-push to main
+- Cannot delete main branch
+- PR must be up-to-date with main before merging
+
+**Workflow:** Make breaking code changes + update tests together in same PR → CI validates both together → merge when green.
+
+### CI Workflows
+
+**1. docker-build-test** (`.github/workflows/docker-build-test.yml`)
+- Validates all `package.json` files for valid JSON syntax
+- Builds `Dockerfile.server` with Docker Buildx
+- Tests that built image starts and migrations complete successfully
+- **Triggers:** Changes to `packages/happy-server/**`, `Dockerfile.server`, or workflow itself
+
+**2. typecheck** (`.github/workflows/typecheck.yml`)
+- Runs TypeScript strict mode checks on `happy-app`
+- **Triggers:** Changes to `packages/happy-app/**` or workflow itself
+
+**3. test** (`.github/workflows/test.yml`)
+- Runs all vitest suites across packages
+- **Triggers:** Most pushes to main and PRs
+
+**4. cli-smoke-test** (`.github/workflows/cli-smoke-test.yml`)
+- Builds CLI, installs globally, runs `--help`, `--version`, `doctor`, `daemon status`
+- Tests on Linux (Node 20 + 24) and Windows (Node 20 + 24)
+- **Triggers:** Changes to `packages/happy-cli/**` or workflow itself
+
+### Deployment Safety
+- Build failures are caught in CI before Coolify ever tries to deploy
+- JSON syntax errors, missing migrations, Docker build issues all blocked at PR stage
+- Production deployments only accept commits already validated by all CI checks
 
 ## Architecture
 
