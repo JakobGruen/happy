@@ -36,21 +36,24 @@ function formatLocalTime(timestamp?: number) {
 const transports: any[] = [];
 
 // Resolve pino-pretty target - use absolute path for bundled binaries
-let pinoPrettyTarget: string = 'pino-pretty';
+let pinoPrettyTarget: string | undefined;
 try {
     pinoPrettyTarget = require.resolve('pino-pretty');
 } catch {}
 
-transports.push({
-    target: pinoPrettyTarget,
-    options: {
-        colorize: true,
-        translateTime: 'HH:MM:ss.l',
-        ignore: 'pid,hostname',
-        messageFormat: '{levelLabel} {msg} | [{time}]',
-        errorLikeObjectKeys: ['err', 'error'],
-    },
-});
+// Only add pino-pretty if it was successfully resolved
+if (pinoPrettyTarget) {
+    transports.push({
+        target: pinoPrettyTarget,
+        options: {
+            colorize: true,
+            translateTime: 'HH:MM:ss.l',
+            ignore: 'pid,hostname',
+            messageFormat: '{levelLabel} {msg} | [{time}]',
+            errorLikeObjectKeys: ['err', 'error'],
+        },
+    });
+}
 
 if (process.env.DANGEROUSLY_LOG_TO_SERVER_FOR_AI_AUTO_DEBUGGING && consolidatedLogFile) {
     transports.push({
@@ -64,22 +67,23 @@ if (process.env.DANGEROUSLY_LOG_TO_SERVER_FOR_AI_AUTO_DEBUGGING && consolidatedL
 }
 
 // Main server logger with local time formatting
-export const logger = pino({
-    level: 'debug',
-    transport: {
-        targets: transports,
+export const logger = pino(
+    {
+        level: 'debug',
+        formatters: {
+            log: (object: any) => {
+                // Add localTime to every log entry
+                return {
+                    ...object,
+                    localTime: formatLocalTime(typeof object.time === 'number' ? object.time : undefined),
+                };
+            }
+        },
+        timestamp: () => `,\"time\":${Date.now()},\"localTime\":\"${formatLocalTime()}\"`,
     },
-    formatters: {
-        log: (object: any) => {
-            // Add localTime to every log entry
-            return {
-                ...object,
-                localTime: formatLocalTime(typeof object.time === 'number' ? object.time : undefined),
-            };
-        }
-    },
-    timestamp: () => `,"time":${Date.now()},"localTime":"${formatLocalTime()}"`,
-});
+    // Fallback to console if no transports (e.g., Bun standalone without pino-pretty)
+    transports.length > 0 ? { targets: transports } : undefined
+);
 
 // Optional file-only logger for remote logs from CLI/mobile
 export const fileConsolidatedLogger = process.env.DANGEROUSLY_LOG_TO_SERVER_FOR_AI_AUTO_DEBUGGING && consolidatedLogFile ? 
@@ -104,7 +108,7 @@ export const fileConsolidatedLogger = process.env.DANGEROUSLY_LOG_TO_SERVER_FOR_
                 };
             }
         },
-        timestamp: () => `,"time":${Date.now()},"localTime":"${formatLocalTime()}"`,
+        timestamp: () => `,\"time\":${Date.now()},\"localTime\":\"${formatLocalTime()}\"`,
     }) : undefined;
 
 export function log(src: any, ...args: any[]) {
