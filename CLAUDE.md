@@ -94,8 +94,14 @@ All three status checks must pass before merging to main:
 **1. docker-build-test** (`.github/workflows/docker-build-test.yml`)
 - Validates all `package.json` files for valid JSON syntax
 - Builds `Dockerfile.server` with Docker Buildx
-- Tests that built image starts and migrations complete successfully
+- **Integration tests** (5 checks inside running container):
+  1. Health endpoint returns `"status":"ok"`
+  2. Metrics endpoint (Prometheus) responds
+  3. HTTP routing works (tests 404 response)
+  4. No fatal errors in logs
+  5. Database migrations completed successfully
 - **Triggers:** Changes to `packages/happy-server/**`, `Dockerfile.server`, or workflow itself
+- **Local equivalent:** `./scripts/test-docker-integration.sh` (run before pushing!)
 
 **2. typecheck** (`.github/workflows/typecheck.yml`)
 - Runs TypeScript strict mode checks on `happy-app`
@@ -110,10 +116,30 @@ All three status checks must pass before merging to main:
 - Tests on Linux (Node 20 + 24) and Windows (Node 20 + 24)
 - **Triggers:** Changes to `packages/happy-cli/**` or workflow itself
 
+### Local Testing Scripts
+
+Before pushing to main, use these helper scripts:
+
+**Test Docker locally:**
+```bash
+./scripts/test-docker-integration.sh          # Build + test (can use cache)
+./scripts/test-docker-integration.sh --rebuild # Force rebuild without cache
+./scripts/test-docker-integration.sh --help    # Show options
+```
+Tests the same 5 checks as CI, but locally. No port conflicts — tests from inside container.
+
+**Push + watch CI checks:**
+```bash
+./scripts/push-and-watch.sh    # Push to main, then watch all 3 CI workflows in real-time
+gh run watch                    # Watch current branch's latest run
+```
+Useful for AI-driven development — get immediate terminal notification if checks fail.
+
 ### Deployment Safety
 - Build failures are caught in CI before Coolify ever tries to deploy
 - JSON syntax errors, missing migrations, Docker build issues all blocked at PR stage
 - Production deployments only accept commits already validated by all CI checks
+- **Docker deployment specifics:** Prisma query engine binaries must be included in runtime image (see `Dockerfile.server` line 51)
 
 ## Architecture
 
