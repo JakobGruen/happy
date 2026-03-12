@@ -18,7 +18,10 @@ export const ToolModalTabs = React.memo<ToolModalTabsProps>(
         const [activeTab, setActiveTab] = React.useState<TabType>('input');
 
         const inputCount = tool.input ? Object.keys(tool.input).length : 0;
-        const outputCount = tool.result ? Object.keys(tool.result).length : 0;
+        // Only count output if it's an object (not a string/number/boolean)
+        const outputCount = tool.result && typeof tool.result === 'object' && !Array.isArray(tool.result)
+            ? Object.keys(tool.result).length
+            : 0;
 
         return (
             <View style={styles.container}>
