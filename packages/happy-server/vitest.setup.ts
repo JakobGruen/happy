@@ -63,8 +63,10 @@ export async function setup() {
     console.log('🔄 Running Prisma migrations...');
     prisma = new PrismaClient();
     await prisma.$executeRawUnsafe(`SELECT 1`); // Test connection
+    // Use local prisma binary via bash — works under both Node and Bun
+    // Resolves paths relative to the current directory, avoiding npx/bunx
     await execPromise(
-      `DATABASE_URL="${process.env.DATABASE_URL}" npx prisma migrate deploy`
+      `bash -c 'cd "${__dirname}" && DATABASE_URL="${process.env.DATABASE_URL}" node ../../node_modules/prisma/build/index.js migrate deploy'`
     );
 
     console.log('✅ Migrations complete');
