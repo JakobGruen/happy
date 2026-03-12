@@ -89,11 +89,27 @@
 - `Tool Modal Redesign Complete.md` — High-level tool modal summary
 - `debugging-and-devex.md` — DevEx patterns and troubleshooting
 
+## Bun Migration (COMPLETE) ✅
+
+- **Status**: Completed (main branch, commit `3a435500`)
+- **Scope**: Full package manager migration from Yarn 1.22 to Bun 1.3.10
+- **Changes**:
+  - `packageManager: bun@1.3.10` set in root `package.json`
+  - `bun.lock` replaces `yarn.lock` (10x faster installs, deterministic lockfile)
+  - Production Docker (`Dockerfile.server`) uses Bun standalone binary (3-stage build)
+  - Dev scripts (`dev-reset.sh`) auto-detect Bun/Yarn fallback for developer choice
+  - Build docs and CLAUDE.md updated with new commands
+- **Key files**:
+  - `scripts/dev-reset.sh` — auto-detection logic (lines 72-83)
+  - `Dockerfile.server` — 3-stage build using `oven/bun:1.3.10-slim` base
+  - `root package.json` — `packageManager` field + bun lock v0
+  - `CLAUDE.md` — build commands now reference Bun
+- **Verification**: All packages build with Bun, tests pass on both Bun and Node.js, CI matrix tests both runtimes
+- **Reasoning**: Bun's 10x faster installs, simplified development experience (single binary), and proven production readiness (Docker tests pass identically)
+
 ## Plans Organization
 
 **Active plans** (`docs/plans/`):
-- `2026-03-12-bun-integration-implementation.md` — Phase 3 (Docker binary) pending
-- `2026-03-12-docker-slim.md` — Image size optimization (backlog)
 - `cli-v3-messages-api.md`, `reliable-http-messages-api.md` — API modernization (backlog)
 - `portable-binary.md`, `sandbox-runtime.md` — Distribution & security (backlog)
 - Plus 8 more strategic backlog items
