@@ -1,0 +1,74 @@
+name: Docker Build Test
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'packages/happy-server/**'
+      - 'Dockerfile.server'
+      - '.github/workflows/docker-build-test.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'packages/happy-server/**'
+      - 'Dockerfile.server'
+      - '.github/workflows/docker-build-test.yml'
+  workflow_dispatch:
+
+jobs:
+  docker-build-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Validate package.json syntax
+        run: |
+          echo "Validating package.json files..."
+          bun install --version > /dev/null 2>&1 || (curl -fsSL https://bun.sh/install | bash && export PATH=$HOME/.bun/bin:$PATH)
+          
+          for pkg in package.json packages/happy-server/package.json packages/happy-app/package.json packages/happy-cli/package.json packages/happy-wire/package.json; do
+            if [ -f "$pkg" ]; then
+              echo "  Checking $pkg..."
+              if ! jq empty "$pkg" 2>/dev/null; then
+                echo "  ❌ FAILED: Invalid JSON in $pkg"
+                cat "$pkg" | jq . || true
+                exit 1
+              fi
+              echo "  ✓ OK"
+            fi
+          done
+          echo "All package.json files are valid!"
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.server
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: happy-server:test
+      
+      - name: Test built image starts
+        if: success()
+        run: |
+          # Build the image with docker build (not just docker/build-push-action)
+          docker build -f Dockerfile.server --progress=plain --tag happy-server:test .
+          
+          echo "Testing image startup..."
+          
+          # Run migrations and verify they complete
+          timeout 60s docker run --rm \
+            -e HANDY_MASTER_SECRET="test-secret-32-bytes-minimum" \
+            happy-server:test \
+            /repo/packages/happy-server/dist/happy-server migrate || {
+              echo "❌ Migration failed!"
+              exit 1
+            }
+          
+          echo "✓ Image starts and migrations complete successfully!"
