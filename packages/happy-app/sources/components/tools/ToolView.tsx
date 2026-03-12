@@ -16,6 +16,7 @@ import { useIsPermissionSheetActive } from './permissionSheetContext';
 import { parseToolUseError } from '@/utils/toolErrorParser';
 import { formatMCPTitle } from './views/MCPToolView';
 import { t } from '@/text';
+import { AdaptiveToolDisplay } from './adaptive/AdaptiveToolDisplay';
 import { ToolModal } from './modal/ToolModal';
 import { ContentPreview } from './modal/ContentPreview';
 
@@ -57,7 +58,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     let icon = <Ionicons name="construct-outline" size={18} color={theme.colors.textSecondary} />;
     let noStatus = false;
     let hideDefaultError = false;
-
+    
     // For Gemini: unknown tools should be rendered as minimal (hidden)
     // This prevents showing raw INPUT/OUTPUT for internal Gemini tools
     // that we haven't explicitly added to knownTools
@@ -76,7 +77,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
     // Handle optional title and function type
     let toolTitle = tool.name;
-
+    
     // Special handling for MCP tools — compact summary with key params
     if (tool.name.startsWith('mcp__')) {
         toolTitle = formatMCPTitle(tool.name);
@@ -117,7 +118,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
             minimal = knownTool.minimal;
         }
     }
-
+    
     // Special handling for CodexBash to determine icon based on parsed_cmd
     if (tool.name === 'CodexBash' && tool.input?.parsed_cmd && Array.isArray(tool.input.parsed_cmd) && tool.input.parsed_cmd.length > 0) {
         const parsedCmd = tool.input.parsed_cmd[0];
@@ -131,7 +132,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     } else if (knownTool && typeof knownTool.icon === 'function') {
         icon = knownTool.icon(18, theme.colors.text);
     }
-
+    
     if (knownTool && typeof knownTool.noStatus === 'boolean') {
         noStatus = knownTool.noStatus;
     }
@@ -186,6 +187,8 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         minimal = true;
     }
 
+
+
     const headerContent = (
         <View style={styles.headerLeft}>
             <View style={styles.iconContainer}>
@@ -209,10 +212,10 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     );
 
     return (
-        <View style={styles.container} testID="tool-view">
+        <View style={styles.container}>
             <View style={styles.header}>
                 {isPressable ? (
-                    <TouchableOpacity testID="tool-header" style={styles.headerMain} onPress={handlePress} activeOpacity={0.8}>
+                    <TouchableOpacity style={styles.headerMain} onPress={handlePress} activeOpacity={0.8}>
                         {headerContent}
                     </TouchableOpacity>
                 ) : (
@@ -220,6 +223,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                         {headerContent}
                     </View>
                 )}
+
             </View>
 
             {/* Deny feedback — shown when user denied with a reason */}
@@ -245,7 +249,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
             {/* 2-Line Preview (static, always visible) */}
             {!minimal && (
-                <View style={styles.previewContainer} testID="content-preview">
+                <View style={styles.previewContainer}>
                     <ContentPreview tool={tool} />
                 </View>
             )}
@@ -257,7 +261,6 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 metadata={props.metadata}
                 onClose={() => setIsModalVisible(false)}
                 hideOutput={tool.permission?.status === 'pending'}
-                testID="tool-modal"
             />
 
             {/* Permission footer - always renders when permission exists to maintain consistent height */}
@@ -291,6 +294,7 @@ const styles = StyleSheet.create((theme) => ({
     headerMain: {
         flex: 1,
     },
+
     headerLeft: {
         flexDirection: 'row',
         alignItems: 'center',

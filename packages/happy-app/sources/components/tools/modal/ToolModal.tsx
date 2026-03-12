@@ -12,11 +12,10 @@ interface ToolModalProps {
     metadata: Metadata | null;
     onClose: () => void;
     hideOutput?: boolean;
-    testID?: string;
 }
 
 export const ToolModal = React.memo<ToolModalProps>(
-    ({ visible, tool, metadata, onClose, hideOutput, testID }) => {
+    ({ visible, tool, metadata, onClose, hideOutput }) => {
         const { theme } = useUnistyles();
 
         return (
@@ -25,20 +24,18 @@ export const ToolModal = React.memo<ToolModalProps>(
                 animationType="slide"
                 transparent={true}
                 onRequestClose={onClose}
-                testID={testID}
             >
                 <Pressable
                     style={styles.backdrop}
                     onPress={onClose}
-                    testID="modal-backdrop"
                 />
-                <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surfaceHigh }]} testID="modal-safe-area">
+                <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surfaceHigh }]}>
                     {/* Modal Header */}
                     <View style={[styles.header, { borderBottomColor: theme.colors.surfaceRipple }]}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.toolName} testID="modal-title">{tool.name}</Text>
+                            <Text style={styles.toolName}>{tool.name}</Text>
                         </View>
-                        <Pressable testID="modal-close-button" onPress={onClose} hitSlop={8}>
+                        <Pressable onPress={onClose} hitSlop={8}>
                             <Ionicons name="close" size={24} color={theme.colors.text} />
                         </Pressable>
                     </View>
@@ -51,7 +48,7 @@ export const ToolModal = React.memo<ToolModalProps>(
     }
 );
 
-const styles = StyleSheet.create((theme) => (({
+const styles = StyleSheet.create((theme) => ({
     backdrop: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -74,4 +71,4 @@ const styles = StyleSheet.create((theme) => (({
         fontWeight: '600',
         color: theme.colors.text,
     },
-})));
+}));

@@ -3,6 +3,7 @@ import { View, Text, Pressable } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { ToolCall } from '@/sync/typesMessage';
 import { VerticalParameterStack } from './VerticalParameterStack';
+import { OutputContent } from './OutputContent';
 
 interface ToolModalTabsProps {
     tool: ToolCall;
@@ -20,11 +21,10 @@ export const ToolModalTabs = React.memo<ToolModalTabsProps>(
         const outputCount = tool.result ? Object.keys(tool.result).length : 0;
 
         return (
-            <View style={styles.container} testID="modal-tabs">
+            <View style={styles.container}>
                 {/* Tab Headers */}
                 <View style={styles.tabHeader}>
                     <Pressable
-                        testID="tab-input"
                         style={[
                             styles.tabButton,
                             activeTab === 'input' && styles.tabButtonActive,
@@ -38,7 +38,6 @@ export const ToolModalTabs = React.memo<ToolModalTabsProps>(
 
                     {!hideOutput && (
                         <Pressable
-                            testID="tab-output"
                             style={[
                                 styles.tabButton,
                                 activeTab === 'output' && styles.tabButtonActive,
@@ -53,12 +52,12 @@ export const ToolModalTabs = React.memo<ToolModalTabsProps>(
                 </View>
 
                 {/* Tab Content */}
-                <View style={styles.tabContent} testID="tab-content">
+                <View style={styles.tabContent}>
                     {activeTab === 'input' && (
-                        <VerticalParameterStack parameters={tool.input} testID="input-parameters" />
+                        <VerticalParameterStack parameters={tool.input} />
                     )}
                     {activeTab === 'output' && !hideOutput && (
-                        <VerticalParameterStack parameters={tool.result} testID="output-parameters" />
+                        <OutputContent content={tool.result} />
                     )}
                 </View>
             </View>

@@ -6,10 +6,9 @@ import { analyzeContent, formatSize } from '../adaptive/contentAnalyzer';
 
 interface ContentPreviewProps {
     tool: ToolCall;
-    testID?: string;
 }
 
-export const ContentPreview = React.memo<ContentPreviewProps>(({ tool, testID }) => {
+export const ContentPreview = React.memo<ContentPreviewProps>(({ tool }) => {
     const { theme } = useUnistyles();
 
     // Get first line of output or first parameter
@@ -42,12 +41,12 @@ export const ContentPreview = React.memo<ContentPreviewProps>(({ tool, testID })
     }, [tool.result]);
 
     return (
-        <View testID={testID}>
-            <Text testID={testID ? `${testID}-line` : undefined} style={[styles.previewLine, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+        <View>
+            <Text style={[styles.previewLine, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                 {previewLine}
             </Text>
             {badge && (
-                <Text testID={testID ? `${testID}-badge` : undefined} style={[styles.badge, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                <Text style={[styles.badge, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                     {badge}
                 </Text>
             )}
@@ -55,7 +54,7 @@ export const ContentPreview = React.memo<ContentPreviewProps>(({ tool, testID })
     );
 });
 
-const styles = StyleSheet.create((theme) => (({
+const styles = StyleSheet.create((theme) => ({
     previewLine: {
         fontSize: 13,
         color: theme.colors.textSecondary,
@@ -66,4 +65,4 @@ const styles = StyleSheet.create((theme) => (({
         color: theme.colors.textSecondary,
         marginTop: 1,
     },
-})));
+}));

@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 
 export default defineConfig({
     test: {
-        globals: false,
+        globals: true,
         environment: 'node',
         include: ['sources/**/*.{spec,test}.{ts,tsx}'],
         coverage: {
