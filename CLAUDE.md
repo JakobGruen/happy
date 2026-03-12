@@ -137,6 +137,28 @@ User speaks → Pipecat WebRTC (self-hosted)
 8. **CLI tests require build first**: Daemon integration tests spawn the actual compiled binary
 9. **No backward compatibility** in happy-app unless explicitly stated
 
+## App UI Components
+
+### Tool Display Modal
+
+Tools are displayed with a **minimized 2-line chat bubble** that opens a **slide-up modal** on tap.
+
+**Components** (`packages/happy-app/sources/components/tools/`):
+- `ToolView.tsx` — Main tool container, triggers modal on header tap
+- `ToolModal.tsx` — Slide-up modal with SafeAreaView, close button
+- `ToolModalTabs.tsx` — INPUT/OUTPUT tab switching with state management
+- `VerticalParameterStack.tsx` — Parameter rendering (name above value, vertical stack)
+- `OutputContent.tsx` — Text/JSON output display with proper scrolling
+- `ContentPreview.tsx` — 2-line summary (content type badge + first line)
+
+**Modal behavior**:
+- **INPUT tab**: Always shows all parameters from `tool.input`
+- **OUTPUT tab**: Displays `tool.result` formatted as text/JSON (hidden when permission pending)
+- **Permission pending**: OUTPUT tab hidden, only INPUT visible (security UX)
+- **Close**: X button or swipe-down-to-dismiss gesture
+
+**Key files**: See `docs/TOOL_MODAL_API.md`, `docs/TOOL_MODAL_MIGRATION.md`, `docs/TOOL_MODAL_PATTERNS.md`
+
 ## Code Style (Cross-Package)
 
 - TypeScript strict mode everywhere
@@ -183,3 +205,6 @@ Each package has its own `CLAUDE.md` with package-specific conventions, patterns
 - `docs/api.md` — HTTP endpoints and auth flows
 - `docs/happy-wire.md` — Wire schemas package and migration notes
 - `docs/deployment.md` — Deployment procedures
+- `docs/TOOL_MODAL_API.md` — Tool modal component API (ToolModal, ToolModalTabs, VerticalParameterStack)
+- `docs/TOOL_MODAL_MIGRATION.md` — Migration guide for tool display redesign
+- `docs/TOOL_MODAL_PATTERNS.md` — UI patterns for tool rendering (INPUT/OUTPUT tabs, content preview)
