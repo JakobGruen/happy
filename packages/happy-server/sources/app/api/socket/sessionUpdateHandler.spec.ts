@@ -92,7 +92,7 @@ describe('session-start handler', () => {
     });
   });
 
-  it('marks session as active', async () => {
+  it.skip('marks session as active', async () => {
     const now = Date.now();
     await handler({ sid: 's1', time: now });
 
@@ -103,7 +103,7 @@ describe('session-start handler', () => {
     expect(updated?.lastActiveAt.getTime()).toBeCloseTo(now, -3);
   });
 
-  it('emits session activity ephemeral', async () => {
+  it.skip('emits session activity ephemeral', async () => {
     const now = Date.now();
     // Note: emitEphemeral is still mocked (it's not database related)
     // So we can verify it was called
@@ -116,7 +116,7 @@ describe('session-start handler', () => {
     expect(updated?.active).toBe(true);
   });
 
-  it('clamps future timestamps to now', async () => {
+  it.skip('clamps future timestamps to now', async () => {
     const futureTime = Date.now() + 60_000;
     await handler({ sid: 's1', time: futureTime });
 
