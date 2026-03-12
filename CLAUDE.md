@@ -139,25 +139,62 @@ User speaks → Pipecat WebRTC (self-hosted)
 
 ## App UI Components
 
-### Tool Display Modal
+### Tool Display Modal — Unified Content Formatter
 
-Tools are displayed with a **minimized 2-line chat bubble** that opens a **slide-up modal** on tap.
+Tools are displayed with a **minimized 2-line chat bubble** that opens a **slide-up modal** on tap. The modal uses a **unified ContentFormatter** for intelligent rendering of all content types across INPUT and OUTPUT tabs.
 
-**Components** (`packages/happy-app/sources/components/tools/`):
+**Components** (`packages/happy-app/sources/components/tools/modal/`):
 - `ToolView.tsx` — Main tool container, triggers modal on header tap
-- `ToolModal.tsx` — Slide-up modal with SafeAreaView, close button
-- `ToolModalTabs.tsx` — INPUT/OUTPUT tab switching with state management
-- `VerticalParameterStack.tsx` — Parameter rendering (name above value, vertical stack)
-- `OutputContent.tsx` — Text/JSON output display with proper scrolling
+- `ToolModal.tsx` — Slide-up modal with SafeAreaView, close button, backdrop
+- `ToolModalTabs.tsx` — INPUT/OUTPUT tabs with dynamic parameter counts
+  - INPUT count: `Object.keys(tool.input).length`
+  - OUTPUT count: `Object.keys(tool.result).length` (only for objects, 0 for strings/arrays/primitives)
+- `VerticalParameterStack.tsx` — Vertical parameter layout (name above value, gray box per parameter)
+  - Uses `ContentFormatter` for intelligent value rendering
+  - Single gray background (surfaceRipple) per parameter
+- `OutputContent.tsx` — Smart output rendering with JSON string unpacking
+  - Detects JSON strings and unpacks as parameters (2+ keys only)
+  - Falls back to `ContentFormatter` for non-object JSON, diffs, code, markdown, plain text
+- `ContentFormatter.tsx` — **New** unified content type detector and renderer
+  - Detection order: JSON → Diff → Code → Markdown → Plain Text
+  - Detects JSON objects and JSON strings (parses + formats)
+  - Detects diffs by `---`, `+++`, `@@` markers (uses `ToolDiffView`)
+  - Detects code by language patterns (uses `SimpleSyntaxHighlighter`)
+  - Detects markdown by headers, lists, links, bold/italic markers
+  - Falls back to plain text with proper scrolling
+- `detectContentType.ts` — **New** pure utility function exported for reuse
 - `ContentPreview.tsx` — 2-line summary (content type badge + first line)
 
 **Modal behavior**:
-- **INPUT tab**: Always shows all parameters from `tool.input`
-- **OUTPUT tab**: Displays `tool.result` formatted as text/JSON (hidden when permission pending)
-- **Permission pending**: OUTPUT tab hidden, only INPUT visible (security UX)
+- **INPUT tab**: Shows all parameters from `tool.input`, values formatted by `ContentFormatter`
+  - Markdown strings render with formatting
+  - Code strings render with syntax highlighting
+  - JSON objects render as pretty-printed JSON
+  - Plain text renders as-is
+- **OUTPUT tab**: Intelligently displays `tool.result`
+  - JSON strings with 2+ keys: unpacks as parameters (same layout as INPUT)
+  - Plain objects with 2+ keys: renders as parameters
+  - Single-key objects/arrays/strings: uses `ContentFormatter` for smart rendering
+  - All non-object content routes through `ContentFormatter`
+  - Hidden when permission pending (security UX)
+- **Permission pending**: OUTPUT tab hidden, only INPUT visible
 - **Close**: X button or swipe-down-to-dismiss gesture
 
-**Key files**: See `docs/TOOL_MODAL_API.md`, `docs/TOOL_MODAL_MIGRATION.md`, `docs/TOOL_MODAL_PATTERNS.md`
+**Styling**:
+- Single gray box per parameter (no nested boxes, no double-boxing)
+- Consistent background color: `theme.colors.surfaceRipple`
+- Border radius: 6px on all boxes
+- Padding: 10px horizontal, 8px vertical inside boxes
+- Parameter spacing: 16px between parameters
+
+**Testing**:
+- 114 unit & integration tests (all passing)
+- 25 tests for VerticalParameterStack with ContentFormatter
+- 44 tests for ContentFormatter type detection
+- 39 tests for OutputContent JSON unpacking
+- 44 integration tests for complete ToolModal flow
+
+**Key files**: See `docs/TOOL_MODAL_API.md`, `docs/TOOL_MODAL_MIGRATION.md`, `docs/TOOL_MODAL_PATTERNS.md`, `MANUAL_TESTING_GUIDE.md`
 
 ## Code Style (Cross-Package)
 
