@@ -45,6 +45,7 @@ async function migrate() {
     // Find migrations directory - try multiple locations
     let migrationsDirResolved = "";
     const candidates = [
+        path.join(process.cwd(), "packages/happy-server/prisma/migrations"),
         path.join(process.cwd(), "prisma", "migrations"),
         path.join(path.dirname(process.execPath), "prisma", "migrations"),
     ];
