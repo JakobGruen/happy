@@ -25,11 +25,13 @@ export async function setup() {
     container = stdout.trim();
     console.log(`✅ Container started: ${container.substring(0, 12)}`);
 
-    // Get mapped port
+    // Get mapped port (docker port outputs multiple lines for dual-stack)
     const { stdout: portOutput } = await execPromise(
       `docker port ${container} 5432/tcp`
     );
-    const port = portOutput.trim().split(':')[1];
+    // Extract from first line like "127.0.0.1:32771"
+    const firstLine = portOutput.trim().split('\n')[0];
+    const port = firstLine.split(':')[1];
 
     // Wait for container to be ready
     let ready = false;
@@ -57,35 +59,41 @@ export async function setup() {
     // Set DATABASE_URL for tests
     process.env.DATABASE_URL = `postgresql://postgres:password@localhost:${port}/happy_test`;
 
-    // Run migrations
+    // Run migrations from current Prisma package directory
     console.log('🔄 Running Prisma migrations...');
     prisma = new PrismaClient();
     await prisma.$executeRawUnsafe(`SELECT 1`); // Test connection
     await execPromise(
-      `cd packages/happy-server && DATABASE_URL="${process.env.DATABASE_URL}" npx prisma migrate deploy`
+      `DATABASE_URL="${process.env.DATABASE_URL}" npx prisma migrate deploy`
     );
 
     console.log('✅ Migrations complete');
   } catch (error) {
     console.error('❌ Setup failed:', error);
-    process.exit(1);
-  }
-}
-
-export async function teardown() {
-  console.log('🧹 Cleaning up...');
-
-  if (prisma) {
-    await prisma.$disconnect();
+    throw error;
   }
 
-  if (container) {
+  // Return teardown function
+  return async () => {
+    console.log('🧹 Cleaning up...');
+
     try {
-      await execPromise(`docker kill ${container}`);
-      await execPromise(`docker rm ${container}`);
-      console.log('✅ Container removed');
+      if (prisma) {
+        await prisma.$disconnect();
+      }
+
+      if (container) {
+        try {
+          await execPromise(`docker kill ${container}`);
+          await execPromise(`docker rm ${container}`);
+          console.log('✅ Container removed');
+        } catch (error) {
+          console.error('Warning: Could not remove container:', error);
+        }
+      }
     } catch (error) {
-      console.error('Warning: Could not remove container:', error);
+      console.error('Error during cleanup:', error);
+      throw error;
     }
-  }
+  };
 }
