@@ -5,3 +5,7 @@ node_modules
 **/dist
 **/.turbo
 **/.next
+**/*.spec.ts
+**/*.test.ts
+**/*.spec.js
+**/*.test.js
