@@ -47,8 +47,8 @@ FROM debian:bookworm-slim AS runner
 
 WORKDIR /repo
 
-# Runtime dependencies (ca-certificates for TLS, ffmpeg for media processing)
-RUN apt-get update && apt-get install -y ca-certificates libssl3 ffmpeg && rm -rf /var/lib/apt/lists/*
+# Runtime dependencies (ca-certificates for TLS, ffmpeg for media processing, curl for health checks)
+RUN apt-get update && apt-get install -y ca-certificates libssl3 ffmpeg curl && rm -rf /var/lib/apt/lists/*
 
 # Set environment to production
 ENV NODE_ENV=production
