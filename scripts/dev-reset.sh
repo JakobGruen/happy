@@ -133,7 +133,7 @@ fi
 if [[ $DO_SERVER -eq 1 ]]; then
     step "Restarting dev server (port 3005)"
     SERVER_LOG="/tmp/happy-server-dev-$$.log"
-    nohup ws happy-server dev > "$SERVER_LOG" 2>&1 &
+    nohup bash -c "$(typeset -f ws); ws happy-server dev" > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     sleep 3
     if kill -0 "$SERVER_PID" 2>/dev/null; then
@@ -171,7 +171,7 @@ if [[ $DO_METRO -eq 1 ]]; then
 
     # Start Metro with cache cleared
     METRO_LOG="/tmp/happy-metro-dev-$$.log"
-    nohup ws happy-app start --clear > "$METRO_LOG" 2>&1 &
+    nohup bash -c "$(typeset -f ws); ws happy-app start --clear" > "$METRO_LOG" 2>&1 &
     METRO_PID=$!
     sleep 3
     if kill -0 "$METRO_PID" 2>/dev/null; then
