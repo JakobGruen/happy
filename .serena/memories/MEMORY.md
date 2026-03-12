@@ -76,22 +76,30 @@
 - **Pattern**: One-time flags should be cleared after purpose fulfilled, not deferred
 - **Key file**: `claudeRemoteLauncher.ts` lines 177, 403, 581
 
-## Plans Directory Cleanup
+## Memory Organization
 
-**Completed work documented in plans:**
-- `docs/plans/2026-03-12-docker-slim.md` — Phase 3 Docker slimming
-- `docs/plans/2026-03-12-bun-phase-2-ci-testing.md` — Phase 2 Bun CI
-- `docs/plans/2026-03-12-test-architecture-design.md` & `implementation.md` — Phase 1 Docker Postgres
-- `docs/plans/2026-03-12-tool-display-modal-redesign.md` & related — Tool modal redesign
-- `docs/plans/2026-03-10-image-viewer.md` & `design.md` — Image viewer
-- `docs/plans/2026-03-10-mobile-notification-actions.md` — Push notifications
+**Subdirectories:**
+- `test-architecture/` — Docker Postgres phase 1 & 2 completion details
+- `tool-modal/` — Tool modal redesign architecture, testing, and completion summaries
+- `features/` — Feature implementations (skill expansion, etc.)
+- `UI Components/` — UI component documentation
 
-**Outdated/never-executed plans (removed):**
-- `portable-binary.md`, `metadata-driven-model-mode-selection.md`, `multi-question-voice-tool.md`, `cli-v3-messages-api.md`, `session-protocol-impl.md`, `sandbox-runtime.md`, `reliable-http-messages-api.md`, `generic-acp-runner.md`, `happy-agent.md`, `2026-03-09-llm-summaries.md`
+**Root memories:**
+- `MEMORY.md` — This index (main project memory)
+- `Tool Modal Redesign Complete.md` — High-level tool modal summary
+- `debugging-and-devex.md` — DevEx patterns and troubleshooting
 
-## Next Potential Areas
+## Plans Organization
 
-Based on git history analysis:
-- **Phase 4 Docker**: Build standalone Bun binary, optimize to 150-200MB (mentioned in Phase 2 plan as future work)
-- **CLI version 3**: Metadata-driven model/permission mode selection (plan exists but deprioritized)
-- **Advanced features**: Multi-question voice tool, generic ACP runner (backlog, lower priority)
+**Active plans** (`docs/plans/`):
+- `2026-03-12-bun-integration-implementation.md` — Phase 3 (Docker binary) pending
+- `2026-03-12-docker-slim.md` — Image size optimization (backlog)
+- `cli-v3-messages-api.md`, `reliable-http-messages-api.md` — API modernization (backlog)
+- `portable-binary.md`, `sandbox-runtime.md` — Distribution & security (backlog)
+- Plus 8 more strategic backlog items
+
+**Archived plans** (`docs/plans/ARCHIVED/`):
+- Completed features with full implementation documentation
+- Tool modal redesign, image viewer, notifications, test infrastructure phases
+
+See `docs/plans/README.md` for detailed plan categorization and status.
