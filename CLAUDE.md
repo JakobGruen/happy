@@ -75,7 +75,7 @@ cd packages/happy-voice-agent && . .venv/bin/activate && python agent.py dev
 ## CI Checks
 
 - **CLI smoke test**: builds CLI, installs globally, runs `--help`, `--version`, `doctor`, `daemon status` (Linux + Windows, Node 20 + 24)
-- **App typecheck**: `yarn workspace happy-app typecheck` on PRs touching `packages/happy-app/`
+- **App typecheck**: `bun run --filter happy-app typecheck` on PRs touching `packages/happy-app/`
 
 ## Architecture
 
@@ -131,7 +131,7 @@ User speaks → Pipecat WebRTC (self-hosted)
 
 1. **Build order**: `@jakobgruen/happy-wire` must be built before other packages (distributes from `dist/`, not `src/`)
 2. **pglite patch**: `patches/pglite-prisma-adapter+0.7.2.patch` fixes bytea serialization — applied by `scripts/postinstall.cjs`. **Never add `Buffer.from()` workarounds**
-3. **Database migrations**: NEVER run migrations yourself. Only run `yarn generate` for new Prisma types. Migrations are human-only
+3. **Database migrations**: NEVER run migrations yourself. Only run `bun run --filter happy-server generate` for new Prisma types. Migrations are human-only
 4. **`--resume` creates new session ID**: When Claude resumes, all historical messages get re-stamped with the new session ID
 5. **`nohoist`**: Root `package.json` nohoists `zod`, `react`, `react-native`, and WebRTC modules to prevent version conflicts between app and server
 6. **All imports use `@/` alias**: Maps to `./src/` (CLI) or `./sources/` (server, app)
