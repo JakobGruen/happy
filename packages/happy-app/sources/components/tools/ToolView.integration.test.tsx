@@ -214,7 +214,7 @@ describe('ToolView Integration Tests — Modal Flow', () => {
         it('should hide OUTPUT tab when permission status is pending', async () => {
             const tool = createMockTool({
                 state: 'running',
-                permission: { status: 'pending', reason: null },
+                permission: { status: 'pending', id: 'test-permission-id' },
                 input: { cmd: 'bash' },
                 result: { output: 'result' }
             });
@@ -235,7 +235,7 @@ describe('ToolView Integration Tests — Modal Flow', () => {
 
         it('should only show INPUT tab when hideOutput=true', async () => {
             const tool = createMockTool({
-                permission: { status: 'pending', reason: null },
+                permission: { status: 'pending', id: 'test-permission-id' },
                 input: { value: 'test' },
                 result: { status: 'ok' }
             });
@@ -255,7 +255,7 @@ describe('ToolView Integration Tests — Modal Flow', () => {
 
         it('should show OUTPUT tab when permission approved', async () => {
             const tool = createMockTool({
-                permission: { status: 'approved', reason: null },
+                permission: { status: 'approved', id: 'test-permission-id' },
                 input: { file: 'test.txt' },
                 result: { data: 'content' }
             });
@@ -278,7 +278,7 @@ describe('ToolView Integration Tests — Modal Flow', () => {
         it('should filter undefined values when hideOutput is active', async () => {
             const tool = createMockTool({
                 state: 'running',
-                permission: { status: 'pending', reason: null },
+                permission: { status: 'pending', id: 'test-permission-id' },
                 input: {
                     required: 'value',
                     optional: undefined
@@ -300,7 +300,7 @@ describe('ToolView Integration Tests — Modal Flow', () => {
         it('should render all parameters including undefined when hideOutput=false', async () => {
             const tool = createMockTool({
                 state: 'completed',
-                permission: { status: 'approved', reason: null },
+                permission: { status: 'approved', id: 'test-permission-id' },
                 input: { defined: 'val', undef: undefined },
                 result: { out1: 'data', out2: undefined }
             });
@@ -531,7 +531,7 @@ describe('ToolView Integration Tests — Modal Flow', () => {
         it('should not show preview when tool is minimal (completed + approved)', () => {
             const tool = createMockTool({
                 state: 'completed',
-                permission: { status: 'approved', reason: null }
+                permission: { status: 'approved', id: 'test-permission-id' }
             });
 
             const { queryByTestId } = render(
@@ -545,7 +545,7 @@ describe('ToolView Integration Tests — Modal Flow', () => {
         it('should show preview for running tools with pending permission', () => {
             const tool = createMockTool({
                 state: 'running',
-                permission: { status: 'pending', reason: null },
+                permission: { status: 'pending', id: 'test-permission-id' },
                 result: 'Running output'
             });
 
