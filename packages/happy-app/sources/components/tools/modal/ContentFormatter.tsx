@@ -24,10 +24,7 @@ export function ContentFormatter({ value, testID }: ContentFormatterProps) {
     return (
         <View
             testID={testID}
-            style={[
-                styles.container,
-                { backgroundColor: theme.colors.surfaceRipple },
-            ]}
+            style={styles.container}
         >
             {type === 'json' && <JsonRenderer value={value} />}
             {type === 'diff' && <DiffRenderer content={String(value)} />}
