@@ -1,0 +1,70 @@
+name: Server Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'packages/happy-server/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'packages/happy-server/**'
+      - '.github/workflows/test.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        runtime: [node, bun]
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: happy_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: matrix.runtime == 'node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Setup Bun
+        if: matrix.runtime == 'bun'
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: |
+          if [[ "${{ matrix.runtime }}" == "node" ]]; then
+            yarn install --frozen-lockfile
+          else
+            bun install --frozen-lockfile
+          fi
+
+      - name: Run tests (${{ matrix.runtime }})
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/happy_test
+        run: |
+          cd packages/happy-server
+          if [[ "${{ matrix.runtime }}" == "node" ]]; then
+            yarn test
+          else
+            bun run test
+          fi
