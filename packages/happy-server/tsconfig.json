@@ -74,5 +74,6 @@
       ]
     }
   },
-  "include": ["sources/**/*"]
+  "include": ["sources/**/*"],
+  "exclude": ["sources/**/*.spec.ts", "sources/**/*.test.ts"]
 }
