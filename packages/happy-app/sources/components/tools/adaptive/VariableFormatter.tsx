@@ -44,10 +44,7 @@ export const VariableFormatter = React.memo<VariableFormatterProps>(
                         </Text>
                     ) : (
                         <View
-                            style={[
-                                styles.verticalCodeBlock,
-                                { backgroundColor: theme.colors.surfaceHigh },
-                            ]}
+                            style={styles.verticalCodeBlock}
                         >
                             <CodeView
                                 code={analysis.fullText}
@@ -219,9 +216,10 @@ const styles = StyleSheet.create((theme) => ({
         marginTop: 0,
     },
     verticalCodeBlock: {
-        borderRadius: 4,
-        padding: 8,
-        marginTop: 4,
+        // No background — parent valueContainer provides the box
+        borderRadius: 0,
+        padding: 0,
+        marginTop: 0,
         maxHeight: 120,
     },
 }));
