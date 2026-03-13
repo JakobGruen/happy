@@ -27,22 +27,23 @@ Bun 1.3.10 workspaces (no Turborepo/Lerna). Package manager: `bun` — never use
 # Build wire first (required on clean checkout before anything else)
 bun run --filter @jakobgruen/happy-wire build
 
-# CLI development (from repo root)
+# Root shortcuts (all from repo root)
 bun cli                              # dev-run CLI via tsx
 bun cli codex                        # run in Codex mode
-
-# App
-bun run --filter happy-app start        # Expo dev server
-bun run --filter happy-app ios          # iOS simulator
-bun run --filter happy-app web          # web browser
-bun web                              # shortcut for above
-bun run --filter happy-app typecheck    # MUST run after changes
-
-# Server
-bun run --filter happy-server dev       # starts with .env + .env.dev, kills port 3005
-bun run --filter happy-server db        # Docker postgres
-bun run --filter happy-server redis     # Docker redis
-bun run --filter happy-server generate  # Prisma client codegen
+bun web                              # Expo web dev server
+bun ios                              # iOS simulator
+bun android                          # Android emulator
+bun start                            # Expo dev server (pick platform)
+bun server                           # happy-server dev mode
+bun server:db                        # Docker postgres
+bun server:redis                     # Docker redis
+bun wire                             # build wire package
+bun typecheck                        # typecheck happy-app
+bun test                             # run all test suites
+bun test:wire                        # wire tests only
+bun test:cli                         # CLI tests only
+bun test:server                      # server tests only
+bun release                          # interactive release picker
 
 # Dev reset (rebuild + restart services)
 bun dev:reset                        # full reset: install → wire → cli → daemon → server → metro
@@ -58,13 +59,8 @@ bun metro:watchdog 300               # auto-restart on 5min inactivity (pass tim
 # CLI with local server
 cd packages/happy-cli && bun dev:local-server
 
-# Tests
-bun run --filter @jakobgruen/happy-wire test   # vitest
-bun run --filter happy-coder test          # builds first, then vitest (daemon integration)
-bun run --filter happy-server test         # vitest
-
-# Release
-bun release                          # interactive release picker (from root)
+# Prisma (no root shortcut — run directly)
+bun run --filter happy-server generate  # Prisma client codegen
 
 # Voice agent (Python, separate from bun)
 cd packages/happy-voice-agent && . .venv/bin/activate && python agent.py dev
