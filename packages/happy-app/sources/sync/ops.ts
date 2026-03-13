@@ -547,12 +547,30 @@ export async function machineResumeSession(options: {
  * Archive a session with fallback — if kill RPC fails (session already dead/disconnected),
  * tell the server directly via session-end so it gets marked inactive.
  */
-export async function sessionArchive(sessionId: string): Promise<SessionKillResponse> {
+export async function sessionArchive(sessionId: string, machineId?: string): Promise<SessionKillResponse> {
+    // Try 1: Direct RPC to CLI process (fast path)
     const killResult = await sessionKill(sessionId);
     if (killResult.success) {
         return killResult;
     }
-    // Kill failed (session likely dead/disconnected) — tell server directly
+
+    // Try 2: Ask daemon to kill by sessionId (it has the PID)
+    if (machineId) {
+        try {
+            const daemonResult = await apiSocket.machineRPC<{ success: boolean }, { sessionId: string }>(
+                machineId,
+                'stop-session',
+                { sessionId }
+            );
+            if (daemonResult.success) {
+                return { success: true, message: 'Session killed via daemon' };
+            }
+        } catch {
+            // Daemon might not be running or session not tracked — continue to fallback
+        }
+    }
+
+    // Fallback: Tell server directly so it gets marked inactive
     try {
         apiSocket.send('session-end', { sid: sessionId, time: Date.now() });
     } catch {

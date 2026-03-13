@@ -309,7 +309,7 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
         && (realtimeStatus === 'connected' || realtimeStatus === 'connecting');
 
     const [archivingSession, performArchive] = useHappyAction(async () => {
-        const result = await sessionArchive(session.id);
+        const result = await sessionArchive(session.id, session.metadata?.machineId);
         if (!result.success) {
             throw new HappyError(result.message || t('sessionInfo.failedToArchiveSession'), false);
         }
