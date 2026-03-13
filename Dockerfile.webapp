@@ -1,25 +1,27 @@
 # Stage 1: install dependencies with workspace context
-FROM node:20-alpine AS deps
+FROM oven/bun:1 AS deps
 
 WORKDIR /repo
 
-COPY package.json yarn.lock ./
+COPY package.json yarn.lock bun.lock ./
 COPY scripts ./scripts
+COPY patches ./patches
 
-RUN mkdir -p packages/happy-app packages/happy-server packages/happy-cli packages/happy-wire
+RUN mkdir -p packages/happy-app packages/happy-server packages/happy-cli packages/happy-wire packages/happy-agent
 
-COPY packages/happy-app/package.json packages/happy-app/
-COPY packages/happy-server/package.json packages/happy-server/
-COPY packages/happy-cli/package.json packages/happy-cli/
+# Only copy real package.json for packages we actually need (wire + app)
 COPY packages/happy-wire/package.json packages/happy-wire/
+COPY packages/happy-app/package.json packages/happy-app/
 
-# Workspace postinstall requirements
-COPY packages/happy-app/patches packages/happy-app/patches
-COPY packages/happy-server/prisma packages/happy-server/prisma
-COPY packages/happy-cli/scripts packages/happy-cli/scripts
-COPY packages/happy-cli/tools packages/happy-cli/tools
+# Stub out unneeded workspaces — avoids installing server, CLI, agent deps
+RUN echo '{"name":"happy-server","version":"1.0.0","private":true}' > packages/happy-server/package.json
+RUN echo '{"name":"happy-coder","version":"0.1.0","private":true}' > packages/happy-cli/package.json
+RUN echo '{"name":"@slopus/agent","version":"0.1.0","private":true}' > packages/happy-agent/package.json
 
-RUN SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines
+# Install with --ignore-scripts, then manually run what we need
+RUN NODE_ENV=development SKIP_HAPPY_WIRE_BUILD=1 bun install --ignore-scripts
+RUN SKIP_HAPPY_WIRE_BUILD=1 bun scripts/postinstall.cjs
+RUN cd packages/happy-app && bunx patch-package && bunx setup-skia-web public
 
 # Stage 2: build the web app
 FROM deps AS builder
@@ -35,8 +37,8 @@ ENV EXPO_PUBLIC_REVENUE_CAT_STRIPE=$REVENUE_CAT_STRIPE
 COPY packages/happy-wire ./packages/happy-wire
 COPY packages/happy-app ./packages/happy-app
 
-RUN yarn workspace @jakobgruen/happy-wire build
-RUN yarn workspace happy-app expo export --platform web --output-dir dist
+RUN bun run --filter @jakobgruen/happy-wire build
+RUN cd packages/happy-app && bunx expo export --platform web --output-dir dist
 
 # Stage 3: runtime with Nginx
 FROM nginx:alpine AS runner
