@@ -28,17 +28,56 @@ const EXCLUDED_PATTERNS = [
     'daemon status',
 ];
 
+/** Function type for resolving parent PID. Injectable for testing. */
+export type GetParentPidFn = (pid: number) => number | null;
+
+/**
+ * Read the parent PID of a process from /proc/<pid>/status.
+ * Returns null if the process doesn't exist or can't be read.
+ */
+export const getParentPidFromProc: GetParentPidFn = (pid: number): number | null => {
+    try {
+        const status = readFileSync(`/proc/${pid}/status`, 'utf-8');
+        const match = status.match(/^PPid:\s*(\d+)/m);
+        return match ? parseInt(match[1], 10) : null;
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * Check if a process is a descendant of any tracked PID by walking
+ * up the process tree via parent PIDs.
+ * Walks at most `maxDepth` levels to avoid infinite loops.
+ */
+export function isDescendantOfTracked(
+    pid: number,
+    trackedPids: Set<number>,
+    getParentPid: GetParentPidFn,
+    maxDepth: number = 5,
+): boolean {
+    let current = pid;
+    for (let i = 0; i < maxDepth; i++) {
+        const ppid = getParentPid(current);
+        if (ppid === null || ppid <= 1) return false;
+        if (trackedPids.has(ppid)) return true;
+        current = ppid;
+    }
+    return false;
+}
+
 /**
  * Filter a process list to find happy-spawned Claude processes NOT in the tracked set.
  *
  * A process is considered happy-spawned if its cmdline contains at least one of
- * the HAPPY_MARKERS. Processes matching EXCLUDED_PATTERNS, the daemon PID, or
- * already-tracked PIDs are excluded.
+ * the HAPPY_MARKERS. Processes matching EXCLUDED_PATTERNS, the daemon PID,
+ * already-tracked PIDs, or descendants of tracked PIDs are excluded.
  */
 export function findOrphanedHappyProcesses(
     processes: ProcessInfo[],
     trackedPids: Set<number>,
     daemonPid: number,
+    getParentPid: GetParentPidFn = getParentPidFromProc,
 ): ProcessInfo[] {
     return processes.filter(proc => {
         // Skip daemon itself and tracked sessions
@@ -52,6 +91,10 @@ export function findOrphanedHappyProcesses(
         // Exclude daemon infrastructure commands
         const isExcluded = EXCLUDED_PATTERNS.some(pattern => proc.cmdline.includes(pattern));
         if (isExcluded) return false;
+
+        // Skip child/grandchild processes of tracked sessions
+        // (e.g. node claude_remote_launcher.cjs or the Claude binary)
+        if (isDescendantOfTracked(proc.pid, trackedPids, getParentPid)) return false;
 
         return true;
     });

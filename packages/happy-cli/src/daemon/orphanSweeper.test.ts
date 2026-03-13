@@ -1,15 +1,62 @@
 import { describe, it, expect } from 'vitest';
-import { findOrphanedHappyProcesses, filterOrphansReadyToKill } from './orphanSweeper';
-import type { ProcessInfo } from './orphanSweeper';
+import { findOrphanedHappyProcesses, filterOrphansReadyToKill, isDescendantOfTracked } from './orphanSweeper';
+import type { ProcessInfo, GetParentPidFn } from './orphanSweeper';
 
 const DAEMON_PID = 1000;
+
+/** Helper: create a mock getParentPid from a pid→ppid map */
+function mockParentPid(tree: Record<number, number>): GetParentPidFn {
+    return (pid: number) => tree[pid] ?? null;
+}
+
+/** No-op parent resolver — all PIDs have no parent (simulates non-Linux). */
+const noParent: GetParentPidFn = () => null;
+
+describe('isDescendantOfTracked', () => {
+    it('returns true for direct child of tracked PID', () => {
+        const trackedPids = new Set([100]);
+        const getParentPid = mockParentPid({ 200: 100 });
+        expect(isDescendantOfTracked(200, trackedPids, getParentPid)).toBe(true);
+    });
+
+    it('returns true for grandchild of tracked PID', () => {
+        const trackedPids = new Set([100]);
+        const getParentPid = mockParentPid({ 300: 200, 200: 100 });
+        expect(isDescendantOfTracked(300, trackedPids, getParentPid)).toBe(true);
+    });
+
+    it('returns false when no ancestor is tracked', () => {
+        const trackedPids = new Set([100]);
+        const getParentPid = mockParentPid({ 300: 200, 200: 50 });
+        expect(isDescendantOfTracked(300, trackedPids, getParentPid)).toBe(false);
+    });
+
+    it('returns false when parent PID is 1 (init)', () => {
+        const trackedPids = new Set([100]);
+        const getParentPid = mockParentPid({ 200: 1 });
+        expect(isDescendantOfTracked(200, trackedPids, getParentPid)).toBe(false);
+    });
+
+    it('returns false when getParentPid returns null', () => {
+        const trackedPids = new Set([100]);
+        expect(isDescendantOfTracked(200, trackedPids, noParent)).toBe(false);
+    });
+
+    it('respects maxDepth limit', () => {
+        const trackedPids = new Set([100]);
+        // Chain: 600→500→400→300→200→100, but maxDepth=3 won't reach 100
+        const getParentPid = mockParentPid({ 600: 500, 500: 400, 400: 300, 300: 200, 200: 100 });
+        expect(isDescendantOfTracked(600, trackedPids, getParentPid, 3)).toBe(false);
+        expect(isDescendantOfTracked(600, trackedPids, getParentPid, 5)).toBe(true);
+    });
+});
 
 describe('findOrphanedHappyProcesses', () => {
     it('identifies process by mcp__happy__change_title marker', () => {
         const processes: ProcessInfo[] = [
             { pid: 2000, cmdline: 'node claude --mcp__happy__change_title some-session' },
         ];
-        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID);
+        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID, noParent);
         expect(result).toEqual([{ pid: 2000, cmdline: 'node claude --mcp__happy__change_title some-session' }]);
     });
 
@@ -17,7 +64,7 @@ describe('findOrphanedHappyProcesses', () => {
         const processes: ProcessInfo[] = [
             { pid: 2001, cmdline: 'node claude --session-hook-url http://localhost:3456/hook' },
         ];
-        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID);
+        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID, noParent);
         expect(result).toEqual([{ pid: 2001, cmdline: 'node claude --session-hook-url http://localhost:3456/hook' }]);
     });
 
@@ -25,7 +72,7 @@ describe('findOrphanedHappyProcesses', () => {
         const processes: ProcessInfo[] = [
             { pid: 2002, cmdline: 'node happy --started-by daemon --happy-starting-mode remote' },
         ];
-        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID);
+        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID, noParent);
         expect(result).toEqual([{ pid: 2002, cmdline: 'node happy --started-by daemon --happy-starting-mode remote' }]);
     });
 
@@ -35,7 +82,7 @@ describe('findOrphanedHappyProcesses', () => {
             { pid: 2001, cmdline: 'node claude --session-hook-url http://localhost:3456/hook' },
         ];
         const trackedPids = new Set([2000]);
-        const result = findOrphanedHappyProcesses(processes, trackedPids, DAEMON_PID);
+        const result = findOrphanedHappyProcesses(processes, trackedPids, DAEMON_PID, noParent);
         expect(result).toEqual([{ pid: 2001, cmdline: 'node claude --session-hook-url http://localhost:3456/hook' }]);
     });
 
@@ -43,7 +90,7 @@ describe('findOrphanedHappyProcesses', () => {
         const processes: ProcessInfo[] = [
             { pid: DAEMON_PID, cmdline: 'node happy daemon start --mcp__happy__change_title' },
         ];
-        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID);
+        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID, noParent);
         expect(result).toEqual([]);
     });
 
@@ -54,7 +101,7 @@ describe('findOrphanedHappyProcesses', () => {
             { pid: 3002, cmdline: '/usr/bin/claude --print "hello"' },
             { pid: 3003, cmdline: '/home/user/.vscode/extensions/claude-code/claude' },
         ];
-        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID);
+        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID, noParent);
         expect(result).toEqual([]);
     });
 
@@ -65,12 +112,27 @@ describe('findOrphanedHappyProcesses', () => {
             { pid: 4002, cmdline: 'node happy doctor' },
             { pid: 4003, cmdline: 'node happy daemon status' },
         ];
-        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID);
+        const result = findOrphanedHappyProcesses(processes, new Set(), DAEMON_PID, noParent);
         expect(result).toEqual([]);
     });
 
+    it('excludes child processes of tracked PIDs', () => {
+        const trackedPids = new Set([1500]); // Happy CLI PID
+        const processes: ProcessInfo[] = [
+            // node claude_remote_launcher.cjs (child of 1500)
+            { pid: 1501, cmdline: 'node claude_remote_launcher.cjs --output-format stream-json --append-system-prompt mcp__happy__change_title' },
+            // native claude binary (grandchild of 1500, child of 1501)
+            { pid: 1502, cmdline: '/home/user/.local/share/claude/versions/2.1.71 --output-format stream-json --append-system-prompt mcp__happy__change_title' },
+            // actual orphan (parent is init/1)
+            { pid: 9000, cmdline: 'node claude --mcp__happy__change_title orphan-session' },
+        ];
+        const getParentPid = mockParentPid({ 1501: 1500, 1502: 1501, 9000: 1 });
+        const result = findOrphanedHappyProcesses(processes, trackedPids, DAEMON_PID, getParentPid);
+        expect(result).toEqual([{ pid: 9000, cmdline: 'node claude --mcp__happy__change_title orphan-session' }]);
+    });
+
     it('returns empty for empty process list', () => {
-        const result = findOrphanedHappyProcesses([], new Set(), DAEMON_PID);
+        const result = findOrphanedHappyProcesses([], new Set(), DAEMON_PID, noParent);
         expect(result).toEqual([]);
     });
 });
