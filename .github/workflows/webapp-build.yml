@@ -1,0 +1,73 @@
+name: Webapp Build & Push
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'packages/happy-app/**'
+      - 'packages/happy-wire/**'
+      - 'Dockerfile.webapp'
+      - '.github/workflows/webapp-build.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'packages/happy-app/**'
+      - 'packages/happy-wire/**'
+      - 'Dockerfile.webapp'
+      - '.github/workflows/webapp-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build -f Dockerfile.webapp --progress=plain --tag webapp:test .
+
+      - name: Integration Test
+        run: |
+          CONTAINER_ID=$(docker run -d -p 8080:80 webapp:test)
+          sleep 2
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/)
+          echo "GET / -> $HTTP_CODE"
+          [ "$HTTP_CODE" = "200" ] || { docker logs "$CONTAINER_ID"; docker rm -f "$CONTAINER_ID"; exit 1; }
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/session/test-123)
+          echo "GET /session/test-123 -> $HTTP_CODE (SPA fallback)"
+          [ "$HTTP_CODE" = "200" ] || { docker logs "$CONTAINER_ID"; docker rm -f "$CONTAINER_ID"; exit 1; }
+
+          docker logs "$CONTAINER_ID" 2>&1 | grep -qi "emerg\|fatal" && { echo "Fatal nginx errors found"; docker rm -f "$CONTAINER_ID"; exit 1; }
+          echo "No fatal nginx errors"
+
+          docker rm -f "$CONTAINER_ID"
+          echo "All webapp tests passed"
+
+      - name: Tag and Push image
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          IMAGE_ID="ghcr.io/$(echo "$REPO" | tr '[:upper:]' '[:lower:]')/webapp"
+          docker tag webapp:test "$IMAGE_ID:latest"
+          docker tag webapp:test "$IMAGE_ID:$SHA"
+          docker push "$IMAGE_ID:latest"
+          docker push "$IMAGE_ID:$SHA"
+          echo "Pushed $IMAGE_ID:latest and $IMAGE_ID:$SHA"

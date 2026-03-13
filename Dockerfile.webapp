@@ -1,3 +1,6 @@
+# Multi-stage build: install deps → export web → serve with nginx
+# Built in GitHub Actions, pushed to GHCR, deployed by Coolify
+
 # Stage 1: install dependencies with workspace context
 FROM oven/bun:1 AS deps
 
@@ -13,7 +16,7 @@ RUN mkdir -p packages/happy-app packages/happy-server packages/happy-cli package
 COPY packages/happy-wire/package.json packages/happy-wire/
 COPY packages/happy-app/package.json packages/happy-app/
 
-# Stub out unneeded workspaces — avoids installing server, CLI, agent deps
+# Stub out unneeded workspaces — avoids installing native server deps, CLI, etc.
 RUN echo '{"name":"happy-server","version":"1.0.0","private":true}' > packages/happy-server/package.json
 RUN echo '{"name":"happy-coder","version":"0.1.0","private":true}' > packages/happy-cli/package.json
 RUN echo '{"name":"@slopus/agent","version":"0.1.0","private":true}' > packages/happy-agent/package.json
@@ -21,18 +24,9 @@ RUN echo '{"name":"@slopus/agent","version":"0.1.0","private":true}' > packages/
 # Install with --ignore-scripts, then manually run what we need
 RUN NODE_ENV=development SKIP_HAPPY_WIRE_BUILD=1 bun install --ignore-scripts
 RUN SKIP_HAPPY_WIRE_BUILD=1 bun scripts/postinstall.cjs
-RUN cd packages/happy-app && bunx patch-package && bunx setup-skia-web public
 
-# Stage 2: build the web app
+# Stage 2: build wire + export web app
 FROM deps AS builder
-
-ARG POSTHOG_API_KEY=""
-ARG REVENUE_CAT_STRIPE=""
-
-ENV NODE_ENV=production
-ENV APP_ENV=production
-ENV EXPO_PUBLIC_POSTHOG_API_KEY=$POSTHOG_API_KEY
-ENV EXPO_PUBLIC_REVENUE_CAT_STRIPE=$REVENUE_CAT_STRIPE
 
 COPY packages/happy-wire ./packages/happy-wire
 COPY packages/happy-app ./packages/happy-app
@@ -40,60 +34,59 @@ COPY packages/happy-app ./packages/happy-app
 RUN bun run --filter @jakobgruen/happy-wire build
 RUN cd packages/happy-app && bunx expo export --platform web --output-dir dist
 
-# Stage 3: runtime with Nginx
+# Stage 3: serve static files with nginx
 FROM nginx:alpine AS runner
 
+# Copy pre-built static files
 COPY --from=builder /repo/packages/happy-app/dist /usr/share/nginx/html
 
 # Remove default nginx configuration
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Create custom nginx configuration directly in the Dockerfile
-RUN echo 'server { \
-    listen 80; \
-    \
-    location /_expo/ { \
-        root   /usr/share/nginx/html; \
-        try_files $uri =404; \
-    } \
-    \
-    location /assets/ { \
-        root   /usr/share/nginx/html; \
-        try_files $uri =404; \
-    } \
-    \
-    location /.well-known/ { \
-        root   /usr/share/nginx/html; \
-        try_files $uri =404; \
-    } \
-    \
-    location / { \
-        root   /usr/share/nginx/html; \
-        index  index.html index.htm; \
-        try_files $uri $uri.html $uri/index.html $uri/index.htm $uri/ /index.html /index.htm =404; \
-    } \
-    \
-    error_page 500 502 503 504 /50x.html; \
-    location = /50x.html { \
-        root /usr/share/nginx/html; \
-        try_files $uri @redirect_to_index; \
-        internal; \
-    } \
-    \
-    error_page 404 = @handle_404; \
-    \
-    location @handle_404 { \
-        root /usr/share/nginx/html; \
-        try_files /404.html @redirect_to_index; \
-        internal; \
-    } \
-    \
-    location @redirect_to_index { \
-        return 302 /; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
+# Create custom nginx configuration for SPA routing
+RUN printf '%s\n' \
+  'server {' \
+  '    listen 80;' \
+  '' \
+  '    location /_expo/ {' \
+  '        root   /usr/share/nginx/html;' \
+  '        try_files $uri =404;' \
+  '    }' \
+  '' \
+  '    location /assets/ {' \
+  '        root   /usr/share/nginx/html;' \
+  '        try_files $uri =404;' \
+  '    }' \
+  '' \
+  '    location /.well-known/ {' \
+  '        root   /usr/share/nginx/html;' \
+  '        try_files $uri =404;' \
+  '    }' \
+  '' \
+  '    location / {' \
+  '        root   /usr/share/nginx/html;' \
+  '        index  index.html index.htm;' \
+  '        try_files $uri $uri.html $uri/index.html $uri/index.htm $uri/ /index.html /index.htm =404;' \
+  '    }' \
+  '' \
+  '    error_page 500 502 503 504 /50x.html;' \
+  '    location = /50x.html {' \
+  '        root /usr/share/nginx/html;' \
+  '        try_files $uri @redirect_to_index;' \
+  '        internal;' \
+  '    }' \
+  '' \
+  '    error_page 404 = @handle_404;' \
+  '' \
+  '    location @handle_404 {' \
+  '        root /usr/share/nginx/html;' \
+  '        try_files /404.html @redirect_to_index;' \
+  '        internal;' \
+  '    }' \
+  '' \
+  '    location @redirect_to_index {' \
+  '        return 302 /;' \
+  '    }' \
+  '}' > /etc/nginx/conf.d/default.conf
 
-# Expose the standard nginx port
 EXPOSE 80
-
-# Nginx starts automatically in the foreground with CMD ["nginx", "-g", "daemon off;"]
