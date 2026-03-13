@@ -2,7 +2,7 @@
 # Built in GitHub Actions, pushed to GHCR, deployed by Coolify
 
 # Stage 1: install dependencies with workspace context
-FROM oven/bun:1 AS deps
+FROM imbios/bun-node:1.2-22-alpine AS deps
 
 WORKDIR /repo
 

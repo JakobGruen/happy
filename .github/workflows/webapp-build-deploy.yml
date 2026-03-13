@@ -1,0 +1,71 @@
+name: Webapp Build Test
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'packages/happy-app/**'
+      - 'packages/happy-wire/**'
+      - 'Dockerfile.webapp'
+      - '.github/workflows/webapp-build-deploy.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'packages/happy-app/**'
+      - 'packages/happy-wire/**'
+      - 'Dockerfile.webapp'
+      - '.github/workflows/webapp-build-deploy.yml'
+  workflow_dispatch:
+
+jobs:
+  webapp-build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.webapp
+          load: true
+          tags: happy-webapp:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Integration tests
+        run: |
+          echo "Starting container..."
+          docker run -d --name webapp-test happy-webapp:test
+
+          sleep 2
+
+          echo "=== Test 1: nginx is running ==="
+          docker exec webapp-test pgrep nginx > /dev/null
+          echo "✅ nginx is running"
+
+          echo "=== Test 2: index.html is served ==="
+          docker exec webapp-test wget -q -O - http://127.0.0.1:80/ | grep -q '<html'
+          echo "✅ index.html served"
+
+          echo "=== Test 3: SPA fallback (unknown route returns index.html) ==="
+          docker exec webapp-test wget -q -O - http://127.0.0.1:80/some/deep/route | grep -q '<html'
+          echo "✅ SPA fallback works"
+
+          echo "=== Test 4: static assets accessible ==="
+          docker exec webapp-test ls /usr/share/nginx/html/_expo/ > /dev/null
+          echo "✅ static assets present"
+
+          echo "=== Test 5: no nginx errors in logs ==="
+          docker logs webapp-test 2>&1 | grep -v 'GET\|POST\|HEAD' | grep -ci 'emerg\|alert\|crit' | grep -q '^0$'
+          echo "✅ no critical nginx errors"
+
+          echo ""
+          echo "All 5 integration tests passed! ✅"
+
+          docker rm -f webapp-test

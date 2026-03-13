@@ -116,6 +116,17 @@ All three status checks must pass before merging to main:
 - Tests on Linux (Node 20 + 24) and Windows (Node 20 + 24)
 - **Triggers:** Changes to `packages/happy-cli/**` or workflow itself
 
+**5. webapp-build-test** (`.github/workflows/webapp-build-deploy.yml`)
+- Builds `Dockerfile.webapp` (multi-stage: bun-node → wire → expo export → nginx:alpine)
+- **Integration tests** (5 checks inside running container):
+  1. nginx is running
+  2. index.html is served
+  3. SPA fallback works (deep routes return index.html)
+  4. Static assets (`_expo/`) accessible
+  5. No critical nginx errors in logs
+- **Triggers:** Changes to `packages/happy-app/**`, `packages/happy-wire/**`, `Dockerfile.webapp`, or workflow itself
+- **Deployment:** Coolify builds from GitHub using `Dockerfile.webapp` → `happy.green-wald.de`
+
 ### Local Testing Scripts
 
 Before pushing to main, use these helper scripts:
@@ -202,6 +213,7 @@ User speaks → Pipecat WebRTC (self-hosted)
 7. **4 spaces** for indentation across all packages
 8. **CLI tests require build first**: Daemon integration tests spawn the actual compiled binary
 9. **No backward compatibility** in happy-app unless explicitly stated
+10. **Bun + Expo export hang**: `bunx expo export` never exits in pure-Bun Docker images — Expo's `ensureProcessExitsAfterDelay` uses `process.getActiveResourcesInfo()` which Bun only stubs. `Dockerfile.webapp` uses `imbios/bun-node` hybrid image (Bun for install, Node for runtime) to fix this
 
 ## App UI Components
 
