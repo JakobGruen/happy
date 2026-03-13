@@ -572,6 +572,7 @@ export default function MachineDetailScreen() {
                                 manual: t('machine.archivedManual'),
                                 crash: t('machine.archivedCrash'),
                                 orphan: t('machine.archivedOrphan'),
+                                'orphan-sweep': t('machine.archivedOrphanSweep'),
                             };
                             const reasonLabel = reasonMap[entry.reason] ?? entry.reason;
                             return (

@@ -813,6 +813,7 @@ export const ja: TranslationStructure = {
         archivedManual: '手動停止',
         archivedCrash: '終了',
         archivedOrphan: '孤立プロセスの整理',
+        archivedOrphanSweep: 'Orphan cleanup (sweep)',
         worktrees: {
             title: 'Worktrees',
             deleteConfirm: 'このworktreeを削除しますか？',

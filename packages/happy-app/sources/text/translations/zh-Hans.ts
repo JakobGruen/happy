@@ -783,6 +783,7 @@ export const zhHans: TranslationStructure = {
         archivedManual: '手动停止',
         archivedCrash: '已退出',
         archivedOrphan: '孤立进程清理',
+        archivedOrphanSweep: 'Orphan cleanup (sweep)',
         worktrees: {
             title: 'Worktrees',
             deleteConfirm: '删除此 worktree？',

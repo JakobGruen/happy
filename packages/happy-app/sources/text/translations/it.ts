@@ -810,6 +810,7 @@ export const it: TranslationStructure = {
         archivedManual: 'Fermata manualmente',
         archivedCrash: 'Terminata',
         archivedOrphan: 'Pulizia orfani',
+        archivedOrphanSweep: 'Orphan cleanup (sweep)',
         worktrees: {
             title: 'Worktrees',
             deleteConfirm: 'Eliminare questo worktree?',

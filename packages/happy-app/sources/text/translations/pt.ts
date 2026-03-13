@@ -781,6 +781,7 @@ export const pt: TranslationStructure = {
         archivedManual: 'Parada manualmente',
         archivedCrash: 'Encerrada',
         archivedOrphan: 'Limpeza de órfãs',
+        archivedOrphanSweep: 'Orphan cleanup (sweep)',
         worktrees: {
             title: 'Worktrees',
             deleteConfirm: 'Excluir este worktree?',

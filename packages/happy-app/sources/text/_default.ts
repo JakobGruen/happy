@@ -780,6 +780,7 @@ export const en = {
         archivedManual: 'Manually stopped',
         archivedCrash: 'Exited',
         archivedOrphan: 'Orphan cleanup',
+        archivedOrphanSweep: 'Orphan cleanup (sweep)',
         worktrees: {
             title: 'Worktrees',
             deleteConfirm: 'Delete this worktree?',

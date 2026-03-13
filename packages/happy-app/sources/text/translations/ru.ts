@@ -779,6 +779,7 @@ export const ru: TranslationStructure = {
         archivedManual: 'Остановлено вручную',
         archivedCrash: 'Завершилось',
         archivedOrphan: 'Очистка сирот',
+        archivedOrphanSweep: 'Orphan cleanup (sweep)',
         worktrees: {
             title: 'Worktrees',
             deleteConfirm: 'Удалить этот worktree?',
