@@ -199,6 +199,7 @@ export default function RootLayout() {
                 setInitState({ credentials });
             } catch (error) {
                 console.error('Error initializing:', error);
+                setInitState({ credentials: null });
             }
         })();
     }, []);
