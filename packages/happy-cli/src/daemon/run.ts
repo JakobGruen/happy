@@ -25,6 +25,7 @@ import { expandEnvironmentVariables } from '@/utils/expandEnvVars';
 import { findIdleSessions } from './idleTimeout';
 import { collectMemoryStats } from './memoryStats';
 import { detectActiveProcesses } from './processActivity';
+import { findOrphanedHappyProcesses, filterOrphansReadyToKill, readAllProcessCmdlines } from './orphanSweeper';
 
 // Prepare initial metadata
 export const initialMachineMetadata: MachineMetadata = {
@@ -208,6 +209,9 @@ export async function startDaemon(): Promise<void> {
         apiRef.markSessionInactive(sessionId);
       }
     };
+
+    /** Tracks first-seen timestamps for orphan grace period */
+    const seenOrphanPids = new Map<number, number>();
 
     // On startup: kill orphaned children from previous daemon runs
     const previousChildren = readDaemonChildren();
@@ -860,6 +864,33 @@ export async function startDaemon(): Promise<void> {
         if (idleResults.length > 0) {
           persistChildren();
         }
+      }
+
+      // Sweep for orphaned happy-spawned processes not in our tracking map
+      if (process.platform === 'linux') {
+          try {
+              const allProcs = readAllProcessCmdlines();
+              const trackedPids = new Set(pidToTrackedSession.keys());
+              const orphans = findOrphanedHappyProcesses(allProcs, trackedPids, process.pid);
+              const toKill = filterOrphansReadyToKill(orphans, seenOrphanPids, Date.now());
+
+              for (const orphan of toKill) {
+                  logger.debug(`[DAEMON RUN] Killing orphaned happy process PID ${orphan.pid}: ${orphan.cmdline.slice(0, 120)}`);
+                  try {
+                      process.kill(orphan.pid, 'SIGTERM');
+                  } catch {
+                      // Already dead
+                  }
+                  trackArchived(orphan.pid, undefined, 'orphan-sweep');
+                  seenOrphanPids.delete(orphan.pid);
+              }
+
+              if (toKill.length > 0) {
+                  logger.debug(`[DAEMON RUN] Orphan sweep killed ${toKill.length} process(es)`);
+              }
+          } catch (err) {
+              logger.debug('[DAEMON RUN] Orphan sweep failed', err);
+          }
       }
 
       // Collect and emit memory stats
