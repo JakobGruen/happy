@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, TextInput, ScrollView, Platform } from 'react-native';
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles, mq } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/constants/Typography';
 import type { Machine } from '@/sync/storageTypes';
@@ -105,6 +105,7 @@ export const MachinePathSelector = React.memo<MachinePathSelectorProps>(({
                                         <Text
                                             style={styles.suggestionChipText}
                                             numberOfLines={1}
+                                            ellipsizeMode="head"
                                         >
                                             {path}
                                         </Text>
@@ -232,7 +233,11 @@ const stylesheet = StyleSheet.create((theme) => (
             paddingVertical: 6,
             borderWidth: 1,
             borderColor: theme.colors.divider,
-            maxWidth: '48%',
+            flexShrink: 1,
+            maxWidth: {
+                [mq.only.width(0, 480)]: '100%',
+                [mq.only.width(480)]: '48%',
+            },
         },
         suggestionChipPressed: {
             backgroundColor: theme.colors.button.primary.background,
