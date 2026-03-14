@@ -28,9 +28,9 @@ import { ItemGroup } from './ItemGroup';
 import { useHappyAction } from '@/hooks/useHappyAction';
 import { sessionDelete } from '@/sync/ops';
 import { HappyError } from '@/utils/errors';
-import { Modal } from '@/modal';
 import { canReactivateSession, useCanReactivateSession } from '@/hooks/useCanReactivateSession';
 import { useMachine } from '@/sync/storage';
+import { markReactivating, unmarkReactivating } from '@/hooks/useReactivatingSessions';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -351,6 +351,7 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
     isSingle?: boolean;
 }) => {
     const styles = stylesheet;
+    const { theme } = useUnistyles();
     const sessionStatus = useSessionStatus(session);
     const sessionName = getSessionName(session);
     const sessionSubtitle = getSessionSubtitle(session);
@@ -366,32 +367,22 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
     });
 
     const handleDelete = React.useCallback(() => {
-        swipeableRef.current?.close();
-        Modal.alert(
-            t('sessionInfo.deleteSession'),
-            t('sessionInfo.deleteSessionWarning'),
-            [
-                { text: t('common.cancel'), style: 'cancel' },
-                {
-                    text: t('sessionInfo.deleteSession'),
-                    style: 'destructive',
-                    onPress: performDelete
-                }
-            ]
-        );
+        swipeableRef.current?.vanish('left');
+        performDelete();
     }, [performDelete]);
 
     // Reactivation support for inactive sessions
     const machine = useMachine(session.metadata?.machineId || '');
     const showReactivate = canReactivateSession(session, machine);
     const { reactivating, performReactivate } = useCanReactivateSession(session, {
-        onSuccess: (newSessionId) => navigateToSession(newSessionId),
+        onError: () => unmarkReactivating(session.id),
     });
 
     const handleReactivate = React.useCallback(() => {
-        swipeableRef.current?.close();
+        markReactivating(session.id);
         performReactivate();
-    }, [performReactivate]);
+        swipeableRef.current?.vanish('right');
+    }, [session.id, performReactivate]);
 
     const avatarId = React.useMemo(() => {
         return getSessionAvatarId(session);
@@ -517,6 +508,10 @@ const SessionItem = React.memo(({ session, selected, isFirst, isLast, isSingle }
                 overshootRight={false}
                 overshootLeft={false}
                 enabled={!deletingSession && !reactivating}
+                onRightAction={handleDelete}
+                onLeftAction={showReactivate ? handleReactivate : undefined}
+                rightActionColor={theme.colors.status.error}
+                leftActionColor={theme.colors.status.connected}
             >
                 {itemContent}
             </SwipeableRow>

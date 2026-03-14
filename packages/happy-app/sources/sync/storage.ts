@@ -18,6 +18,7 @@ import { sync } from "./sync";
 import { getCurrentRealtimeSessionId, getVoiceSession } from '@/realtime/RealtimeSession';
 import { isMutableTool } from "@/components/tools/knownTools";
 import { projectManager } from "./projectManager";
+import { isReactivating } from "@/hooks/useReactivatingSessions";
 import { DecryptedArtifact } from "./artifactTypes";
 import { FeedItem } from "./feedTypes";
 
@@ -37,9 +38,12 @@ function resolveSessionOnlineState(session: { active: boolean; activeAt: number 
 /**
  * Checks if a session should be shown in the active sessions group
  */
-function isSessionActive(session: { active: boolean; activeAt: number }): boolean {
+function isSessionActive(session: { id?: string; active: boolean; activeAt: number }): boolean {
     // Use the active flag directly, no timeout checks
-    return session.active;
+    if (session.active) return true;
+    // Optimistic: treat reactivating sessions as active
+    if (session.id && isReactivating(session.id)) return true;
+    return false;
 }
 
 function isSandboxEnabled(metadata: Session['metadata'] | null | undefined): boolean {
@@ -1095,6 +1099,7 @@ export const storage = create<StorageState>()((set, get) => {
         })),
     }
 });
+
 
 export function useSessions() {
     return storage(useShallow((state) => state.isDataReady ? state.sessionsData : null));

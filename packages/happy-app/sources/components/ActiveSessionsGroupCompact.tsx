@@ -15,13 +15,13 @@ import { isMachineOnline } from '@/utils/machineUtils';
 import { machineSpawnNewSession, sessionArchive } from '@/sync/ops';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { storage } from '@/sync/storage';
-import { Modal } from '@/modal';
 import { t } from '@/text';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useIsTablet } from '@/utils/responsive';
 import { ProjectGitStatus } from './ProjectGitStatus';
 import { useHappyAction } from '@/hooks/useHappyAction';
 import { HappyError } from '@/utils/errors';
+import { useIsReactivating, unmarkReactivating } from '@/hooks/useReactivatingSessions';
 
 import { CompactMemoryBadge } from '@/components/CompactMemoryBadge';
 import { CompactBranchBadge } from '@/components/CompactBranchBadge';
@@ -307,6 +307,14 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
     const realtimeStatus = useRealtimeStatus();
     const isVoiceActive = session.id === realtimeSessionId
         && (realtimeStatus === 'connected' || realtimeStatus === 'connecting');
+    const isReactivating = useIsReactivating(session.id);
+
+    // Auto-cleanup: when session becomes truly active, remove from reactivating set
+    React.useEffect(() => {
+        if (isReactivating && session.active) {
+            unmarkReactivating(session.id);
+        }
+    }, [isReactivating, session.active, session.id]);
 
     const [archivingSession, performArchive] = useHappyAction(async () => {
         const result = await sessionArchive(session.id, session.metadata?.machineId);
@@ -316,19 +324,8 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
     });
 
     const handleArchive = React.useCallback(() => {
-        swipeableRef.current?.close();
-        Modal.alert(
-            t('sessionInfo.archiveSession'),
-            t('sessionInfo.archiveSessionConfirm'),
-            [
-                { text: t('common.cancel'), style: 'cancel' },
-                {
-                    text: t('sessionInfo.archiveSession'),
-                    style: 'destructive',
-                    onPress: performArchive
-                }
-            ]
-        );
+        swipeableRef.current?.vanish('left');
+        performArchive();
     }, [performArchive]);
 
     const itemContent = (
@@ -362,8 +359,10 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
                         />
                     )}
 
-                    {/* Status dot or draft icon on the left */}
-                    {!isVoiceActive && (() => {
+                    {/* Reactivating spinner or status dot */}
+                    {isReactivating ? (
+                        <ActivityIndicator size={12} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+                    ) : !isVoiceActive && (() => {
                         // Show draft icon when online with draft
                         if (sessionStatus.state === 'waiting' && session.draft) {
                             return (
@@ -375,31 +374,31 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
                                 />
                             );
                         }
-                        
+
                         // Show status dot only for permission_required/thinking states
                         if (sessionStatus.state === 'permission_required' || sessionStatus.state === 'thinking') {
                             return (
                                 <View style={[styles.statusDotContainer, { marginRight: 8 }]}>
-                                    <StatusDot 
-                                        color={sessionStatus.statusDotColor} 
-                                        isPulsing={sessionStatus.isPulsing} 
+                                    <StatusDot
+                                        color={sessionStatus.statusDotColor}
+                                        isPulsing={sessionStatus.isPulsing}
                                     />
                                 </View>
                             );
                         }
-                        
+
                         // Show grey dot for online without draft
                         if (sessionStatus.state === 'waiting') {
                             return (
                                 <View style={[styles.statusDotContainer, { marginRight: 8 }]}>
-                                    <StatusDot 
-                                        color={theme.colors.textSecondary} 
-                                        isPulsing={false} 
+                                    <StatusDot
+                                        color={theme.colors.textSecondary}
+                                        isPulsing={false}
                                     />
                                 </View>
                             );
                         }
-                        
+
                         return null;
                     })()}
                     
@@ -440,6 +439,8 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
             renderRightActions={renderRightActions}
             overshootRight={false}
             enabled={!archivingSession}
+            onRightAction={handleArchive}
+            rightActionColor={theme.colors.status.error}
         >
             {itemContent}
         </SwipeableRow>
