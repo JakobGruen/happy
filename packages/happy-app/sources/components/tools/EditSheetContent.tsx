@@ -54,7 +54,7 @@ export const EditSheetContent = React.memo<EditSheetContentProps>(({ permission 
         const parsed = knownTools.Write.input.safeParse(input);
         if (!parsed.success) return null;
         const contents = typeof parsed.data.content === 'string' ? parsed.data.content : '';
-        const language = languageFromPath(parsed.data.file_path);
+        const language = languageFromPath(parsed.data.file_path ?? '');
 
         return (
             <View style={styles.container}>

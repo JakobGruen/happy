@@ -8,11 +8,37 @@ import * as z from 'zod';
 function MockView(props: any) { return props.children ?? null; }
 function MockText(props: any) { return props.children ?? null; }
 function MockScrollView(props: any) { return props.children ?? null; }
+function MockPressable(props: any) { return props.children ?? null; }
 
 vi.mock('react-native', () => ({
     View: MockView,
     Text: MockText,
     ScrollView: MockScrollView,
+    Pressable: MockPressable,
+    Platform: { OS: 'ios', select: (obj: any) => obj.ios ?? obj.default },
+    StyleSheet: {
+        absoluteFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+        create: (styles: any) => styles,
+    },
+    InteractionManager: {
+        runAfterInteractions: (cb: () => void) => { cb(); return { cancel: () => {} }; },
+    },
+}));
+
+// Mock react-native-reanimated
+function MockAnimatedScrollView(props: any) { return props.children ?? null; }
+MockAnimatedScrollView.displayName = 'AnimatedScrollView';
+vi.mock('react-native-reanimated', () => ({
+    default: {
+        ScrollView: MockAnimatedScrollView,
+        View: MockView,
+    },
+    useSharedValue: (initial: any) => ({ value: initial }),
+    useAnimatedStyle: () => ({}),
+    useAnimatedScrollHandler: () => undefined,
+    useAnimatedRef: () => ({ current: null }),
+    scrollTo: () => {},
+    runOnUI: (fn: any) => () => fn(),
 }));
 
 // Mock react-native-unistyles
@@ -48,12 +74,26 @@ vi.mock('@/components/SimpleSyntaxHighlighter', () => ({
     SimpleSyntaxHighlighter: MockSyntaxHighlighter,
 }));
 
-// Mock useSetting
-let mockShowLineNumbers = false;
+// Mock Ionicons
+function MockIonicons(props: any) { return null; }
+vi.mock('@expo/vector-icons', () => ({
+    Ionicons: MockIonicons,
+}));
+
+// Mock Typography
+vi.mock('@/constants/Typography', () => ({
+    Typography: {
+        mono: () => ({ fontFamily: 'monospace' }),
+    },
+}));
+
+// Mock useSettingMutable
+let mockWrapLines = false;
+const mockSetWrapLines = vi.fn();
 vi.mock('@/sync/storage', () => ({
-    useSetting: (key: string) => {
-        if (key === 'showLineNumbersInToolViews') return mockShowLineNumbers;
-        return false;
+    useSettingMutable: (key: string) => {
+        if (key === 'wrapLinesInDiffs') return [mockWrapLines, mockSetWrapLines];
+        return [false, vi.fn()];
     },
 }));
 
@@ -187,7 +227,8 @@ function makeWriteTool(overrides?: {
 
 describe('FileViewModalContent', () => {
     beforeEach(() => {
-        mockShowLineNumbers = false;
+        mockWrapLines = false;
+        mockSetWrapLines.mockClear();
     });
 
     describe('extractFileViewData — Read tool', () => {
@@ -274,12 +315,11 @@ describe('FileViewModalContent', () => {
             expect(data).toBeNull();
         });
 
-        it('returns null when result.file is missing filePath (Zod validation fails on file sub-object)', () => {
+        it('extracts content from result.file even when filePath is missing (falls back to input.file_path)', () => {
             const tool = makeReadTool({
                 input: { file_path: '/home/user/fallback.py' },
                 result: {
                     file: {
-                        // filePath is required in the Zod schema; missing → file becomes undefined
                         content: 'x = 1',
                         numLines: 1,
                         startLine: 1,
@@ -289,8 +329,9 @@ describe('FileViewModalContent', () => {
             });
             const data = extractFileViewData(tool);
 
-            // file sub-object fails validation, so file is undefined → null
-            expect(data).toBeNull();
+            expect(data).not.toBeNull();
+            expect(data!.content).toBe('x = 1');
+            expect(data!.fileName).toBe('fallback.py');
         });
 
         it('extracts filename from deep path', () => {
@@ -309,6 +350,56 @@ describe('FileViewModalContent', () => {
 
             expect(data!.fileName).toBe('Component.tsx');
             expect(data!.language).toBe('typescript');
+        });
+    });
+
+    describe('extractFileViewData — wire format (string result with cat -n)', () => {
+        it('strips tab-separated line numbers from cat -n output', () => {
+            const tool = makeReadTool({
+                input: { file_path: '/src/index.ts' },
+                result: "     1\tconst x = 1;\n     2\tconsole.log(x);",
+            });
+            const data = extractFileViewData(tool);
+
+            expect(data).not.toBeNull();
+            expect(data!.content).toBe('const x = 1;\nconsole.log(x);');
+            expect(data!.startLine).toBe(1);
+        });
+
+        it('strips arrow-separated line numbers (U+2192) from Read tool output', () => {
+            const tool = makeReadTool({
+                input: { file_path: '/src/index.ts' },
+                result: "     1\u2192const x = 1;\n     2\u2192console.log(x);",
+            });
+            const data = extractFileViewData(tool);
+
+            expect(data).not.toBeNull();
+            expect(data!.content).toBe('const x = 1;\nconsole.log(x);');
+            expect(data!.startLine).toBe(1);
+        });
+
+        it('detects startLine from cat -n with offset', () => {
+            const tool = makeReadTool({
+                input: { file_path: '/src/big.ts', offset: 50 },
+                result: "    50\u2192line fifty\n    51\u2192line fifty-one",
+            });
+            const data = extractFileViewData(tool);
+
+            expect(data!.startLine).toBe(50);
+            expect(data!.isPartialRead).toBe(true);
+        });
+
+        it('handles content block array format', () => {
+            const tool = makeReadTool({
+                input: { file_path: '/src/app.ts' },
+                result: [
+                    { type: 'text', text: "     1\u2192const a = 1;\n     2\u2192const b = 2;" },
+                ],
+            });
+            const data = extractFileViewData(tool);
+
+            expect(data).not.toBeNull();
+            expect(data!.content).toBe('const a = 1;\nconst b = 2;');
         });
     });
 
@@ -496,9 +587,8 @@ describe('FileViewModalContent', () => {
             });
         });
 
-        describe('line numbers toggle', () => {
-            it('renders line numbers when showLineNumbersInToolViews is true', () => {
-                mockShowLineNumbers = true;
+        describe('line numbers (always shown per-line)', () => {
+            it('renders line numbers alongside each code line', () => {
                 const tool = makeReadTool({
                     result: {
                         file: {
@@ -518,30 +608,7 @@ describe('FileViewModalContent', () => {
                 expect(texts).toContain('3');
             });
 
-            it('does not render line numbers when showLineNumbersInToolViews is false', () => {
-                mockShowLineNumbers = false;
-                const tool = makeReadTool({
-                    result: {
-                        file: {
-                            filePath: '/src/app.ts',
-                            content: 'line1\nline2\nline3',
-                            numLines: 3,
-                            startLine: 1,
-                            totalLines: 3,
-                        },
-                    },
-                });
-                const inst = renderComponent(tool);
-                const texts = collectAllText(inst.root);
-
-                // No line number text nodes should be present
-                expect(texts).not.toContain('1');
-                expect(texts).not.toContain('2');
-                expect(texts).not.toContain('3');
-            });
-
             it('renders line numbers starting from startLine for partial reads', () => {
-                mockShowLineNumbers = true;
                 const tool = makeReadTool({
                     result: {
                         file: {
@@ -563,7 +630,7 @@ describe('FileViewModalContent', () => {
         });
 
         describe('SimpleSyntaxHighlighter props', () => {
-            it('passes code and language to SimpleSyntaxHighlighter for Read tool', () => {
+            it('passes per-line code and language to SimpleSyntaxHighlighter for Read tool', () => {
                 const tool = makeReadTool({
                     result: {
                         file: {
@@ -578,23 +645,26 @@ describe('FileViewModalContent', () => {
                 const inst = renderComponent(tool);
                 const highlighters = inst.root.findAllByType(MockSyntaxHighlighter as any);
 
-                expect(highlighters).toHaveLength(1);
+                // Both wrapped + unwrapped views are always mounted, so 2x highlighters
+                expect(highlighters).toHaveLength(2);
                 expect(highlighters[0].props.code).toBe('const x = 1;');
                 expect(highlighters[0].props.language).toBe('typescript');
             });
 
-            it('passes code and language to SimpleSyntaxHighlighter for Write tool', () => {
+            it('renders one highlighter per line for multi-line content', () => {
                 const tool = makeWriteTool({
                     input: {
                         file_path: '/src/app.py',
-                        content: 'print("hello")',
+                        content: 'print("hello")\nprint("world")',
                     },
                 });
                 const inst = renderComponent(tool);
                 const highlighters = inst.root.findAllByType(MockSyntaxHighlighter as any);
 
-                expect(highlighters).toHaveLength(1);
+                // Both wrapped + unwrapped views are always mounted, so 2x highlighters per line
+                expect(highlighters).toHaveLength(4);
                 expect(highlighters[0].props.code).toBe('print("hello")');
+                expect(highlighters[1].props.code).toBe('print("world")');
                 expect(highlighters[0].props.language).toBe('python');
             });
 
@@ -613,7 +683,8 @@ describe('FileViewModalContent', () => {
                 const inst = renderComponent(tool);
                 const highlighters = inst.root.findAllByType(MockSyntaxHighlighter as any);
 
-                expect(highlighters).toHaveLength(1);
+                // Both wrapped + unwrapped views are always mounted
+                expect(highlighters).toHaveLength(2);
                 expect(highlighters[0].props.code).toBe('unknown');
                 expect(highlighters[0].props.language).toBeNull();
             });
@@ -671,11 +742,22 @@ describe('FileViewModalContent', () => {
                 const inst = renderComponent(tool);
                 const highlighters = inst.root.findAllByType(MockSyntaxHighlighter as any);
 
-                // Syntax highlighter should still render
-                expect(highlighters).toHaveLength(1);
+                // Syntax highlighter should still render (2x for dual views)
+                expect(highlighters).toHaveLength(2);
                 // No range text
                 const texts = collectAllText(inst.root);
                 expect(texts.some(t => t.includes('Lines'))).toBe(false);
+            });
+        });
+
+        describe('wrap toggle', () => {
+            it('renders the wrap toggle button in the header', () => {
+                const tool = makeReadTool();
+                const inst = renderComponent(tool);
+                const pressables = inst.root.findAllByType(MockPressable);
+
+                // At least one Pressable for the wrap toggle
+                expect(pressables.length).toBeGreaterThanOrEqual(1);
             });
         });
     });
