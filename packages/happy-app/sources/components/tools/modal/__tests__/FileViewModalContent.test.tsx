@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as React from 'react';
 import * as z from 'zod';
 
 // --- Mocks must be before any imports that use mocked modules ---
 
-// Mock react-native
+// Mock react-native with functional components for react-test-renderer compatibility
+function MockView(props: any) { return props.children ?? null; }
+function MockText(props: any) { return props.children ?? null; }
+function MockScrollView(props: any) { return props.children ?? null; }
+
 vi.mock('react-native', () => ({
-    View: 'View',
-    Text: 'Text',
-    ScrollView: 'ScrollView',
+    View: MockView,
+    Text: MockText,
+    ScrollView: MockScrollView,
 }));
 
 // Mock react-native-unistyles
@@ -35,9 +40,12 @@ vi.mock('react-native-unistyles', () => ({
     }),
 }));
 
-// Mock SimpleSyntaxHighlighter
+// Mock SimpleSyntaxHighlighter — functional component that preserves props
+function MockSyntaxHighlighter(props: { code: string; language: string | null; selectable?: boolean }) {
+    return null;
+}
 vi.mock('@/components/SimpleSyntaxHighlighter', () => ({
-    SimpleSyntaxHighlighter: () => 'SimpleSyntaxHighlighter',
+    SimpleSyntaxHighlighter: MockSyntaxHighlighter,
 }));
 
 // Mock useSetting
@@ -92,11 +100,38 @@ vi.mock('@/components/tools/knownTools', () => ({
 }));
 
 // Import after mocks
+import renderer, { act } from 'react-test-renderer';
 import { ToolCall } from '@/sync/typesMessage';
 import {
     extractFileViewData,
     FileViewData,
+    FileViewModalContent,
 } from '../FileViewModalContent';
+
+// --- Render helpers ---
+
+/** Create a rendered test instance and return the root for querying */
+function renderComponent(tool: ToolCall) {
+    let inst: renderer.ReactTestRenderer;
+    act(() => {
+        inst = renderer.create(<FileViewModalContent tool={tool} />);
+    });
+    return inst!;
+}
+
+/** Collect all text strings from the rendered tree via testInstance API */
+function collectAllText(root: renderer.ReactTestInstance): string[] {
+    const textNodes = root.findAllByType(MockText);
+    const texts: string[] = [];
+    for (const node of textNodes) {
+        for (const child of node.children) {
+            if (typeof child === 'string') {
+                texts.push(child);
+            }
+        }
+    }
+    return texts;
+}
 
 // --- Test helpers ---
 
@@ -414,6 +449,234 @@ describe('FileViewModalContent', () => {
             const endLine = data.startLine + data.numLines - 1;
             const rangeText = `Lines ${data.startLine}\u2013${endLine} of ${data.totalLines}`;
             expect(rangeText).toBe('Lines 100\u2013100 of 500');
+        });
+    });
+
+    describe('FileViewModalContent rendering', () => {
+        describe('fallback states', () => {
+            it('shows "Waiting for result…" for a running Read tool', () => {
+                const tool = makeReadTool({ state: 'running', result: undefined });
+                const inst = renderComponent(tool);
+                const texts = collectAllText(inst.root);
+
+                expect(texts.some(t => t.startsWith('Waiting for result'))).toBe(true);
+            });
+
+            it('shows "No content available" when Read result has no file data', () => {
+                const tool = makeReadTool({ result: {} });
+                const inst = renderComponent(tool);
+                const texts = collectAllText(inst.root);
+
+                expect(texts).toContain('No content available');
+            });
+
+            it('shows "No content available" when Write input has no content', () => {
+                const tool = makeWriteTool({ input: { file_path: '/file.ts' } });
+                const inst = renderComponent(tool);
+                const texts = collectAllText(inst.root);
+
+                expect(texts).toContain('No content available');
+            });
+
+            it('shows "Unable to display file" for an unsupported tool', () => {
+                const tool: ToolCall = {
+                    name: 'Bash',
+                    state: 'completed',
+                    input: { command: 'ls' },
+                    createdAt: Date.now(),
+                    startedAt: Date.now(),
+                    completedAt: Date.now(),
+                    description: null,
+                    result: 'output',
+                };
+                const inst = renderComponent(tool);
+                const texts = collectAllText(inst.root);
+
+                expect(texts).toContain('Unable to display file');
+            });
+        });
+
+        describe('line numbers toggle', () => {
+            it('renders line numbers when showLineNumbersInToolViews is true', () => {
+                mockShowLineNumbers = true;
+                const tool = makeReadTool({
+                    result: {
+                        file: {
+                            filePath: '/src/app.ts',
+                            content: 'line1\nline2\nline3',
+                            numLines: 3,
+                            startLine: 1,
+                            totalLines: 3,
+                        },
+                    },
+                });
+                const inst = renderComponent(tool);
+                const texts = collectAllText(inst.root);
+
+                expect(texts).toContain('1');
+                expect(texts).toContain('2');
+                expect(texts).toContain('3');
+            });
+
+            it('does not render line numbers when showLineNumbersInToolViews is false', () => {
+                mockShowLineNumbers = false;
+                const tool = makeReadTool({
+                    result: {
+                        file: {
+                            filePath: '/src/app.ts',
+                            content: 'line1\nline2\nline3',
+                            numLines: 3,
+                            startLine: 1,
+                            totalLines: 3,
+                        },
+                    },
+                });
+                const inst = renderComponent(tool);
+                const texts = collectAllText(inst.root);
+
+                // No line number text nodes should be present
+                expect(texts).not.toContain('1');
+                expect(texts).not.toContain('2');
+                expect(texts).not.toContain('3');
+            });
+
+            it('renders line numbers starting from startLine for partial reads', () => {
+                mockShowLineNumbers = true;
+                const tool = makeReadTool({
+                    result: {
+                        file: {
+                            filePath: '/src/app.ts',
+                            content: 'a\nb',
+                            numLines: 2,
+                            startLine: 50,
+                            totalLines: 200,
+                        },
+                    },
+                });
+                const inst = renderComponent(tool);
+                const texts = collectAllText(inst.root);
+
+                expect(texts).toContain('50');
+                expect(texts).toContain('51');
+                expect(texts).not.toContain('1');
+            });
+        });
+
+        describe('SimpleSyntaxHighlighter props', () => {
+            it('passes code and language to SimpleSyntaxHighlighter for Read tool', () => {
+                const tool = makeReadTool({
+                    result: {
+                        file: {
+                            filePath: '/src/index.ts',
+                            content: 'const x = 1;',
+                            numLines: 1,
+                            startLine: 1,
+                            totalLines: 1,
+                        },
+                    },
+                });
+                const inst = renderComponent(tool);
+                const highlighters = inst.root.findAllByType(MockSyntaxHighlighter as any);
+
+                expect(highlighters).toHaveLength(1);
+                expect(highlighters[0].props.code).toBe('const x = 1;');
+                expect(highlighters[0].props.language).toBe('typescript');
+            });
+
+            it('passes code and language to SimpleSyntaxHighlighter for Write tool', () => {
+                const tool = makeWriteTool({
+                    input: {
+                        file_path: '/src/app.py',
+                        content: 'print("hello")',
+                    },
+                });
+                const inst = renderComponent(tool);
+                const highlighters = inst.root.findAllByType(MockSyntaxHighlighter as any);
+
+                expect(highlighters).toHaveLength(1);
+                expect(highlighters[0].props.code).toBe('print("hello")');
+                expect(highlighters[0].props.language).toBe('python');
+            });
+
+            it('passes null language for unknown file extensions', () => {
+                const tool = makeReadTool({
+                    result: {
+                        file: {
+                            filePath: '/data/file.xyz',
+                            content: 'unknown',
+                            numLines: 1,
+                            startLine: 1,
+                            totalLines: 1,
+                        },
+                    },
+                });
+                const inst = renderComponent(tool);
+                const highlighters = inst.root.findAllByType(MockSyntaxHighlighter as any);
+
+                expect(highlighters).toHaveLength(1);
+                expect(highlighters[0].props.code).toBe('unknown');
+                expect(highlighters[0].props.language).toBeNull();
+            });
+        });
+
+        describe('FileHeader rendering', () => {
+            it('renders the filename in the header', () => {
+                const tool = makeReadTool();
+                const inst = renderComponent(tool);
+                const texts = collectAllText(inst.root);
+
+                expect(texts).toContain('index.ts');
+            });
+
+            it('renders partial-read range indicator for partial reads', () => {
+                const tool = makeReadTool({
+                    result: {
+                        file: {
+                            filePath: '/src/big.ts',
+                            content: 'a\nb\nc',
+                            numLines: 3,
+                            startLine: 10,
+                            totalLines: 100,
+                        },
+                    },
+                });
+                const inst = renderComponent(tool);
+                const texts = collectAllText(inst.root);
+
+                expect(texts).toContain('big.ts');
+                expect(texts).toContain('Lines 10\u201312 of 100');
+            });
+
+            it('does not render range indicator for full reads', () => {
+                const tool = makeReadTool({
+                    result: {
+                        file: {
+                            filePath: '/src/small.ts',
+                            content: 'x',
+                            numLines: 1,
+                            startLine: 1,
+                            totalLines: 1,
+                        },
+                    },
+                });
+                const inst = renderComponent(tool);
+                const texts = collectAllText(inst.root);
+
+                expect(texts).toContain('small.ts');
+                expect(texts.some(t => t.includes('Lines'))).toBe(false);
+            });
+
+            it('does not render header when filename is empty', () => {
+                const tool = makeWriteTool({ input: { content: 'hello' } });
+                const inst = renderComponent(tool);
+                const highlighters = inst.root.findAllByType(MockSyntaxHighlighter as any);
+
+                // Syntax highlighter should still render
+                expect(highlighters).toHaveLength(1);
+                // No range text
+                const texts = collectAllText(inst.root);
+                expect(texts.some(t => t.includes('Lines'))).toBe(false);
+            });
         });
     });
 });
