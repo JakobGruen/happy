@@ -25,24 +25,29 @@ export function canReactivateSession(session: Session, machine: Machine | null):
  * Spawns a fresh session with Claude --resume for context continuity.
  * Calls onSuccess with the new session ID so the caller can navigate to it.
  */
-export function useCanReactivateSession(session: Session, opts?: { onSuccess?: (newSessionId: string) => void }) {
+export function useCanReactivateSession(session: Session, opts?: { onSuccess?: (newSessionId: string) => void; onError?: () => void }) {
     const machineId = session.metadata?.machineId;
     const machine = useMachine(machineId || '');
 
     const canReactivate = canReactivateSession(session, machine);
 
     const [reactivating, performReactivate] = useHappyAction(async () => {
-        const result = await machineResumeSession({
-            machineId: machineId!,
-            sessionId: session.id,
-            claudeSessionId: session.metadata!.claudeSessionId!,
-            directory: session.metadata!.path!,
-        });
-        if (result.type === 'error') {
-            throw new HappyError(result.errorMessage, false);
-        }
-        if (result.type === 'success') {
-            opts?.onSuccess?.(result.sessionId);
+        try {
+            const result = await machineResumeSession({
+                machineId: machineId!,
+                sessionId: session.id,
+                claudeSessionId: session.metadata!.claudeSessionId!,
+                directory: session.metadata!.path!,
+            });
+            if (result.type === 'error') {
+                throw new HappyError(result.errorMessage, false);
+            }
+            if (result.type === 'success') {
+                opts?.onSuccess?.(result.sessionId);
+            }
+        } catch (e) {
+            opts?.onError?.();
+            throw e;
         }
     });
 

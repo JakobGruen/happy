@@ -10,11 +10,10 @@ import { Avatar } from './Avatar';
 import { Typography } from '@/constants/Typography';
 import { StatusDot } from './StatusDot';
 import { useAllMachines, useSetting, useRealtimeSessionId, useRealtimeStatus } from '@/sync/storage';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { machineSpawnNewSession, sessionArchive } from '@/sync/ops';
 import { storage } from '@/sync/storage';
-import { Modal } from '@/modal';
 import { CompactGitStatus } from './CompactGitStatus';
 import { CompactMemoryBadge } from '@/components/CompactMemoryBadge';
 import { CompactBranchBadge } from '@/components/CompactBranchBadge';
@@ -25,6 +24,7 @@ import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useIsTablet } from '@/utils/responsive';
 import { useHappyAction } from '@/hooks/useHappyAction';
 import { HappyError } from '@/utils/errors';
+import { useIsReactivating, unmarkReactivating } from '@/hooks/useReactivatingSessions';
 
 
 const stylesheet = StyleSheet.create((theme, runtime) => ({
@@ -354,11 +354,20 @@ export function ActiveSessionsGroup({ sessions, selectedSessionId }: ActiveSessi
 // Compact session row component with status line
 const CompactSessionRow = React.memo(({ session, selected, showBorder }: { session: Session; selected?: boolean; showBorder?: boolean }) => {
     const styles = stylesheet;
+    const { theme } = useUnistyles();
     const sessionStatus = useSessionStatus(session);
     const sessionName = getSessionName(session);
     const navigateToSession = useNavigateToSession();
     const isTablet = useIsTablet();
     const swipeableRef = React.useRef<SwipeableRowRef | null>(null);
+    const isReactivating = useIsReactivating(session.id);
+
+    // Auto-cleanup: when session becomes truly active, remove from reactivating set
+    React.useEffect(() => {
+        if (isReactivating && session.active) {
+            unmarkReactivating(session.id);
+        }
+    }, [isReactivating, session.active, session.id]);
 
     const [archivingSession, performArchive] = useHappyAction(async () => {
         const result = await sessionArchive(session.id, session.metadata?.machineId);
@@ -368,19 +377,8 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
     });
 
     const handleArchive = React.useCallback(() => {
-        swipeableRef.current?.close();
-        Modal.alert(
-            t('sessionInfo.archiveSession'),
-            t('sessionInfo.archiveSessionConfirm'),
-            [
-                { text: t('common.cancel'), style: 'cancel' },
-                {
-                    text: t('sessionInfo.archiveSession'),
-                    style: 'destructive',
-                    onPress: performArchive
-                }
-            ]
-        );
+        swipeableRef.current?.vanish('left');
+        performArchive();
     }, [performArchive]);
 
     const avatarId = React.useMemo(() => {
@@ -439,15 +437,26 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
                 {/* Status line with dot */}
                 <View style={styles.statusRow}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={styles.statusDotContainer}>
-                            <StatusDot color={sessionStatus.statusDotColor} isPulsing={sessionStatus.isPulsing} />
-                        </View>
-                        <Text style={[
-                            styles.statusText,
-                            { color: sessionStatus.statusColor }
-                        ]}>
-                            {sessionStatus.statusText}
-                        </Text>
+                        {isReactivating ? (
+                            <>
+                                <ActivityIndicator size={12} color={theme.colors.textSecondary} style={{ marginRight: 6 }} />
+                                <Text style={[styles.statusText, { color: theme.colors.textSecondary }]}>
+                                    {t('session.reactivating')}
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <View style={styles.statusDotContainer}>
+                                    <StatusDot color={sessionStatus.statusDotColor} isPulsing={sessionStatus.isPulsing} />
+                                </View>
+                                <Text style={[
+                                    styles.statusText,
+                                    { color: sessionStatus.statusColor }
+                                ]}>
+                                    {sessionStatus.statusText}
+                                </Text>
+                            </>
+                        )}
                     </View>
 
                     {/* Status indicators on the right side */}
@@ -520,6 +529,8 @@ const CompactSessionRow = React.memo(({ session, selected, showBorder }: { sessi
             renderRightActions={renderRightActions}
             overshootRight={false}
             enabled={!archivingSession}
+            onRightAction={handleArchive}
+            rightActionColor={theme.colors.status.error}
         >
             {itemContent}
         </SwipeableRow>
