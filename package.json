@@ -17,6 +17,7 @@
         "test:cli": "bun run --filter happy-coder test",
         "test:server": "bun run --filter happy-server test",
         "release": "node ./scripts/release.cjs",
+        "daemon": "bash scripts/rebuild-daemon.sh",
         "dev:reset": "bash scripts/dev-reset.sh",
         "metro:watchdog": "bash scripts/metro-watchdog.sh",
         "postinstall": "node ./scripts/postinstall.cjs"
