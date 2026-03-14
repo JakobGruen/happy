@@ -18,6 +18,7 @@ export interface NewSessionDraft {
     agentType: NewSessionAgentType;
     permissionMode: PermissionModeKey;
     sessionType: NewSessionSessionType;
+    autoApproveTools?: boolean;
     updatedAt: number;
 }
 

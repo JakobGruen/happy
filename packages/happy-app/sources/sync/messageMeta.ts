@@ -7,8 +7,8 @@ function isSandboxEnabled(metadata: Session['metadata'] | null | undefined): boo
 }
 
 export function resolveMessageModeMeta(
-    session: Pick<Session, 'permissionMode' | 'modelMode' | 'metadata'>,
-): { permissionMode: PermissionModeKey; model: string | null } {
+    session: Pick<Session, 'permissionMode' | 'modelMode' | 'metadata' | 'autoApproveTools'>,
+): { permissionMode: PermissionModeKey; model: string | null; autoApproveTools?: boolean } {
     const sandboxEnabled = isSandboxEnabled(session.metadata);
     const permissionMode: PermissionModeKey =
         session.permissionMode && session.permissionMode !== 'default'
@@ -22,5 +22,6 @@ export function resolveMessageModeMeta(
     return {
         permissionMode,
         model,
+        ...(session.autoApproveTools ? { autoApproveTools: true } : {}),
     };
 }

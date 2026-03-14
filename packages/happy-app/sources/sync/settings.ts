@@ -281,6 +281,7 @@ export const SettingsSchema = z.object({
     lastUsedAgent: z.string().nullable().describe('Last selected agent type for new sessions'),
     lastUsedPermissionMode: z.string().nullable().describe('Last selected permission mode for new sessions'),
     lastUsedModelMode: z.string().nullable().describe('Last selected model mode for new sessions'),
+    lastUsedAutoApproveTools: z.boolean().nullable().describe('Last used auto-approve tools toggle for new sessions'),
     // Profile management settings
     profiles: z.array(AIBackendProfileSchema).describe('User-defined profiles for AI backend and environment variables'),
     lastUsedProfile: z.string().nullable().describe('Last selected profile for new sessions'),
@@ -347,6 +348,7 @@ export const settingsDefaults: Settings = {
     lastUsedAgent: null,
     lastUsedPermissionMode: null,
     lastUsedModelMode: null,
+    lastUsedAutoApproveTools: false,
     // Profile management defaults
     profiles: [],
     lastUsedProfile: null,

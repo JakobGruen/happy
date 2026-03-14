@@ -458,7 +458,7 @@ class Sync {
             return;
         }
 
-        const { permissionMode, model } = resolveMessageModeMeta(session);
+        const { permissionMode, model, autoApproveTools } = resolveMessageModeMeta(session);
 
         // Generate local ID
         const localId = randomUUID();
@@ -510,7 +510,8 @@ class Sync {
                 model,
                 fallbackModel,
                 appendSystemPrompt: systemPrompt,
-                ...(displayText && { displayText }) // Add displayText if provided
+                ...(displayText && { displayText }),
+                ...(autoApproveTools && { autoApproveTools }),
             }
         };
         const encryptedRawRecord = await encryption.encryptRawRecord(content);

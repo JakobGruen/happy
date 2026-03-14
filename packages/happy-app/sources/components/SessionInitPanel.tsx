@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, Platform, ActivityIndicator, Switch } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import Animated, { FadeIn, FadeOut, SlideInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { SessionInitCard, SessionInitCardOption } from './SessionInitCard';
 import { MachinePathSelector } from './MachinePathSelector';
 import type { PermissionMode, ModelMode } from './PermissionModeSelector';
 import type { Machine } from '@/sync/storageTypes';
+import { t } from '@/text';
 
 interface SessionInitPanelProps {
     // Tab state
@@ -27,6 +28,10 @@ interface SessionInitPanelProps {
     availableModes: PermissionMode[];
     selectedMode: PermissionMode | null;
     onModeChange: (mode: PermissionMode) => void;
+
+    // Auto-approve tools (Claude-only, independent toggle)
+    autoApproveTools: boolean;
+    onAutoApproveToolsChange: (enabled: boolean) => void;
 
     // Machine and directory
     machines: Machine[];
@@ -53,6 +58,8 @@ export const SessionInitPanel = React.memo<SessionInitPanelProps>(({
     availableModes,
     selectedMode,
     onModeChange,
+    autoApproveTools,
+    onAutoApproveToolsChange,
     machines,
     selectedMachineId,
     selectedPath,
@@ -220,6 +227,30 @@ export const SessionInitPanel = React.memo<SessionInitPanelProps>(({
                 />
             </Animated.View>
 
+            {/* Auto-approve tools toggle (hidden when bypassPermissions selected) */}
+            {selectedMode?.key !== 'bypassPermissions' && agentType === 'claude' && (
+                <Animated.View entering={SlideInDown.duration(400).delay(320)}>
+                    <View style={styles.autoApproveRow}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[
+                                styles.autoApproveTitle,
+                                autoApproveTools && { color: theme.colors.permission.safeYolo },
+                            ]}>
+                                {t('agentInput.autoApproveTools.title')}
+                            </Text>
+                            <Text style={styles.autoApproveDescription}>
+                                {t('agentInput.autoApproveTools.description')}
+                            </Text>
+                        </View>
+                        <Switch
+                            value={autoApproveTools}
+                            onValueChange={onAutoApproveToolsChange}
+                            trackColor={{ false: theme.colors.surfacePressed, true: theme.colors.permission.safeYolo }}
+                        />
+                    </View>
+                </Animated.View>
+            )}
+
             {/* Machine & Directory Card */}
             <Animated.View entering={SlideInDown.duration(400).delay(350)}>
                 <MachinePathSelector
@@ -351,6 +382,27 @@ const stylesheet = StyleSheet.create((theme) => ({
         fontWeight: '600',
         color: theme.colors.text,
         ...Typography.default('semiBold'),
+    },
+
+    autoApproveRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        marginHorizontal: 16,
+        marginVertical: 8,
+        backgroundColor: theme.colors.surfaceRipple,
+        borderRadius: 8,
+    },
+    autoApproveTitle: {
+        fontSize: 13,
+        color: theme.colors.text,
+        ...Typography.default('semiBold'),
+    },
+    autoApproveDescription: {
+        fontSize: 11,
+        color: theme.colors.textSecondary,
+        ...Typography.default(),
     },
 
     activateButton: {

@@ -293,6 +293,7 @@ function NewSessionWizard() {
     const useEnhancedSessionWizard = useSetting('useEnhancedSessionWizard');
     const lastUsedPermissionMode = useSetting('lastUsedPermissionMode');
     const lastUsedModelMode = useSetting('lastUsedModelMode');
+    const lastUsedAutoApproveTools = useSetting('lastUsedAutoApproveTools');
     const experimentsEnabled = useSetting('experiments');
     const [profiles, setProfiles] = useSettingMutable('profiles');
     const lastUsedProfile = useSetting('lastUsedProfile');
@@ -377,6 +378,10 @@ function NewSessionWizard() {
         ]);
     });
 
+    const [autoApproveTools, setAutoApproveTools] = React.useState<boolean>(
+        () => persistedDraft?.autoApproveTools ?? lastUsedAutoApproveTools ?? false
+    );
+
     // Session details state
     const [selectedMachineId, setSelectedMachineId] = React.useState<string | null>(() => {
         if (machines.length > 0) {
@@ -401,6 +406,11 @@ function NewSessionWizard() {
     const handleModelModeChange = React.useCallback((mode: ModelMode) => {
         setModelMode(mode);
         sync.applySettings({ lastUsedModelMode: mode.key });
+    }, []);
+
+    const handleAutoApproveToolsChange = React.useCallback((enabled: boolean) => {
+        setAutoApproveTools(enabled);
+        sync.applySettings({ lastUsedAutoApproveTools: enabled });
     }, []);
 
     //
@@ -1021,6 +1031,7 @@ function NewSessionWizard() {
                 lastUsedProfile: selectedProfileId,
                 lastUsedPermissionMode: permissionMode.key,
                 lastUsedModelMode: modelMode?.key ?? null,
+                lastUsedAutoApproveTools: autoApproveTools,
             });
 
             // Get environment variables from selected profile
@@ -1046,10 +1057,13 @@ function NewSessionWizard() {
 
                 await sync.refreshSessions();
 
-                // Set permission mode and model mode on the session
+                // Set permission mode, model mode, and auto-approve on the session
                 storage.getState().updateSessionPermissionMode(result.sessionId, permissionMode.key);
                 if (modelMode) {
                     storage.getState().updateSessionModelMode(result.sessionId, modelMode.key);
+                }
+                if (autoApproveTools) {
+                    storage.getState().updateSessionAutoApproveTools(result.sessionId, true);
                 }
 
                 // Send initial message if provided
@@ -1118,6 +1132,7 @@ function NewSessionWizard() {
                 agentType,
                 permissionMode: permissionMode.key,
                 sessionType,
+                autoApproveTools,
                 updatedAt: Date.now(),
             });
         }, 250);
@@ -1126,7 +1141,7 @@ function NewSessionWizard() {
                 clearTimeout(draftSaveTimerRef.current);
             }
         };
-    }, [sessionPrompt, selectedMachineId, selectedPath, agentType, permissionMode.key, sessionType]);
+    }, [sessionPrompt, selectedMachineId, selectedPath, agentType, permissionMode.key, sessionType, autoApproveTools]);
 
     // ========================================================================
     // CONTROL A: Simpler AgentInput-driven layout (flag OFF)
@@ -1146,6 +1161,8 @@ function NewSessionWizard() {
                     availableModes={availableModes}
                     selectedMode={permissionMode}
                     onModeChange={handlePermissionModeChange}
+                    autoApproveTools={autoApproveTools}
+                    onAutoApproveToolsChange={handleAutoApproveToolsChange}
                     machines={machines}
                     selectedMachineId={selectedMachineId}
                     selectedPath={selectedPath}
