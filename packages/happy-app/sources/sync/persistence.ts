@@ -148,6 +148,7 @@ export function loadNewSessionDraft(): NewSessionDraft | null {
             : 'default';
         const sessionType: NewSessionSessionType = parsed.sessionType === 'worktree' ? 'worktree' : 'simple';
         const updatedAt = typeof parsed.updatedAt === 'number' ? parsed.updatedAt : Date.now();
+        const autoApproveTools = typeof parsed.autoApproveTools === 'boolean' ? parsed.autoApproveTools : undefined;
 
         return {
             input,
@@ -156,6 +157,7 @@ export function loadNewSessionDraft(): NewSessionDraft | null {
             agentType,
             permissionMode,
             sessionType,
+            autoApproveTools,
             updatedAt,
         };
     } catch (e) {
@@ -204,6 +206,23 @@ export function loadSessionModelModes(): Record<string, string> {
 
 export function saveSessionModelModes(modes: Record<string, string>) {
     mmkv.set('session-model-modes', JSON.stringify(modes));
+}
+
+export function loadSessionAutoApproveTools(): Record<string, boolean> {
+    const data = mmkv.getString('session-auto-approve-tools');
+    if (data) {
+        try {
+            return JSON.parse(data);
+        } catch (e) {
+            console.error('Failed to parse session auto-approve tools', e);
+            return {};
+        }
+    }
+    return {};
+}
+
+export function saveSessionAutoApproveTools(modes: Record<string, boolean>) {
+    mmkv.set('session-auto-approve-tools', JSON.stringify(modes));
 }
 
 export function loadProfile(): Profile {

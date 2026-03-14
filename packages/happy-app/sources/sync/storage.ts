@@ -10,7 +10,7 @@ import { LocalSettings, applyLocalSettings } from "./localSettings";
 import { Purchases, customerInfoToPurchases } from "./purchases";
 import { Profile } from "./profile";
 import { UserProfile, RelationshipUpdatedEvent } from "./friendTypes";
-import { loadSettings, loadLocalSettings, saveLocalSettings, saveSettings, loadPurchases, savePurchases, loadProfile, saveProfile, loadSessionDrafts, saveSessionDrafts, loadSessionPermissionModes, saveSessionPermissionModes, loadSessionModelModes, saveSessionModelModes } from "./persistence";
+import { loadSettings, loadLocalSettings, saveLocalSettings, saveSettings, loadPurchases, savePurchases, loadProfile, saveProfile, loadSessionDrafts, saveSessionDrafts, loadSessionPermissionModes, saveSessionPermissionModes, loadSessionModelModes, saveSessionModelModes, loadSessionAutoApproveTools, saveSessionAutoApproveTools } from "./persistence";
 import type { PermissionModeKey } from '@/components/PermissionModeSelector';
 import type { CustomerInfo } from './revenueCat/types';
 import React from "react";
@@ -261,6 +261,7 @@ export const storage = create<StorageState>()((set, get) => {
     let sessionDrafts = loadSessionDrafts();
     let sessionPermissionModes = loadSessionPermissionModes();
     let sessionModelModes = loadSessionModelModes();
+    let sessionAutoApproveTools = loadSessionAutoApproveTools();
     return {
         settings,
         settingsVersion: version,
@@ -315,6 +316,7 @@ export const storage = create<StorageState>()((set, get) => {
             const savedDrafts = Object.keys(state.sessions).length === 0 ? sessionDrafts : {};
             const savedPermissionModes = Object.keys(state.sessions).length === 0 ? sessionPermissionModes : {};
             const savedModelModes = Object.keys(state.sessions).length === 0 ? sessionModelModes : {};
+            const savedAutoApproveTools = Object.keys(state.sessions).length === 0 ? sessionAutoApproveTools : {};
 
             // Merge new sessions with existing ones
             const mergedSessions: Record<string, Session> = { ...state.sessions };
@@ -344,12 +346,17 @@ export const storage = create<StorageState>()((set, get) => {
                     session.modelMode ||
                     null;
 
+                const existingAutoApprove = state.sessions[session.id]?.autoApproveTools;
+                const savedAutoApprove = savedAutoApproveTools[session.id];
+                const resolvedAutoApprove = existingAutoApprove ?? savedAutoApprove ?? false;
+
                 mergedSessions[session.id] = {
                     ...session,
                     presence,
                     draft: existingDraft || savedDraft || session.draft || null,
                     permissionMode: resolvedPermissionMode,
                     modelMode: resolvedModelMode,
+                    autoApproveTools: resolvedAutoApprove,
                 };
             });
 
@@ -859,15 +866,26 @@ export const storage = create<StorageState>()((set, get) => {
             const session = state.sessions[sessionId];
             if (!session) return state;
 
+            const updatedSessions = {
+                ...state.sessions,
+                [sessionId]: {
+                    ...session,
+                    autoApproveTools: enabled,
+                }
+            };
+
+            // Persist auto-approve tools (only true values to save space)
+            const allAutoApprove: Record<string, boolean> = {};
+            Object.entries(updatedSessions).forEach(([id, sess]) => {
+                if (sess.autoApproveTools) {
+                    allAutoApprove[id] = true;
+                }
+            });
+            saveSessionAutoApproveTools(allAutoApprove);
+
             return {
                 ...state,
-                sessions: {
-                    ...state.sessions,
-                    [sessionId]: {
-                        ...session,
-                        autoApproveTools: enabled,
-                    }
-                }
+                sessions: updatedSessions
             };
         }),
         // Project management methods
@@ -978,6 +996,10 @@ export const storage = create<StorageState>()((set, get) => {
             const modelModes = loadSessionModelModes();
             delete modelModes[sessionId];
             saveSessionModelModes(modelModes);
+
+            const autoApprove = loadSessionAutoApproveTools();
+            delete autoApprove[sessionId];
+            saveSessionAutoApproveTools(autoApprove);
 
             // Rebuild sessionListViewData without the deleted session
             const sessionListViewData = buildSessionListViewData(remainingSessions);
