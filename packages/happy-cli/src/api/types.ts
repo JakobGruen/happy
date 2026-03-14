@@ -31,6 +31,10 @@ export type {
  * - yolo → bypassPermissions
  * - safe-yolo → default
  * - read-only → default
+ *
+ * autoApproveTools is an independent boolean overlay — when true,
+ * PermissionHandler auto-allows all tools except AskUserQuestion and ExitPlanMode.
+ * Composes with any base permission mode (e.g. plan + autoApproveTools).
  */
 export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'read-only' | 'safe-yolo' | 'yolo'
 
@@ -200,6 +204,7 @@ export type Machine = {
 export const MessageMetaSchema = z.object({
   sentFrom: z.string().optional(), // Source identifier
   permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan', 'read-only', 'safe-yolo', 'yolo']).optional(), // Permission mode for this message
+  autoApproveTools: z.boolean().optional(), // Auto-approve tools (except AskUserQuestion and ExitPlanMode)
   model: z.string().nullable().optional(), // Model name for this message (null = reset)
   fallbackModel: z.string().nullable().optional(), // Fallback model for this message (null = reset)
   customSystemPrompt: z.string().nullable().optional(), // Custom system prompt for this message (null = reset)

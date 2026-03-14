@@ -127,6 +127,7 @@ interface StorageState {
     updateSessionDraft: (sessionId: string, draft: string | null) => void;
     updateSessionPermissionMode: (sessionId: string, mode: string) => void;
     updateSessionModelMode: (sessionId: string, mode: string) => void;
+    updateSessionAutoApproveTools: (sessionId: string, enabled: boolean) => void;
     // Artifact methods
     applyArtifacts: (artifacts: DecryptedArtifact[]) => void;
     addArtifact: (artifact: DecryptedArtifact) => void;
@@ -852,6 +853,21 @@ export const storage = create<StorageState>()((set, get) => {
             return {
                 ...state,
                 sessions: updatedSessions
+            };
+        }),
+        updateSessionAutoApproveTools: (sessionId: string, enabled: boolean) => set((state) => {
+            const session = state.sessions[sessionId];
+            if (!session) return state;
+
+            return {
+                ...state,
+                sessions: {
+                    ...state.sessions,
+                    [sessionId]: {
+                        ...session,
+                        autoApproveTools: enabled,
+                    }
+                }
             };
         }),
         // Project management methods

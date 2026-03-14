@@ -410,6 +410,10 @@ export const zhHans: TranslationStructure = {
             badgeBypassAllPermissions: '绕过所有权限',
             badgePlanMode: '计划模式',
         },
+        autoApproveTools: {
+            title: 'Auto-approve tools',
+            description: 'Still asks questions',
+        },
         agent: {
             claude: 'Claude',
             codex: 'Codex',

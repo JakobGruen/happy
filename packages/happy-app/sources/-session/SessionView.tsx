@@ -253,6 +253,13 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         apiSocket.sessionRPC(sessionId, 'switch-model', { model: mode.key }).catch(() => {});
     }, [sessionId]);
 
+    // Function to update auto-approve tools toggle — sync to CLI via same RPC
+    const updateAutoApproveTools = React.useCallback((enabled: boolean) => {
+        storage.getState().updateSessionAutoApproveTools(sessionId, enabled);
+        const currentMode = permissionMode?.key ?? 'default';
+        apiSocket.sessionRPC(sessionId, 'switch-permission-mode', { mode: currentMode, autoApproveTools: enabled }).catch(() => {});
+    }, [sessionId, permissionMode]);
+
     // Memoize header-dependent styles to prevent re-renders
     const headerDependentStyles = React.useMemo(() => ({
         contentContainer: {
@@ -386,6 +393,8 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                 permissionMode={permissionMode}
                 onPermissionModeChange={updatePermissionMode}
                 availableModes={availableModes}
+                autoApproveTools={session.autoApproveTools ?? false}
+                onAutoApproveToolsChange={flavor === 'claude' || !flavor ? updateAutoApproveTools : undefined}
                 modelMode={modelMode}
                 availableModels={availableModels}
                 onModelModeChange={updateModelMode}

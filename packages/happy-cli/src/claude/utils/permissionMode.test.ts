@@ -15,6 +15,7 @@ describe('mapToClaudeMode', () => {
         it('maps read-only → default', () => {
             expect(mapToClaudeMode('read-only')).toBe('default');
         });
+
     });
 
     describe('Claude modes pass through unchanged', () => {
@@ -38,7 +39,7 @@ describe('mapToClaudeMode', () => {
     describe('all 7 PermissionMode values are handled', () => {
         const allModes: PermissionMode[] = [
             'default', 'acceptEdits', 'bypassPermissions', 'plan',  // Claude modes
-            'read-only', 'safe-yolo', 'yolo'  // Codex modes
+            'read-only', 'safe-yolo', 'yolo'  // Non-Claude modes
         ];
 
         it('returns a valid Claude mode for every PermissionMode', () => {

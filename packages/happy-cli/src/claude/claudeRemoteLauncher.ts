@@ -101,15 +101,22 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     // Switch permission mode directly (from voice agent or app)
     // Mode takes effect on the next user message via mode hash mismatch → CC restart.
     // No queue injection — switching modes while CC is idle should NOT trigger a turn.
-    session.client.rpcHandlerManager.registerHandler<{ mode: PermissionMode }, void>(
+    session.client.rpcHandlerManager.registerHandler<{ mode: PermissionMode; autoApproveTools?: boolean }, void>(
         'switch-permission-mode', async (data) => {
-            const { mode } = data;
+            const { mode, autoApproveTools } = data;
             const previousMode = permissionHandler.getPermissionMode();
-            logger.debug(`[remote]: Permission mode switch: ${previousMode} → ${mode}`);
+            logger.debug(`[remote]: Permission mode switch: ${previousMode} → ${mode}, autoApproveTools: ${autoApproveTools}`);
             permissionHandler.handleModeChange(mode);
+            if (autoApproveTools !== undefined) {
+                permissionHandler.setAutoApproveTools(autoApproveTools);
+            }
 
             // Sync metadata so app shows correct mode on reload
-            session.client.updateMetadata((m) => ({ ...m, currentOperatingModeCode: mode }));
+            session.client.updateMetadata((m) => ({
+                ...m,
+                currentOperatingModeCode: mode,
+                ...(autoApproveTools !== undefined ? { autoApproveTools } : {}),
+            }));
 
             // Notify app that mode was applied
             session.client.sendSessionEvent({ type: 'permission-mode-changed', mode });

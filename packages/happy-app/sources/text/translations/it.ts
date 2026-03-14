@@ -437,6 +437,10 @@ export const it: TranslationStructure = {
             badgeBypassAllPermissions: 'Bypassa tutti i permessi',
             badgePlanMode: 'Modalità piano',
         },
+        autoApproveTools: {
+            title: 'Auto-approve tools',
+            description: 'Still asks questions',
+        },
         agent: {
             claude: 'Claude',
             codex: 'Codex',

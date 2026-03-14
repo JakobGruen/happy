@@ -13,6 +13,9 @@ export type ClaudeSdkPermissionMode = NonNullable<QueryOptions['permissionMode']
  * - safe-yolo → default (ask for permissions)
  * - read-only → default (Claude doesn't support read-only)
  *
+ * Note: autoApproveTools is handled independently by PermissionHandler,
+ * not as a mode mapping.
+ *
  * Claude modes pass through unchanged:
  * - default, acceptEdits, bypassPermissions, plan
  */

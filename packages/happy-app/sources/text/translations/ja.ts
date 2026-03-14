@@ -440,6 +440,10 @@ export const ja: TranslationStructure = {
             badgeBypassAllPermissions: 'すべての権限をバイパス',
             badgePlanMode: 'プランモード',
         },
+        autoApproveTools: {
+            title: 'Auto-approve tools',
+            description: 'Still asks questions',
+        },
         agent: {
             claude: 'Claude',
             codex: 'Codex',
