@@ -162,7 +162,8 @@ if [[ $DO_METRO -eq 1 ]]; then
 
     # Kill existing Metro process
     pkill -f "expo start" 2>/dev/null || true
-    lsof -ti:8081 | xargs kill -9 2>/dev/null || true
+    # Use fuser (Debian/Ubuntu) with lsof fallback
+    fuser -k 8081/tcp 2>/dev/null || lsof -ti:8081 | xargs kill -9 2>/dev/null || true
     sleep 1
     ok "Stopped existing Metro process (if any)"
 
