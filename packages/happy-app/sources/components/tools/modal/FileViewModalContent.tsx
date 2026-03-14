@@ -96,7 +96,6 @@ interface FileViewModalContentProps {
  * Replaces ToolModalTabs for these tools — shows file header + syntax-highlighted code.
  */
 export const FileViewModalContent = React.memo<FileViewModalContentProps>(({ tool }) => {
-    const { theme } = useUnistyles();
     const showLineNumbers = useSetting('showLineNumbersInToolViews');
 
     // Running Read tool: no result yet
@@ -137,7 +136,7 @@ export const FileViewModalContent = React.memo<FileViewModalContentProps>(({ too
                         {showLineNumbers && (
                             <LineNumbers
                                 startLine={data.startLine}
-                                count={data.content.split('\n').length}
+                                count={data.numLines}
                             />
                         )}
                         <View style={styles.codeContent}>
