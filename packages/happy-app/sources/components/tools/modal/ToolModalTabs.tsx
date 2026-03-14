@@ -3,11 +3,11 @@ import { View, Text, Pressable } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { ToolCall } from '@/sync/typesMessage';
 import { VerticalParameterStack } from './VerticalParameterStack';
-import { OutputContent } from './OutputContent';
+import { prepareOutputParams } from './prepareOutputParams';
 
 interface ToolModalTabsProps {
     tool: ToolCall;
-    hideOutput?: boolean; // Show INPUT only (permission pending)
+    hideOutput?: boolean;
 }
 
 type TabType = 'input' | 'output';
@@ -18,10 +18,13 @@ export const ToolModalTabs = React.memo<ToolModalTabsProps>(
         const [activeTab, setActiveTab] = React.useState<TabType>('input');
 
         const inputCount = tool.input ? Object.keys(tool.input).length : 0;
-        // Only count output if it's an object (not a string/number/boolean)
-        const outputCount = tool.result && typeof tool.result === 'object' && !Array.isArray(tool.result)
-            ? Object.keys(tool.result).length
-            : 0;
+
+        // Prepare output as same shape as input (Record<string, any>)
+        const outputParams = React.useMemo(
+            () => prepareOutputParams(tool.result),
+            [tool.result],
+        );
+        const outputCount = outputParams ? Object.keys(outputParams).length : 0;
 
         return (
             <View style={styles.container}>
@@ -54,13 +57,13 @@ export const ToolModalTabs = React.memo<ToolModalTabsProps>(
                     )}
                 </View>
 
-                {/* Tab Content */}
+                {/* Tab Content — both tabs use the same VerticalParameterStack */}
                 <View style={styles.tabContent}>
                     {activeTab === 'input' && (
                         <VerticalParameterStack parameters={tool.input} />
                     )}
                     {activeTab === 'output' && !hideOutput && (
-                        <OutputContent result={tool.result} testID="output-content" />
+                        <VerticalParameterStack parameters={outputParams ?? undefined} />
                     )}
                 </View>
             </View>

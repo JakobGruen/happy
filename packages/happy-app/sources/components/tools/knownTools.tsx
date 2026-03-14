@@ -19,33 +19,35 @@ const ICON_REASONING = (size: number = 24, color: string = '#000') => <Octicons 
 const ICON_QUESTION = (size: number = 24, color: string = '#000') => <Ionicons name="help-circle-outline" size={size} color={color} />;
 const ICON_SKILL = (size: number = 24, color: string = '#000') => <Ionicons name="sparkles-outline" size={size} color={color} />;
 
-export const knownTools = {
-    'Task': {
-        title: (opts: { metadata: Metadata | null, tool: ToolCall }) => {
-            // Check for description field at runtime
-            if (opts.tool.input && opts.tool.input.description && typeof opts.tool.input.description === 'string') {
-                return opts.tool.input.description;
-            }
-            return t('tools.names.task');
-        },
-        icon: ICON_TASK,
-        isMutable: true,
-        minimal: (opts: { metadata: Metadata | null, tool: ToolCall, messages?: Message[] }) => {
-            // Check if there would be any filtered tasks
-            const messages = opts.messages || [];
-            for (let m of messages) {
-                if (m.kind === 'tool-call' && 
-                    (m.tool.state === 'running' || m.tool.state === 'completed' || m.tool.state === 'error')) {
-                    return false; // Has active sub-tasks, show expanded
-                }
-            }
-            return true; // No active sub-tasks, render as minimal
-        },
-        input: z.object({
-            prompt: z.string().describe('The task for the agent to perform'),
-            subagent_type: z.string().optional().describe('The type of specialized agent to use')
-        }).partial().passthrough()
+// Shared config for Task/Agent tools (CC renamed Task → Agent in v2.1.63)
+const AGENT_TOOL_CONFIG = {
+    title: (opts: { metadata: Metadata | null, tool: ToolCall }) => {
+        const subagentType = opts.tool.input?.subagent_type;
+        if (subagentType && typeof subagentType === 'string') {
+            return subagentType;
+        }
+        return t('tools.names.task');
     },
+    extractSubtitle: (opts: { tool: ToolCall, metadata: Metadata | null }) => {
+        const description = opts.tool.input?.description;
+        if (description && typeof description === 'string') {
+            return description;
+        }
+        return null;
+    },
+    icon: ICON_TASK,
+    isMutable: true,
+    minimal: true, // Always minimal — details in agent modal
+    input: z.object({
+        prompt: z.string().describe('The task for the agent to perform'),
+        description: z.string().optional().describe('Short summary'),
+        subagent_type: z.string().optional().describe('The type of specialized agent to use')
+    }).partial().passthrough()
+};
+
+export const knownTools = {
+    'Task': AGENT_TOOL_CONFIG,
+    'Agent': AGENT_TOOL_CONFIG,
     'Bash': {
         title: (opts: { metadata: Metadata | null, tool: ToolCall }) => {
             if (opts.tool.description) {
@@ -974,9 +976,17 @@ export const knownTools = {
             return null;
         },
     },
-    // Internal Claude Code tool for loading deferred tools - no user-visible output
+    // Internal Claude Code tools - hidden from UI
     'ToolSearch': {
         icon: ICON_SEARCH,
+        hidden: true,
+    },
+    'TaskOutput': {
+        icon: ICON_TASK,
+        hidden: true,
+    },
+    'TaskStop': {
+        icon: ICON_TASK,
         hidden: true,
     }
 } satisfies Record<string, {

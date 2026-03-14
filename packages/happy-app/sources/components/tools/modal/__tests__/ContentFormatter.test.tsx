@@ -2,7 +2,8 @@
  * Unit tests for ContentFormatter component
  *
  * Tests validate the detectContentType function
- * Detection priority order: JSON → Diff → Code → Markdown → Text
+ * Detection priority order: JSON → Code → Text
+ * (diff and markdown detection removed — handled elsewhere or same as text)
  */
 
 import { describe, it, expect } from 'vitest';
@@ -29,24 +30,19 @@ describe('ContentFormatter', () => {
             expect(detectContentType('{\n  "name": "test",\n  "value": 123\n}')).toBe('json');
         });
 
-        it('detects diff by --- marker', () => {
-            const diff = '--- a/file.txt\n+++ b/file.txt';
-            expect(detectContentType(diff)).toBe('diff');
+        // Diff detection removed — diff content now treated as text
+        // (Edit/Write/MultiEdit use DiffModalContent instead)
+        it('treats diff markers as text (no diff detection)', () => {
+            expect(detectContentType('--- a/file.txt\n+++ b/file.txt')).toBe('text');
         });
 
-        it('detects diff by +++ marker', () => {
-            const diff = '+++ b/file.txt\n--- a/file.txt';
-            expect(detectContentType(diff)).toBe('diff');
+        it('treats @@ hunk headers as text', () => {
+            expect(detectContentType('@@ -1,3 +1,3 @@\n old line\n-removed\n+added')).toBe('text');
         });
 
-        it('detects diff by @@ marker (hunk header)', () => {
-            const diff = '@@ -1,3 +1,3 @@\n old line\n-removed\n+added';
-            expect(detectContentType(diff)).toBe('diff');
-        });
-
-        it('detects diff with mixed markers', () => {
-            const diff = '--- a/file.txt\n+++ b/file.txt\n@@ -1,3 +1,3 @@\n-old\n+new';
-            expect(detectContentType(diff)).toBe('diff');
+        it('detects code in diff-like content with code signals', () => {
+            const content = '+++\n--- old\n+++ new\nconst x = 1;';
+            expect(detectContentType(content)).toBe('code');
         });
 
         it('detects JavaScript code with const', () => {
@@ -65,7 +61,7 @@ describe('ContentFormatter', () => {
             expect(detectContentType('function foo() { return 42; }')).toBe('code');
         });
 
-        it('detects JavaScript import statement', () => {
+        it('detects JavaScript import with semicolon (2 weak signals)', () => {
             expect(detectContentType('import React from "react";')).toBe('code');
         });
 
@@ -73,15 +69,15 @@ describe('ContentFormatter', () => {
             expect(detectContentType('const add = (a, b) => a + b;')).toBe('code');
         });
 
-        it('detects if statement', () => {
+        it('detects if statement with braces (2 weak signals)', () => {
             expect(detectContentType('if (condition) { doSomething(); }')).toBe('code');
         });
 
-        it('detects for loop', () => {
+        it('detects for loop with variable declaration', () => {
             expect(detectContentType('for (let i = 0; i < 10; i++) { }')).toBe('code');
         });
 
-        it('detects while loop', () => {
+        it('detects while loop with braces (2 weak signals)', () => {
             expect(detectContentType('while (running) { update(); }')).toBe('code');
         });
 
@@ -89,52 +85,47 @@ describe('ContentFormatter', () => {
             expect(detectContentType('def hello(): pass')).toBe('code');
         });
 
-        it('detects Python code with class', () => {
-            expect(detectContentType('class MyClass: pass')).toBe('code');
+        it('treats lone class keyword as text (single weak signal)', () => {
+            expect(detectContentType('class MyClass: pass')).toBe('text');
         });
 
-        it('detects Python import', () => {
-            expect(detectContentType('import os')).toBe('code');
+        it('treats lone import as text (single weak signal)', () => {
+            expect(detectContentType('import os')).toBe('text');
         });
 
-        it('detects markdown heading with #', () => {
-            expect(detectContentType('# Heading')).toBe('markdown');
+        // Markdown detection removed — all markdown treated as text
+        it('treats markdown headings as text', () => {
+            expect(detectContentType('# Heading')).toBe('text');
         });
 
-        it('detects markdown subheading', () => {
-            expect(detectContentType('## Section')).toBe('markdown');
+        it('treats markdown subheadings as text', () => {
+            expect(detectContentType('## Section')).toBe('text');
         });
 
-        it('detects markdown list with -', () => {
-            expect(detectContentType('- List item')).toBe('markdown');
+        it('treats markdown lists as text', () => {
+            expect(detectContentType('- List item')).toBe('text');
+            expect(detectContentType('* Item')).toBe('text');
+            expect(detectContentType('+ Another item')).toBe('text');
         });
 
-        it('detects markdown list with *', () => {
-            expect(detectContentType('* Item')).toBe('markdown');
+        it('treats markdown links as text', () => {
+            expect(detectContentType('[Link](url)')).toBe('text');
         });
 
-        it('detects markdown list with +', () => {
-            expect(detectContentType('+ Another item')).toBe('markdown');
+        it('treats markdown bold as text', () => {
+            expect(detectContentType('**bold text**')).toBe('text');
         });
 
-        it('detects markdown link', () => {
-            expect(detectContentType('[Link](url)')).toBe('markdown');
+        it('treats markdown italic as text', () => {
+            expect(detectContentType('*italic text*')).toBe('text');
         });
 
-        it('detects markdown bold text', () => {
-            expect(detectContentType('**bold text**')).toBe('markdown');
+        it('treats markdown code blocks as text', () => {
+            expect(detectContentType('```\ncode\n```')).toBe('text');
         });
 
-        it('detects markdown italic text', () => {
-            expect(detectContentType('*italic text*')).toBe('markdown');
-        });
-
-        it('detects markdown code block', () => {
-            expect(detectContentType('```\ncode\n```')).toBe('markdown');
-        });
-
-        it('detects markdown blockquote', () => {
-            expect(detectContentType('> quote')).toBe('markdown');
+        it('treats markdown blockquotes as text', () => {
+            expect(detectContentType('> quote')).toBe('text');
         });
 
         it('defaults to text for plain unformatted content', () => {
@@ -169,17 +160,12 @@ describe('ContentFormatter', () => {
             expect(detectContentType(undefined)).toBe('text');
         });
 
-        it('prioritizes diff over code when both patterns match', () => {
-            const content = '+++\n--- old\n+++ new\nconst x = 1;';
-            expect(detectContentType(content)).toBe('diff');
-        });
-
         it('prioritizes JSON over code when both patterns match', () => {
             const jsonWithCode = '{"code": "const x = 1;"}';
             expect(detectContentType(jsonWithCode)).toBe('json');
         });
 
-        it('prioritizes JSON over markdown', () => {
+        it('prioritizes JSON over markdown-like content', () => {
             const jsonWithMarkdown = '{"title": "# Heading"}';
             expect(detectContentType(jsonWithMarkdown)).toBe('json');
         });

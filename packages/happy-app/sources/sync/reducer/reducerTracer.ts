@@ -182,7 +182,7 @@ export function traceMessages(state: TracerState, messages: NormalizedMessage[])
                         results.push(...subagentOrphans);
                     }
                 }
-                if (content.type === 'tool-call' && content.name === 'Task') {
+                if (content.type === 'tool-call' && (content.name === 'Task' || content.name === 'Agent')) {
                     if (content.input && typeof content.input === 'object' && 'prompt' in content.input) {
                         // Store Task info indexed by message ID (not tool ID)
                         state.taskTools.set(message.id, {
@@ -244,7 +244,7 @@ export function traceMessages(state: TracerState, messages: NormalizedMessage[])
         } else if (parentUuid) {
             // This message has a parent - check if parent's sidechain ID is known
             const parentSidechainId = state.uuidToSidechainId.get(parentUuid) || state.toolCallToMessageId.get(parentUuid);
-            
+
             if (parentSidechainId) {
                 // Parent is known - inherit the same sidechain ID
                 state.processedIds.add(message.id);

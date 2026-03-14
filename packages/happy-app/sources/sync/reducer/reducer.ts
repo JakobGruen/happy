@@ -789,6 +789,49 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         if (ENABLE_LOGGING) {
                             console.log(`[REDUCER] Creating new message for tool ${c.id}`);
                         }
+
+                        // ── Agent/Task dedup ──
+                        // CLI emits both a real Agent tool_use (name='Agent', id='toolu_...')
+                        // and a synthetic Task from the start event (name='Task', id=CUID2).
+                        // Merge them into one bubble: first arrival creates the message,
+                        // second aliases its IDs to the first.
+                        const isRealAgent = c.name === 'Agent';
+                        const isSyntheticTask = c.name === 'Task' && !c.id.startsWith('toolu_');
+
+                        if (isRealAgent) {
+                            const queue = (state as any)._unmatchedTasks as Array<{ internalId: string }> | undefined;
+                            if (queue && queue.length > 0) {
+                                const task = queue.shift()!;
+                                const taskMsg = state.messages.get(task.internalId);
+                                if (taskMsg?.tool) {
+                                    taskMsg.tool.input = { ...taskMsg.tool.input, ...c.input };
+                                }
+                                state.toolIdToMessageId.set(c.id, task.internalId);
+                                state.realIdToInternalId.set(msg.id, task.internalId);
+                                changed.add(task.internalId);
+                                continue;
+                            }
+                        }
+
+                        if (isSyntheticTask) {
+                            const queue = (state as any)._unmatchedAgents as Array<{ internalId: string }> | undefined;
+                            if (queue && queue.length > 0) {
+                                const agent = queue.shift()!;
+                                state.toolIdToMessageId.set(c.id, agent.internalId);
+                                state.realIdToInternalId.set(msg.id, agent.internalId);
+                                // Sidechain children will be stored under msg.id (synthetic's raw ID)
+                                // but surviving Agent has a different realID → create redirect
+                                const agentMsg = state.messages.get(agent.internalId);
+                                if (agentMsg?.realID) {
+                                    if (!(state as any)._sidechainRedirects) (state as any)._sidechainRedirects = new Map<string, string>();
+                                    ((state as any)._sidechainRedirects as Map<string, string>).set(agentMsg.realID, msg.id);
+                                }
+                                changed.add(agent.internalId);
+                                continue;
+                            }
+                        }
+                        // ── End dedup ──
+
                         // Check if there's a stored permission for this tool
                         const permission = state.permissions.get(c.id);
 
@@ -843,6 +886,15 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         state.realIdToInternalId.set(msg.id, mid);
                         changed.add(mid);
 
+                        // Track unmatched Agent/Task for future dedup
+                        if (isRealAgent) {
+                            if (!(state as any)._unmatchedAgents) (state as any)._unmatchedAgents = [];
+                            ((state as any)._unmatchedAgents as Array<{ internalId: string }>).push({ internalId: mid });
+                        } else if (isSyntheticTask) {
+                            if (!(state as any)._unmatchedTasks) (state as any)._unmatchedTasks = [];
+                            ((state as any)._unmatchedTasks as Array<{ internalId: string }>).push({ internalId: mid });
+                        }
+
                         // Track TodoWrite tool inputs
                         if (toolCall.name === 'TodoWrite' && toolCall.state === 'running' && toolCall.input?.todos) {
                             // Only update if this is newer than existing todos
@@ -879,7 +931,15 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     }
 
                     if (message.tool.state !== 'running') {
-                        continue;
+                        // Allow late result for Agent/Task: stop event marks completed
+                        // with empty result, then tool-call-end brings actual text.
+                        const isLateAgentResult = (message.tool.name === 'Agent' || message.tool.name === 'Task')
+                            && message.tool.state === 'completed'
+                            && (!message.tool.result || message.tool.result === '')
+                            && c.content && c.content !== '';
+                        if (!isLateAgentResult) {
+                            continue;
+                        }
                     }
 
                     // Update tool state and result
@@ -1300,6 +1360,13 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
         // Convert children recursively
         let childMessages: Message[] = [];
         let children = reducerMsg.realID ? state.sidechains.get(reducerMsg.realID) || [] : [];
+        // Agent/Task dedup: children may be stored under the synthetic Task's raw ID
+        if (children.length === 0 && reducerMsg.realID) {
+            const redirect = ((state as any)._sidechainRedirects as Map<string, string> | undefined)?.get(reducerMsg.realID);
+            if (redirect) {
+                children = state.sidechains.get(redirect) || [];
+            }
+        }
         for (let child of children) {
             let childMessage = convertReducerMessageToMessage(child, state);
             if (childMessage) {

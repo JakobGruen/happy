@@ -28,6 +28,8 @@ Master index of all project memories for quick navigation and understanding.
 
 #### Features
 - `features/Skill Expansion Messages Handling.md` — Skill content attachment to tool results, chat filtering
+- `features/agent-single-bubble-dataflow.md` — Agent tool call data flow (CLI→wire→app), FIFO dedup, sidechain redirect, pitfalls
+- `features/swipe-gestures-rewrite.md` — Unified SwipeableRow (Gesture.Pan), vanish animations, optimistic reactivation UI
 
 #### UI Components
 - `UI Components/SessionInitPanel.md` — Session initialization panel
@@ -74,7 +76,9 @@ Master index of all project memories for quick navigation and understanding.
 │   └── task8-completion-summary.md
 │
 ├── features/
-│   └── Skill Expansion Messages Handling.md
+│   ├── Skill Expansion Messages Handling.md
+│   ├── agent-single-bubble-dataflow.md
+│   └── swipe-gestures-rewrite.md
 │
 └── UI Components/
     └── SessionInitPanel.md
@@ -110,6 +114,6 @@ Example: Starting a new UI component redesign?
 
 ## 📞 Last Updated
 
-- **Date**: 2026-03-12
-- **Latest work**: Test architecture Phase 2 + Bun CI testing + Docker image slimming
-- **Status**: All three phases complete and merged to main
+- **Date**: 2026-03-14
+- **Latest work**: Agent single bubble + swipe gestures rewrite — both merged to main
+- **Status**: All worktree branches merged and cleaned up

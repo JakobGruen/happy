@@ -92,6 +92,8 @@ const sessionTurnStartEventSchema = z.object({
 const sessionStartEventSchema = z.object({
     t: z.literal('start'),
     title: z.string().optional(),
+    prompt: z.string().optional(),
+    subagentType: z.string().optional(),
 });
 
 const sessionTurnEndEventSchema = z.object({
@@ -594,11 +596,6 @@ function normalizeSessionEnvelope(
     const isSidechain = parentUUID !== null;
     const contentUUID = envelope.id;
 
-    // Diagnostic: log when text/service events are tagged as sidechain
-    if (isSidechain && (envelope.ev.t === 'text' || envelope.ev.t === 'service')) {
-        console.log(`[DIAG:sidechain-text] subagent=${envelope.subagent} ev.t=${envelope.ev.t} id=${envelope.id} time=${messageCreatedAt}`);
-    }
-
     if (envelope.ev.t === 'turn-start') {
         return null;
     }
@@ -616,7 +613,11 @@ function normalizeSessionEnvelope(
                     type: 'tool-call',
                     id: envelope.subagent,
                     name: 'Task',
-                    input: { description: envelope.ev.title ?? 'Agent' },
+                    input: {
+                        description: envelope.ev.title ?? 'Agent',
+                        ...(envelope.ev.prompt ? { prompt: envelope.ev.prompt } : {}),
+                        ...(envelope.ev.subagentType ? { subagent_type: envelope.ev.subagentType } : {}),
+                    },
                     description: envelope.ev.title ?? null,
                     uuid: contentUUID,
                     parentUUID: null

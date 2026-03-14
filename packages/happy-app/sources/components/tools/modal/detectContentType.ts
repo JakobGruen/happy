@@ -1,8 +1,14 @@
-export type ContentType = 'json' | 'diff' | 'code' | 'markdown' | 'text';
+export type ContentType = 'json' | 'code' | 'text';
 
 /**
- * Detects content type based on patterns and structure
- * Detection order: JSON → Diff → Code → Markdown → Plain Text
+ * Detects content type for rendering in ContentFormatter.
+ *
+ * Detection order: JSON → Code → Plain Text
+ *
+ * Removed diff detection (false positives with markdown `---`;
+ * diff tools now use DiffModalContent instead).
+ * Removed markdown detection (rendered identically to text,
+ * caused false positives on common words).
  */
 export function detectContentType(value: unknown): ContentType {
     // Already an object (not array, not null) = JSON
@@ -20,7 +26,6 @@ export function detectContentType(value: unknown): ContentType {
     if ((str.startsWith('{') || str.startsWith('[')) && str.length > 0) {
         try {
             const parsed = JSON.parse(str);
-            // Only return 'json' if it parses to an object, not array/primitive
             if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
                 return 'json';
             }
@@ -29,34 +34,35 @@ export function detectContentType(value: unknown): ContentType {
         }
     }
 
-    // Detect diff by markers (+++ or --- or @@)
-    if (/^(\+\+\+|---|@@)/m.test(str)) {
-        return 'diff';
-    }
-
-    // Detect code by common patterns
-    const codePatterns = [
-        /\bconst\b|\blet\b|\bvar\b|\bfunction\b|\bif\s*\(|\bfor\s*\(|\bwhile\s*\(/,  // JavaScript
-        /\bdef\b|\bclass\b|\bimport\b/,  // Python
-        /^import\s|^package\s/,  // Java/Go
-        /=>\s*\{/,  // Arrow functions
-    ];
-    if (codePatterns.some(pattern => pattern.test(str))) {
+    // Detect code — require multiple signals to reduce false positives
+    if (looksLikeCode(str)) {
         return 'code';
     }
 
-    // Detect markdown by common markers
-    const markdownPatterns = [
-        /^#+\s/,  // Headings
-        /^[-*+]\s/,  // Lists
-        /\*\*.*?\*\*|\*.*?\*|__.*?__|_.*?_/,  // Bold/italic
-        /\[.*?\]\(.*?\)/,  // Links
-        /^>/,  // Blockquotes
-        /```/,  // Code blocks
-    ];
-    if (markdownPatterns.some(pattern => pattern.test(str))) {
-        return 'markdown';
-    }
-
     return 'text';
+}
+
+/**
+ * Heuristic: requires strong signals or 2+ weak signals to classify as code.
+ * A single `import` or `class` in prose shouldn't trigger syntax highlighting.
+ */
+function looksLikeCode(str: string): boolean {
+    let signals = 0;
+
+    // Strong signals (one is enough)
+    if (/=>\s*[{(]/.test(str)) return true;                    // arrow functions
+    if (/\b(const|let|var)\s+\w+\s*=/.test(str)) return true; // variable declarations
+    if (/\bdef\s+\w+\s*\(/.test(str)) return true;            // Python function defs
+    if (/\bfunction\s+\w+\s*\(/.test(str)) return true;       // JS function defs
+
+    // Weak signals (need 2+)
+    if (/\bimport\s+/.test(str)) signals++;
+    if (/\bclass\s+\w+/.test(str)) signals++;
+    if (/\bif\s*\(/.test(str)) signals++;
+    if (/\bfor\s*\(/.test(str)) signals++;
+    if (/\bwhile\s*\(/.test(str)) signals++;
+    if (/\breturn\s+/.test(str)) signals++;
+    if (/[{};]\s*$/m.test(str)) signals++;
+
+    return signals >= 2;
 }

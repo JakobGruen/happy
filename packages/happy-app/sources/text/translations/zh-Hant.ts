@@ -498,6 +498,11 @@ export const zhHant: TranslationStructure = {
             agentType: '代理類型',
             response: '回應',
         },
+        agentModal: {
+            prompt: '提示',
+            activity: '活動',
+            output: '輸出',
+        },
         multiEdit: {
             editNumber: ({ index, total }: { index: number; total: number }) => `編輯 ${index}/${total}`,
             replaceAll: '全部替換',
