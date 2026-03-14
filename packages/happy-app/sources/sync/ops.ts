@@ -518,6 +518,8 @@ export async function machineResumeSession(options: {
             approvedNewDirectoryCreation?: boolean
             token?: string
             agent?: 'codex' | 'claude' | 'gemini'
+            happySessionId?: string
+            claudeSessionId?: string
             environmentVariables?: Record<string, string>
         }>(
             machineId,
@@ -528,10 +530,9 @@ export async function machineResumeSession(options: {
                 approvedNewDirectoryCreation: true,
                 token,
                 agent,
-                environmentVariables: {
-                    ...environmentVariables,
-                    HAPPY_RESUME_CLAUDE_SESSION_ID: claudeSessionId,
-                },
+                happySessionId: sessionId,
+                claudeSessionId,
+                environmentVariables,
             }
         );
         return result;

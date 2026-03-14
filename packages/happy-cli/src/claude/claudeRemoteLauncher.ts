@@ -404,6 +404,15 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                 session.isReactivation = false;
             }
 
+            // Re-enable history skip guard whenever Claude will be resumed with --resume.
+            // The while-loop may spawn claudeRemote() multiple times (mode changes, aborts,
+            // eager-init continuation results). Each spawn with --resume replays history
+            // through stdout, so the guard must be active for every iteration.
+            if (session.sessionId) {
+                skipMessageForwarding = true;
+                reactivationSkippedCount = 0;
+                logger.debug('[remote]: Session resuming — re-enabling history skip guard');
+            }
             previousSessionId = session.sessionId;
             const controller = new AbortController();
             abortController = controller;
