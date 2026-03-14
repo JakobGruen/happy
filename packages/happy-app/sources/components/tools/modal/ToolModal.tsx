@@ -44,14 +44,10 @@ export const ToolModal = React.memo<ToolModalProps>(
         const { theme } = useUnistyles();
         const { height: screenHeight } = useWindowDimensions();
 
-        // Height persistence (per-tool)
-        const [toolModalHeights, setToolModalHeights] = useLocalSettingMutable('toolModalHeights');
-        const savedHeightRatio = toolModalHeights?.[tool.name];
-        const initialHeight = (savedHeightRatio ?? DEFAULT_HEIGHT_RATIO) * screenHeight;
-        
-        const setSavedHeightRatio = (ratio: number) => {
-            setToolModalHeights({ ...toolModalHeights, [tool.name]: ratio });
-        };
+        // Height persistence (global across all tool types)
+        const [toolModalHeight, setToolModalHeight] = useLocalSettingMutable('toolModalHeight');
+        const savedHeightRatio = toolModalHeight || 0;
+        const initialHeight = (savedHeightRatio || DEFAULT_HEIGHT_RATIO) * screenHeight;
 
         // Gesture state for drag-to-resize and drag-to-dismiss
         const translateY = useSharedValue(0);
@@ -64,9 +60,9 @@ export const ToolModal = React.memo<ToolModalProps>(
                 cancelAnimation(translateY);
                 cancelAnimation(modalHeight);
                 translateY.value = 0;
-                modalHeight.value = (savedHeightRatio ?? DEFAULT_HEIGHT_RATIO) * screenHeight;
+                modalHeight.value = (savedHeightRatio || DEFAULT_HEIGHT_RATIO) * screenHeight;
             }
-        }, [visible, screenHeight, savedHeightRatio, tool.name]);
+        }, [visible, screenHeight, savedHeightRatio]);
 
         // Stable ref for dismiss callback from gesture worklet
         const handleCloseRef = useRef(onClose);
@@ -100,7 +96,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                 } else {
                     // Slow drag → persist new height (no spring-back)
                     const finalRatio = modalHeight.value / screenHeight;
-                    runOnJS(setSavedHeightRatio)(finalRatio);
+                    runOnJS(setToolModalHeight)(finalRatio);
                 }
             }), [screenHeight]);
 
