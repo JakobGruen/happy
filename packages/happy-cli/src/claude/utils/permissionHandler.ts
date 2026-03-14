@@ -52,6 +52,7 @@ export class PermissionHandler {
     private allowedBashLiterals = new Set<string>();
     private allowedBashPrefixes = new Set<string>();
     private permissionMode: PermissionMode = 'default';
+    private autoApproveTools: boolean = false;
     private onPermissionRequestCallback?: (toolCallId: string) => void;
 
     constructor(session: Session) {
@@ -68,6 +69,14 @@ export class PermissionHandler {
 
     handleModeChange(mode: PermissionMode) {
         this.permissionMode = mode;
+    }
+
+    setAutoApproveTools(enabled: boolean) {
+        this.autoApproveTools = enabled;
+    }
+
+    getAutoApproveTools(): boolean {
+        return this.autoApproveTools;
     }
 
     getPermissionMode(): PermissionMode {
@@ -193,6 +202,10 @@ export class PermissionHandler {
         //
 
         if (this.permissionMode === 'bypassPermissions') {
+            return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
+        }
+
+        if (this.autoApproveTools && !descriptor.askUserQuestion && !descriptor.exitPlan) {
             return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
         }
 

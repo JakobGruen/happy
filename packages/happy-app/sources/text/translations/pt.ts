@@ -408,6 +408,10 @@ export const pt: TranslationStructure = {
             badgeBypassAllPermissions: 'Ignorar todas as permissões',
             badgePlanMode: 'Modo de planejamento',
         },
+        autoApproveTools: {
+            title: 'Auto-approve tools',
+            description: 'Still asks questions',
+        },
         agent: {
             claude: 'Claude',
             codex: 'Codex',

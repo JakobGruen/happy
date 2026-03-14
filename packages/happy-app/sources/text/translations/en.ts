@@ -423,6 +423,10 @@ export const en: TranslationStructure = {
             badgeBypassAllPermissions: 'Yolo',
             badgePlanMode: 'Plan Mode',
         },
+        autoApproveTools: {
+            title: 'Auto-approve tools',
+            description: 'Still asks questions',
+        },
         agent: {
             claude: 'Claude',
             codex: 'Codex',

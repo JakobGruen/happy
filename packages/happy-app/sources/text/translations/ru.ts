@@ -418,6 +418,10 @@ export const ru: TranslationStructure = {
             badgeBypassAllPermissions: 'Обход всех разрешений',
             badgePlanMode: 'Режим планирования',
         },
+        autoApproveTools: {
+            title: 'Auto-approve tools',
+            description: 'Still asks questions',
+        },
         agent: {
             claude: 'Claude',
             codex: 'Codex',

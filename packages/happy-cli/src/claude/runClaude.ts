@@ -344,6 +344,12 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             logger.debug(`[loop] User message received with no permission mode override, using current: ${currentPermissionMode}`);
         }
 
+        // Resolve autoApproveTools from meta
+        if (message.meta?.autoApproveTools !== undefined) {
+            session.updateMetadata((m) => ({ ...m, autoApproveTools: message.meta!.autoApproveTools }));
+            logger.debug(`[loop] autoApproveTools updated from user message to: ${message.meta.autoApproveTools}`);
+        }
+
         // Resolve model - use message.meta.model if provided, otherwise use current model
         let messageModel = currentModel;
         if (message.meta?.hasOwnProperty('model')) {

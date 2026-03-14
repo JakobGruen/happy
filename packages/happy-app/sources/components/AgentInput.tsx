@@ -1,6 +1,6 @@
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import * as React from 'react';
-import { View, Platform, useWindowDimensions, ViewStyle, Text, ActivityIndicator, TouchableWithoutFeedback, Image as RNImage, Pressable } from 'react-native';
+import { View, Platform, useWindowDimensions, ViewStyle, Text, ActivityIndicator, TouchableWithoutFeedback, Image as RNImage, Pressable, Switch } from 'react-native';
 import { Image } from 'expo-image';
 import { layout } from './layout';
 import { MultiTextInput, KeyPressEvent } from './MultiTextInput';
@@ -37,6 +37,8 @@ interface AgentInputProps {
     permissionMode?: PermissionMode | null;
     availableModes?: PermissionMode[];
     onPermissionModeChange?: (mode: PermissionMode) => void;
+    autoApproveTools?: boolean;
+    onAutoApproveToolsChange?: (enabled: boolean) => void;
     modelMode?: ModelMode | null;
     availableModels?: ModelMode[];
     onModelModeChange?: (mode: ModelMode) => void;
@@ -659,6 +661,46 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     })}
                                 </View>
 
+                                {/* Auto-approve toggle */}
+                                {props.onAutoApproveToolsChange && (
+                                    <View style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        paddingHorizontal: 16,
+                                        paddingVertical: 10,
+                                        marginTop: 4,
+                                        marginHorizontal: 8,
+                                        backgroundColor: theme.colors.surfaceRipple,
+                                        borderRadius: 8,
+                                    }}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{
+                                                fontSize: 13,
+                                                color: props.autoApproveTools ? theme.colors.permission.safeYolo : theme.colors.text,
+                                                ...Typography.default('semiBold')
+                                            }}>
+                                                {t('agentInput.autoApproveTools.title')}
+                                            </Text>
+                                            <Text style={{
+                                                fontSize: 11,
+                                                color: theme.colors.textSecondary,
+                                                ...Typography.default()
+                                            }}>
+                                                {t('agentInput.autoApproveTools.description')}
+                                            </Text>
+                                        </View>
+                                        <Switch
+                                            value={props.autoApproveTools ?? false}
+                                            onValueChange={(value) => {
+                                                hapticsLight();
+                                                props.onAutoApproveToolsChange?.(value);
+                                            }}
+                                            trackColor={{ false: theme.colors.surfacePressed, true: theme.colors.permission.safeYolo }}
+                                        />
+                                    </View>
+                                )}
+
                                 {/* Divider */}
                                 <View style={{
                                     height: 1,
@@ -870,16 +912,17 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 <Text style={{
                                     fontSize: 11,
                                     color: isSandboxedYoloMode ? '#4169E1' :
-                                        permissionModeKey === 'acceptEdits' ? theme.colors.permission.acceptEdits :
-                                            permissionModeKey === 'bypassPermissions' ? theme.colors.permission.bypass :
-                                                permissionModeKey === 'plan' ? theme.colors.permission.plan :
-                                                    permissionModeKey === 'read-only' ? theme.colors.permission.readOnly :
-                                                        permissionModeKey === 'safe-yolo' ? theme.colors.permission.safeYolo :
-                                                            permissionModeKey === 'yolo' ? theme.colors.permission.yolo :
-                                                                theme.colors.textSecondary, // Use secondary text color for default
+                                        (props.autoApproveTools && permissionModeKey !== 'bypassPermissions') ? theme.colors.permission.safeYolo :
+                                            permissionModeKey === 'acceptEdits' ? theme.colors.permission.acceptEdits :
+                                                permissionModeKey === 'bypassPermissions' ? theme.colors.permission.bypass :
+                                                    permissionModeKey === 'plan' ? theme.colors.permission.plan :
+                                                        permissionModeKey === 'read-only' ? theme.colors.permission.readOnly :
+                                                            permissionModeKey === 'safe-yolo' ? theme.colors.permission.safeYolo :
+                                                                permissionModeKey === 'yolo' ? theme.colors.permission.yolo :
+                                                                    theme.colors.textSecondary, // Use secondary text color for default
                                     ...Typography.default()
                                 }}>
-                                    {withSandboxSuffix(displayPermissionMode.name, permissionModeKey)}
+                                    {withSandboxSuffix(displayPermissionMode.name, permissionModeKey)}{props.autoApproveTools ? ' \u00b7 Auto' : ''}
                                 </Text>
                             )}
                             {props.modelMode && (
