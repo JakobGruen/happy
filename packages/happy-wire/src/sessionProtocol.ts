@@ -52,6 +52,8 @@ export const sessionTurnStartEventSchema = z.object({
 export const sessionStartEventSchema = z.object({
   t: z.literal('start'),
   title: z.string().optional(),
+  prompt: z.string().optional(),
+  subagentType: z.string().optional(),
 });
 
 export const sessionTurnEndStatusSchema = z.enum(['completed', 'failed', 'cancelled']);

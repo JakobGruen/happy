@@ -13,6 +13,7 @@ export type ClaudeSessionProtocolState = {
     taskPromptToSubagents?: Map<string, string[]>;
     providerSubagentToSessionSubagent?: Map<string, string>;
     subagentTitles?: Map<string, string>;
+    subagentMetadata?: Map<string, { prompt?: string; subagentType?: string }>;
     bufferedSubagentMessages?: Map<string, RawJSONLines[]>;
     hiddenParentToolCalls?: Set<string>;
     startedSubagents?: Set<string>;
@@ -82,6 +83,13 @@ function getSubagentTitles(state: ClaudeSessionProtocolState): Map<string, strin
         state.subagentTitles = new Map<string, string>();
     }
     return state.subagentTitles;
+}
+
+function getSubagentMetadata(state: ClaudeSessionProtocolState): Map<string, { prompt?: string; subagentType?: string }> {
+    if (!state.subagentMetadata) {
+        state.subagentMetadata = new Map();
+    }
+    return state.subagentMetadata;
 }
 
 function getBufferedSubagentMessages(state: ClaudeSessionProtocolState): Map<string, RawJSONLines[]> {
@@ -334,9 +342,12 @@ function maybeEmitSubagentStart(
     }
 
     const title = getSubagentTitles(state).get(subagent);
+    const metadata = getSubagentMetadata(state).get(subagent);
     envelopes.push(createEnvelope('agent', {
         t: 'start',
         ...(title ? { title } : {}),
+        ...(metadata?.prompt ? { prompt: metadata.prompt } : {}),
+        ...(metadata?.subagentType ? { subagentType: metadata.subagentType } : {}),
     }, { turn, subagent }));
     started.add(subagent);
     getActiveSubagents(state).add(subagent);
@@ -366,6 +377,7 @@ function clearSubagentTracking(state: ClaudeSessionProtocolState): void {
     getTaskPromptToSubagents(state).clear();
     getProviderSubagentToSessionSubagent(state).clear();
     getSubagentTitles(state).clear();
+    getSubagentMetadata(state).clear();
     getBufferedSubagentMessages(state).clear();
     getHiddenParentToolCalls(state).clear();
     getStartedSubagents(state).clear();
@@ -493,12 +505,14 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                 const args = toToolArgs(block.input);
                 const title = toolTitle(name, block.input);
                 const sessionSubagentForCall = ensureSessionSubagentIdForProviderSubagent(state, call);
-                if (name === 'Task') {
+                if (name === 'Task' || name === 'Agent') {
                     const prompt = pickTaskPrompt(block.input);
                     if (prompt) {
                         queueTaskPromptSubagent(state, prompt, call);
                     }
                     setSubagentTitle(state, sessionSubagentForCall, pickTaskTitle(block.input) ?? prompt);
+                    const subagentType = typeof (block.input as any)?.subagent_type === 'string' ? (block.input as any).subagent_type : undefined;
+                    getSubagentMetadata(state).set(sessionSubagentForCall, { prompt: prompt ?? undefined, subagentType });
                     getHiddenParentToolCalls(state).add(call);
 
                     const buffered = consumeBufferedSubagentMessages(state, call);

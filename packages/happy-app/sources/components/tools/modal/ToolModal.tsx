@@ -13,11 +13,16 @@ import Animated, {
     SlideInDown,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { ToolCall } from '@/sync/typesMessage';
+import { ToolCall, Message } from '@/sync/typesMessage';
 import { ToolModalTabs } from './ToolModalTabs';
+import { DiffModalContent } from './DiffModalContent';
+import { AgentModalContent } from './AgentModalContent';
 import { Ionicons } from '@expo/vector-icons';
 import { Metadata } from '@/sync/storageTypes';
 import { useLocalSettingMutable } from '@/sync/storage';
+
+const DIFF_TOOLS = new Set(['Edit', 'Write', 'MultiEdit']);
+const AGENT_TOOLS = new Set(['Task', 'Agent']);
 
 const DEFAULT_HEIGHT_RATIO = 0.5;
 const MIN_HEIGHT_RATIO = 0.25;
@@ -29,12 +34,13 @@ interface ToolModalProps {
     visible: boolean;
     tool: ToolCall;
     metadata: Metadata | null;
+    messages?: Message[];
     onClose: () => void;
     hideOutput?: boolean;
 }
 
 export const ToolModal = React.memo<ToolModalProps>(
-    ({ visible, tool, metadata, onClose, hideOutput }) => {
+    ({ visible, tool, metadata, messages, onClose, hideOutput }) => {
         const { theme } = useUnistyles();
         const { height: screenHeight } = useWindowDimensions();
 
@@ -135,15 +141,29 @@ export const ToolModal = React.memo<ToolModalProps>(
                                 {/* Modal Header */}
                                 <View style={[styles.header, { borderBottomColor: theme.colors.surfaceRipple }]}>
                                     <View style={{ flex: 1 }}>
-                                        <Text style={styles.toolName}>{tool.name}</Text>
+                                        <Text style={styles.toolName}>
+                                            {AGENT_TOOLS.has(tool.name)
+                                                ? (tool.input?.subagent_type || tool.name)
+                                                : tool.name}
+                                        </Text>
+                                        {AGENT_TOOLS.has(tool.name) && tool.input?.description && typeof tool.input.description === 'string' && (
+                                            <Text style={styles.toolSubtitle} numberOfLines={1}>
+                                                {tool.input.description}
+                                            </Text>
+                                        )}
                                     </View>
                                     <Pressable onPress={onClose} hitSlop={8}>
                                         <Ionicons name="close" size={24} color={theme.colors.text} />
                                     </Pressable>
                                 </View>
 
-                                {/* Tabs */}
-                                <ToolModalTabs tool={tool} hideOutput={hideOutput} />
+                                {/* Content — route by tool type */}
+                                {AGENT_TOOLS.has(tool.name)
+                                    ? <AgentModalContent tool={tool} metadata={metadata} messages={messages || []} />
+                                    : DIFF_TOOLS.has(tool.name)
+                                    ? <DiffModalContent tool={tool} />
+                                    : <ToolModalTabs tool={tool} hideOutput={hideOutput} />
+                                }
                             </SafeAreaView>
                         </Animated.View>
                     </View>
@@ -188,5 +208,10 @@ const styles = StyleSheet.create((theme) => ({
         fontSize: 16,
         fontWeight: '600',
         color: theme.colors.text,
+    },
+    toolSubtitle: {
+        fontSize: 13,
+        color: theme.colors.textSecondary,
+        marginTop: 2,
     },
 }));

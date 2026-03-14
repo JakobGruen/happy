@@ -529,6 +529,11 @@ export const ja: TranslationStructure = {
             agentType: 'エージェントタイプ',
             response: 'レスポンス',
         },
+        agentModal: {
+            prompt: 'プロンプト',
+            activity: 'アクティビティ',
+            output: '出力',
+        },
         askUserQuestion: {
             submit: '回答を送信',
             multipleQuestions: ({ count }: { count: number }) => `${count}件の質問`,

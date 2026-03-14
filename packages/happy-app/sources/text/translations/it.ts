@@ -526,6 +526,11 @@ export const it: TranslationStructure = {
             agentType: 'Tipo di agente',
             response: 'Risposta',
         },
+        agentModal: {
+            prompt: 'PROMPT',
+            activity: 'ATTIVITÀ',
+            output: 'RISULTATO',
+        },
         askUserQuestion: {
             submit: 'Invia risposta',
             multipleQuestions: ({ count }: { count: number }) => `${count} ${plural({ count, singular: 'domanda', plural: 'domande' })}`,

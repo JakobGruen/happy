@@ -190,7 +190,7 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
         expect(mappedSubagent).not.toBe('task-call-1');
         expect(sidechainRoot.envelopes[0].role).toBe('agent');
         expect(sidechainRoot.envelopes[0].subagent).toBe(mappedSubagent);
-        expect(sidechainRoot.envelopes[0].ev).toEqual({ t: 'start', title: 'Search TypeScript docs' });
+        expect(sidechainRoot.envelopes[0].ev).toEqual({ t: 'start', title: 'Search TypeScript docs', prompt: 'Search for TypeScript 5.6 features' });
         expect(sidechainRoot.envelopes[1].subagent).toBe(mappedSubagent);
         expect(sidechainRoot.envelopes[1].ev).toEqual({ t: 'text', text: prompt });
 

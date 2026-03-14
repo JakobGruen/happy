@@ -497,6 +497,11 @@ export const ca: TranslationStructure = {
             agentType: 'Tipus d\'agent',
             response: 'Resposta',
         },
+        agentModal: {
+            prompt: 'PROMPT',
+            activity: 'ACTIVITAT',
+            output: 'RESULTAT',
+        },
         multiEdit: {
             editNumber: ({ index, total }: { index: number; total: number }) => `Edició ${index} de ${total}`,
             replaceAll: 'Reemplaça tot',

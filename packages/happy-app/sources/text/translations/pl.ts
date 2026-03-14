@@ -507,6 +507,11 @@ export const pl: TranslationStructure = {
             agentType: 'Typ agenta',
             response: 'Odpowiedź',
         },
+        agentModal: {
+            prompt: 'PROMPT',
+            activity: 'AKTYWNOŚĆ',
+            output: 'WYNIK',
+        },
         multiEdit: {
             editNumber: ({ index, total }: { index: number; total: number }) => `Edycja ${index} z ${total}`,
             replaceAll: 'Zamień wszystkie',

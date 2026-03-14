@@ -499,6 +499,11 @@ export const zhHans: TranslationStructure = {
             agentType: '代理类型',
             response: '响应',
         },
+        agentModal: {
+            prompt: '提示',
+            activity: '活动',
+            output: '输出',
+        },
         multiEdit: {
             editNumber: ({ index, total }: { index: number; total: number }) => `编辑 ${index}/${total}`,
             replaceAll: '全部替换',

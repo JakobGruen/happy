@@ -2,7 +2,7 @@
  * Unit tests for VerticalParameterStack component
  *
  * Tests validate ContentFormatter integration for intelligent type detection
- * (JSON, diffs, code, markdown, plain text)
+ * (JSON, code, plain text)
  *
  * Key behaviors tested:
  * - Renders parameter names above values
@@ -19,10 +19,10 @@ import { detectContentType } from '../detectContentType';
 describe('VerticalParameterStack with ContentFormatter', () => {
 
     describe('Parameter rendering', () => {
-        it('renders markdown strings with proper formatting', () => {
+        it('renders markdown strings as text (no markdown detection)', () => {
             const markdown = '# Heading\n\n**bold text**\n\n- List item';
             const type = detectContentType(markdown);
-            expect(type).toBe('markdown');
+            expect(type).toBe('text');
         });
 
         it('renders code strings with syntax highlighting', () => {
@@ -43,10 +43,10 @@ describe('VerticalParameterStack with ContentFormatter', () => {
             expect(type).toBe('json');
         });
 
-        it('renders diff content correctly', () => {
+        it('treats diff content as text (diff detection removed)', () => {
             const diff = '--- a/file.ts\n+++ b/file.ts\n@@ -1,3 +1,3 @@\n-old\n+new';
             const type = detectContentType(diff);
-            expect(type).toBe('diff');
+            expect(type).toBe('text');
         });
 
         it('renders plain text strings', () => {
@@ -95,7 +95,7 @@ describe('VerticalParameterStack with ContentFormatter', () => {
 
             // Verify types are detected correctly
             expect(detectContentType(entries[0][1])).toBe('text'); // name
-            expect(detectContentType(entries[1][1])).toBe('markdown'); // description
+            expect(detectContentType(entries[1][1])).toBe('text'); // description (markdown → text)
             expect(detectContentType(entries[2][1])).toBe('code'); // code
             expect(detectContentType(entries[3][1])).toBe('text'); // count
         });
@@ -155,16 +155,16 @@ describe('VerticalParameterStack with ContentFormatter', () => {
             expect(type).toBe('json');
         });
 
-        it('prioritizes diff over code', () => {
+        it('detects code in diff-like content with code signals', () => {
             const diffWithCode = '--- a/file\n+++ b/file\nconst x = 1;';
             const type = detectContentType(diffWithCode);
-            expect(type).toBe('diff');
+            expect(type).toBe('code');
         });
 
-        it('prioritizes markdown over plain text', () => {
+        it('treats plain markdown as text', () => {
             const markdown = '# Heading Text';
             const type = detectContentType(markdown);
-            expect(type).toBe('markdown');
+            expect(type).toBe('text');
         });
 
         it('recognizes code before plain text', () => {
@@ -194,11 +194,11 @@ describe('VerticalParameterStack with ContentFormatter', () => {
         it('handles strings with mixed content', () => {
             const mixed = 'Some text with const x = 5; inline code';
             const type = detectContentType(mixed);
-            // Should detect as code since it contains code patterns
+            // const x = 5 is a strong code signal (variable declaration)
             expect(type).toBe('code');
         });
 
-        it('handles multiline markdown', () => {
+        it('handles multiline markdown as text', () => {
             const markdown = `# Title
 
 Some description text
@@ -208,7 +208,7 @@ Some description text
 
 **Bold text** and *italic*`;
             const type = detectContentType(markdown);
-            expect(type).toBe('markdown');
+            expect(type).toBe('text');
         });
     });
 

@@ -16,7 +16,7 @@ import { useIsPermissionSheetActive } from './permissionSheetContext';
 import { parseToolUseError } from '@/utils/toolErrorParser';
 import { formatMCPTitle } from './views/MCPToolView';
 import { t } from '@/text';
-import { AdaptiveToolDisplay } from './adaptive/AdaptiveToolDisplay';
+
 import { ToolModal } from './modal/ToolModal';
 import { ContentPreview } from './modal/ContentPreview';
 
@@ -259,6 +259,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 visible={isModalVisible}
                 tool={tool}
                 metadata={props.metadata}
+                messages={props.messages}
                 onClose={() => setIsModalVisible(false)}
                 hideOutput={tool.permission?.status === 'pending'}
             />

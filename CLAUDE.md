@@ -270,6 +270,23 @@ Tools are displayed with a **minimized 2-line chat bubble** that opens a **slide
 
 **Key files**: See `docs/TOOL_MODAL_API.md`, `docs/TOOL_MODAL_MIGRATION.md`, `docs/TOOL_MODAL_PATTERNS.md`, `MANUAL_TESTING_GUIDE.md`
 
+### Agent Tool Display — Single Bubble with 3-Tab Modal
+
+Agent/subagent tool calls display as a **single chat bubble** with a 3-tab modal (Prompt/Activity/Output). The CLI emits both a real Agent `tool_use` AND a synthetic Task from the `start` session event — the app-side reducer deduplicates them into one message.
+
+**Data flow**: CLI `sessionProtocolMapper.ts` hides Agent `tool_use` (no `tool-call-start` envelope), emits `start`/`stop` session events with `subagent: CUID2`. App `typesRaw.ts` converts these to synthetic tool-call/tool-result content blocks. Reducer Phase 2 merges the real Agent and synthetic Task via FIFO queue dedup.
+
+**Key mechanisms** (all in `reducer.ts`):
+- **FIFO dedup** (Phase 2): `_unmatchedAgents`/`_unmatchedTasks` queues — whichever arrives first creates the message, the second aliases its IDs to the first
+- **Sidechain redirect**: `_sidechainRedirects` Map bridges children lookup when surviving message's `realID` differs from sidechain storage key
+- **Late result update** (Phase 3): `stop` event marks completed with empty result `""`, then `tool-call-end` arrives with actual result — special exception allows the update
+
+**Components**:
+- `AgentModalContent.tsx` — 3-tab display: Prompt (markdown), Activity (recursive ToolView), Output (markdown)
+- `knownTools.tsx` — Agent bubble shows `subagent_type` as title, `description` as subtitle
+
+**Detailed architecture docs**: `.serena/memories/features/agent-single-bubble-dataflow.md`
+
 ## Code Style (Cross-Package)
 
 - TypeScript strict mode everywhere
