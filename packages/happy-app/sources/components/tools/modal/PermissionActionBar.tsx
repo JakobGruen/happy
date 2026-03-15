@@ -12,7 +12,6 @@ interface PermissionActionBarProps {
     llmSummary: string | null;
     queueCount: number;
     suggestions: any[] | null;
-    toolName?: string;
 }
 
 /**
@@ -25,7 +24,6 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
     llmSummary,
     queueCount,
     suggestions,
-    toolName,
 }) => {
     const { theme } = useUnistyles();
     const [showFeedback, setShowFeedback] = useState(false);
@@ -40,10 +38,16 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
             setShowFeedback(true);
             return;
         }
+        // Empty feedback + second tap = cancel
+        if (!feedbackText.trim()) {
+            setShowFeedback(false);
+            return;
+        }
         handleDenySubmit();
     };
 
     const handleDenySubmit = () => {
+        if (isDisabled) return;
         actions.handleDeny(feedbackText.trim() || undefined);
     };
 
