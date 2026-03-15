@@ -53,7 +53,7 @@ export function usePermissionActions(
             if (suggestion.type === 'setMode' && mode) {
                 storage.getState().updateSessionPermissionMode(sessionId, mode);
             }
-            await sessionAllow(sessionId, permissionId, mode, undefined, undefined, undefined, [suggestion]);
+            await sessionAllow(sessionId, permissionId, mode, undefined, undefined, undefined, undefined, [suggestion]);
         } catch (error) {
             console.error('Failed to approve with suggestion:', error);
         } finally {

@@ -9,6 +9,7 @@ import {
     AskUserQuestionInput,
     Question,
     OTHER_INDEX,
+    questionHasPreview,
 } from '@/hooks/useQuestionFormState';
 import { sessionDeny } from '@/sync/ops';
 import { t } from '@/text';
@@ -87,10 +88,18 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
                             }
                         }
                     }
+                    const note = form.noteTexts.get(qIndex)?.trim();
                     return (
                         <View key={qIndex} style={styles.submittedItem}>
-                            <Text style={styles.submittedHeader}>{q.header}:</Text>
-                            <Text style={styles.submittedValue}>{labels.join(', ') || '-'}</Text>
+                            <View style={{ flex: 1 }}>
+                                <View style={{ flexDirection: 'row', gap: 8 }}>
+                                    <Text style={styles.submittedHeader}>{q.header}:</Text>
+                                    <Text style={styles.submittedValue}>{labels.join(', ') || '-'}</Text>
+                                </View>
+                                {note ? (
+                                    <Text style={styles.submittedNote}>{t('tools.askUserQuestion.notesLabel')}: {note}</Text>
+                                ) : null}
+                            </View>
                         </View>
                     );
                 })}
@@ -139,6 +148,18 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
                         />
                     </Animated.View>
                 ]}
+                {/* Notes input — shown below preview when options have previews */}
+                {hasPreview && form.canInteract && (
+                    <TextInput
+                        style={[styles.notesInput, { color: theme.colors.text }]}
+                        placeholder={t('tools.askUserQuestion.notesPlaceholder')}
+                        placeholderTextColor={theme.colors.textSecondary}
+                        value={form.noteTexts.get(qIndex) || ''}
+                        onChangeText={(text) => form.handleNoteChange(qIndex, text)}
+                        editable={form.canInteract}
+                        multiline
+                    />
+                )}
                 <View style={styles.optionsContainer}>
                     {question.options.map((option, oIndex) => {
                         const isSelected = selectedOptions.has(oIndex);
@@ -181,8 +202,8 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
                         );
                     })}
 
-                    {/* "Other" free-text option */}
-                    {(() => {
+                    {/* "Other" free-text option — hidden when options have previews (matches CC behavior) */}
+                    {!hasPreview && (() => {
                         const isOtherSelected = selectedOptions.has(OTHER_INDEX);
                         return (
                             <>
@@ -441,6 +462,17 @@ const styles = StyleSheet.create((theme) => ({
         marginTop: 8,
         minHeight: 40,
     },
+    notesInput: {
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 14,
+        backgroundColor: theme.colors.surface,
+        marginBottom: 4,
+        minHeight: 40,
+    },
     tabStrip: {
         flexDirection: 'row',
         borderBottomWidth: 1,
@@ -536,5 +568,11 @@ const styles = StyleSheet.create((theme) => ({
         fontSize: 13,
         color: theme.colors.text,
         flex: 1,
+    },
+    submittedNote: {
+        fontSize: 12,
+        color: theme.colors.textSecondary,
+        fontStyle: 'italic',
+        marginTop: 2,
     },
 }));

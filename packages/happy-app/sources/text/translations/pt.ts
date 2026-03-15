@@ -556,6 +556,8 @@ export const pt: TranslationStructure = {
             other: 'Outro',
             otherDescription: 'Digite sua própria resposta',
             otherPlaceholder: 'Digite sua resposta...',
+            notesPlaceholder: 'Adicionar notas sobre esta opção...',
+            notesLabel: 'Notas',
         }
     },
 

@@ -539,6 +539,8 @@ export const zhHant: TranslationStructure = {
             other: '其他',
             otherDescription: '輸入您自己的答案',
             otherPlaceholder: '輸入您的答案...',
+            notesPlaceholder: '為此選項添加備註...',
+            notesLabel: '備註',
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `終端機(命令: ${cmd})`,
