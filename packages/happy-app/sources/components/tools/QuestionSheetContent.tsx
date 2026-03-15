@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, TextInput, ScrollView } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
 import { CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
@@ -11,6 +12,7 @@ import {
 } from '@/hooks/useQuestionFormState';
 import { sessionDeny } from '@/sync/ops';
 import { t } from '@/text';
+import { OptionPreviewPane } from '@/components/tools/OptionPreviewPane';
 
 interface QuestionSheetContentProps {
     permission: CurrentSessionPermissionItem;
@@ -36,6 +38,15 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
     });
 
     const [isCanceling, setIsCanceling] = React.useState(false);
+
+    // Tracks which option's preview content is shown in the preview pane.
+    // Resets to 0 when the active question (tab) changes.
+    const [previewOptionIndex, setPreviewOptionIndex] = React.useState(0);
+
+    const handleTabChange = React.useCallback((tab: number) => {
+        form.setActiveTab(tab);
+        setPreviewOptionIndex(0);
+    }, [form]);
 
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
         return null;
@@ -87,6 +98,21 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
     const renderQuestion = (question: Question, qIndex: number) => {
         const selectedOptions = form.selections.get(qIndex) || new Set();
 
+        const hasPreview = question.options.some(o => o.preview != null && o.preview !== '');
+        const previewContent = hasPreview
+            ? (question.options[previewOptionIndex]?.preview
+                ?? question.options.find(o => o.preview)?.preview
+                ?? null)
+            : null;
+
+        const handleOptionWithPreview = (oIndex: number, multiSelect: boolean) => {
+            form.handleOptionToggle(qIndex, oIndex, multiSelect);
+            // Update preview when selecting a numbered option that has a preview
+            if (oIndex !== OTHER_INDEX && question.options[oIndex]?.preview) {
+                setPreviewOptionIndex(oIndex);
+            }
+        };
+
         return (
             <View key={qIndex} style={styles.questionSection}>
                 {!hasTabs && (
@@ -95,6 +121,19 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
                     </View>
                 )}
                 <Text style={styles.questionText}>{question.question}</Text>
+                {/* Preview pane — only rendered when ≥1 option has preview content */}
+                {previewContent != null && (
+                    <Animated.View
+                        key={`preview-${previewOptionIndex}`}
+                        entering={FadeIn.duration(200)}
+                        style={styles.previewContainer}
+                    >
+                        <OptionPreviewPane
+                            content={previewContent}
+                            testID="option-preview-pane"
+                        />
+                    </Animated.View>
+                )}
                 <View style={styles.optionsContainer}>
                     {question.options.map((option, oIndex) => {
                         const isSelected = selectedOptions.has(oIndex);
@@ -106,7 +145,7 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
                                     isSelected && styles.optionButtonSelected,
                                     !form.canInteract && styles.optionButtonDisabled,
                                 ]}
-                                onPress={() => form.handleOptionToggle(qIndex, oIndex, question.multiSelect)}
+                                onPress={() => handleOptionWithPreview(oIndex, question.multiSelect)}
                                 disabled={!form.canInteract}
                                 activeOpacity={0.7}
                             >
@@ -148,7 +187,7 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
                                         isOtherSelected && styles.optionButtonSelected,
                                         !form.canInteract && styles.optionButtonDisabled,
                                     ]}
-                                    onPress={() => form.handleOptionToggle(qIndex, OTHER_INDEX, question.multiSelect)}
+                                    onPress={() => handleOptionWithPreview(OTHER_INDEX, question.multiSelect)}
                                     disabled={!form.canInteract}
                                     activeOpacity={0.7}
                                 >
@@ -212,7 +251,7 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
                                     <TouchableOpacity
                                         key={qIndex}
                                         style={[styles.tab, isActive && styles.tabActive]}
-                                        onPress={() => form.setActiveTab(qIndex)}
+                                        onPress={() => handleTabChange(qIndex)}
                                         activeOpacity={0.7}
                                     >
                                         <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
@@ -288,6 +327,15 @@ const styles = StyleSheet.create((theme) => ({
     },
     questionSection: {
         gap: 8,
+    },
+    previewContainer: {
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        overflow: 'hidden',
+        minHeight: 200,
+        maxHeight: 320,
+        marginBottom: 8,
     },
     headerChip: {
         alignSelf: 'flex-start',
