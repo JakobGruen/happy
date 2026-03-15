@@ -146,14 +146,14 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 onClose={handleModalClose}
                 hideOutput={isPending}
                 permission={permissionItem}
-                permissionActions={isPending && tool.name !== 'AskUserQuestion' ? permissionActions : null}
+                permissionActions={isPending && tool.name !== 'AskUserQuestion' && tool.name !== 'ExitPlanMode' && tool.name !== 'exit_plan_mode' ? permissionActions : null}
                 queueCount={queueCount}
                 sessionId={sessionId}
                 sourceRect={sourceRectRef.current}
             />
 
             {/* Inline permission action bar for Claude sessions */}
-            {tool.permission?.status === 'pending' && sessionId && tool.name !== 'AskUserQuestion' && !isCodex && (
+            {tool.permission?.status === 'pending' && sessionId && tool.name !== 'AskUserQuestion' && tool.name !== 'ExitPlanMode' && tool.name !== 'exit_plan_mode' && !isCodex && (
                 <PermissionActionBar
                     inline
                     actions={permissionActions}

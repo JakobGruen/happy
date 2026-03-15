@@ -32,11 +32,25 @@ const FILE_VIEW_TOOLS = new Set(['Read', 'Write']);
 const AGENT_TOOLS = new Set(['Task', 'Agent']);
 
 const MODAL_HEIGHT_RATIO = 0.75;
+const DIFF_HEIGHT_RATIO = 0.85;
 const DISMISS_VELOCITY = 1200;  // px/s — only checked at release moment, requires active fling
 const SPRING_CONFIG = { damping: 20, stiffness: 200, mass: 0.8 };
 
 const PERMISSION_CARD_OFFSET = 180;
 const INPUT_BOX_HEIGHT = 56;
+
+// Helper for input-box-aligned positioning (called from worklets)
+function getInputBoxAlignment(screenWidth: number) {
+    'worklet';
+    const isDesktop = screenWidth > 700;
+    const containerPadding = isDesktop ? 16 : 8;
+    const contentWidth = Math.min(screenWidth, layout.maxWidth);
+    const centeredOffset = Math.max((screenWidth - contentWidth) / 2, 0);
+    return {
+        left: centeredOffset + containerPadding,
+        width: contentWidth - containerPadding * 2,
+    };
+}
 
 interface ToolModalProps {
     visible: boolean;
@@ -86,10 +100,11 @@ export const ToolModal = React.memo<ToolModalProps>(
                 cancelAnimation(translateY);
                 cancelAnimation(modalHeight);
                 translateY.value = 0;
-                modalHeight.value = MODAL_HEIGHT_RATIO * screenHeight;
+                const isDiffTool = DIFF_TOOLS.has(tool.name);
+                modalHeight.value = (isDiffTool ? DIFF_HEIGHT_RATIO : MODAL_HEIGHT_RATIO) * screenHeight;
                 setInternalVisible(true);
             }
-        }, [visible, screenHeight]);
+        }, [visible, screenHeight, tool.name]);
 
         // Animate progress when internalVisible changes
         useEffect(() => {
@@ -153,12 +168,7 @@ export const ToolModal = React.memo<ToolModalProps>(
 
         // Permission card animated style — fades in during expand, follows dismiss gesture
         const permissionCardStyle = useAnimatedStyle(() => {
-            const isDesktop = screenWidth > 700;
-            const containerPadding = isDesktop ? 16 : 8;
-            const contentWidth = Math.min(screenWidth, layout.maxWidth);
-            const centeredOffset = Math.max((screenWidth - contentWidth) / 2, 0);
-            const finalX = centeredOffset + containerPadding;
-            const finalWidth = contentWidth - containerPadding * 2;
+            const { left: finalX, width: finalWidth } = getInputBoxAlignment(screenWidth);
 
             return {
                 position: 'absolute' as const,
@@ -174,13 +184,7 @@ export const ToolModal = React.memo<ToolModalProps>(
 
         // Expand-from-bubble animated style
         const expandStyle = useAnimatedStyle(() => {
-            // Align modal edges with input box (AgentInput container padding)
-            const isDesktop = screenWidth > 700;
-            const containerPadding = isDesktop ? 16 : 8;
-            const contentWidth = Math.min(screenWidth, layout.maxWidth);
-            const centeredOffset = Math.max((screenWidth - contentWidth) / 2, 0);
-            const finalX = centeredOffset + containerPadding;
-            const finalWidth = contentWidth - containerPadding * 2;
+            const { left: finalX, width: finalWidth } = getInputBoxAlignment(screenWidth);
             const finalHeight = modalHeight.value;
             const bottomMargin = hasActionBar ? PERMISSION_CARD_OFFSET : INPUT_BOX_HEIGHT + insets.bottom;
             const finalY = screenHeight - finalHeight - bottomMargin;
@@ -194,7 +198,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                     top: fallbackY + translateY.value,
                     width: finalWidth,
                     height: finalHeight,
-                    borderRadius: 16,
+                    borderRadius: 12,
                 };
             }
 
@@ -205,7 +209,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                 top: interpolate(p, [0, 1], [sourceRect.y, finalY]) + translateY.value,
                 width: interpolate(p, [0, 1], [sourceRect.width, finalWidth]),
                 height: interpolate(p, [0, 1], [sourceRect.height, finalHeight]),
-                borderRadius: interpolate(p, [0, 1], [8, 16]),
+                borderRadius: interpolate(p, [0, 1], [8, 12]),
             };
         });
 
@@ -238,9 +242,8 @@ export const ToolModal = React.memo<ToolModalProps>(
                         style={[
                             expandStyle,
                             styles.card,
-                            {
-                                backgroundColor: theme.colors.surfaceHigh,
-                            },
+                            { backgroundColor: theme.colors.surfaceHigh },
+                            tool.permission?.status === 'pending' && { borderWidth: 1.5, borderColor: theme.colors.box.warning.border },
                         ]}
                     >
                         {/* Header — always visible, matches bubble */}
@@ -295,7 +298,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                     {/* Permission Action Bar — animated separate card at bottom */}
                     {hasActionBar && (
                         <GestureDetector gesture={permissionDismissGesture}>
-                            <Animated.View style={[styles.permissionCard, permissionCardStyle, { backgroundColor: theme.colors.surfaceHigh }]}>
+                            <Animated.View style={[styles.permissionCard, permissionCardStyle, { backgroundColor: theme.colors.surfaceHigh }, { borderWidth: 1.5, borderColor: theme.colors.box.warning.border }]}>
                                 <PermissionActionBar
                                     actions={permissionActions!}
                                     llmSummary={permission!.llmSummary}
