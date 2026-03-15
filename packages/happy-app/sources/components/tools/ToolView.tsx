@@ -21,6 +21,7 @@ import { ToolModal } from './modal/ToolModal';
 import { ContentPreview } from './modal/ContentPreview';
 import { usePermissionActions } from '@/hooks/usePermissionActions';
 import { useCurrentSessionPermissions, CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
+import { isAnyPermissionModalOpen, registerPermissionModalOpen, registerPermissionModalClose } from './permissionModalRegistry';
 
 interface ToolViewProps {
     metadata: Metadata | null;
@@ -69,15 +70,26 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         };
     }, [isPending, tool.permission, tool.name, tool.input, tool.description, tool.createdAt]);
 
-    // Auto-open modal when permission becomes pending, auto-close when resolved
+    // Auto-open modal when permission becomes pending, auto-close when resolved.
+    // Suppressed when another permission modal is already open to prevent stacking.
     React.useEffect(() => {
         if (tool.permission?.status === 'pending') {
-            setIsModalVisible(true);
+            if (!isAnyPermissionModalOpen()) {
+                setIsModalVisible(true);
+            }
         } else if (tool.permission?.status) {
             // Auto-dismiss when permission is resolved (approved, denied, canceled)
             setIsModalVisible(false);
         }
     }, [tool.permission?.status]);
+
+    // Track open/close in the shared registry so other modals know not to auto-open
+    React.useEffect(() => {
+        if (isModalVisible && isPending) {
+            registerPermissionModalOpen();
+            return () => registerPermissionModalClose();
+        }
+    }, [isModalVisible, isPending]);
 
     // Close modal handler
     const handleModalClose = React.useCallback(() => {

@@ -9,6 +9,7 @@ import { getSessionName } from '@/utils/sessionUtils';
 import { usePermissionActions } from '@/hooks/usePermissionActions';
 import { buildSyntheticToolCall, buildPermissionItem } from '@/components/tools/permissionBannerUtils';
 import { ToolModal } from '@/components/tools/modal/ToolModal';
+import { registerPermissionModalOpen, registerPermissionModalClose } from '@/components/tools/permissionModalRegistry';
 import { t } from '@/text';
 
 /**
@@ -132,6 +133,12 @@ const BannerModal = React.memo<{
     queueCount: number;
     onClose: () => void;
 }>(({ current, syntheticTool, permissionItem, isAskUserQuestion, queueCount, onClose }) => {
+    // Track in shared registry so ToolView auto-open is suppressed while this is open
+    React.useEffect(() => {
+        registerPermissionModalOpen();
+        return () => registerPermissionModalClose();
+    }, []);
+
     const actions = usePermissionActions(
         current.sessionId,
         current.permissionId,
