@@ -13,6 +13,7 @@ interface PermissionActionBarProps {
     queueCount: number;
     suggestions: any[] | null;
     toolName?: string;
+    inline?: boolean;
 }
 
 /**
@@ -26,6 +27,7 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
     queueCount,
     suggestions,
     toolName,
+    inline = false,
 }) => {
     const { theme } = useUnistyles();
     const [showFeedback, setShowFeedback] = useState(false);
@@ -53,8 +55,23 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
         actions.handleDeny(feedbackText.trim() || undefined);
     };
 
+    const inlineStyle = inline ? {
+        shadowColor: undefined,
+        shadowOffset: undefined,
+        shadowOpacity: undefined,
+        shadowRadius: undefined,
+        elevation: undefined,
+        marginHorizontal: 0,
+        borderRadius: 0,
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0,
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.surfaceRipple,
+        backgroundColor: theme.colors.surfaceHigh,
+    } : undefined;
+
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, inlineStyle]}>
             {/* Deny feedback input — shown after first deny tap */}
             {showFeedback && (
                 <View style={styles.feedbackRow}>
