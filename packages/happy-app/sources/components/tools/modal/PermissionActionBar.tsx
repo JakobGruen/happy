@@ -88,11 +88,11 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
                     activeOpacity={0.7}
                 >
                     {actions.loadingKey === 'allow-once' ? (
-                        <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color="#FFFFFF" />
+                        <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allow.background} />
                     ) : (
                         <>
-                            <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                            <Text style={styles.buttonText}>{t('common.yes')}</Text>
+                            <Ionicons name="checkmark" size={16} color={theme.colors.permissionButton.allow.background} />
+                            <Text style={styles.allowButtonText}>{t('common.yes')}</Text>
                         </>
                     )}
                 </TouchableOpacity>
@@ -107,9 +107,9 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
                         activeOpacity={0.7}
                     >
                         {actions.loadingKey === `suggestion-${index}` ? (
-                            <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color="#FFFFFF" />
+                            <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allowAll.background} />
                         ) : (
-                            <Text style={styles.buttonText} numberOfLines={1}>
+                            <Text style={styles.suggestionButtonText} numberOfLines={1}>
                                 {getSuggestionLabel(suggestion)}
                             </Text>
                         )}
@@ -126,9 +126,9 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
                             activeOpacity={0.7}
                         >
                             {actions.loadingKey === 'all-edits' ? (
-                                <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color="#FFFFFF" />
+                                <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allowAll.background} />
                             ) : (
-                                <Text style={styles.buttonText}>{t('claude.permissions.yesAllowAllEdits')}</Text>
+                                <Text style={styles.suggestionButtonText}>{t('claude.permissions.yesAllowAllEdits')}</Text>
                             )}
                         </TouchableOpacity>
                     ) : (
@@ -139,9 +139,9 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
                             activeOpacity={0.7}
                         >
                             {actions.loadingKey === 'for-session' ? (
-                                <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color="#FFFFFF" />
+                                <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.allowAll.background} />
                             ) : (
-                                <Text style={styles.buttonText}>{t('claude.permissions.yesForTool')}</Text>
+                                <Text style={styles.suggestionButtonText}>{t('claude.permissions.yesForTool')}</Text>
                             )}
                         </TouchableOpacity>
                     )
@@ -155,11 +155,11 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
                     activeOpacity={0.7}
                 >
                     {actions.loadingKey === 'deny' ? (
-                        <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color="#FFFFFF" />
+                        <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color={theme.colors.permissionButton.deny.background} />
                     ) : (
                         <>
-                            <Ionicons name="close" size={16} color="#FFFFFF" />
-                            <Text style={styles.buttonText}>{t('claude.permissions.noTellClaude')}</Text>
+                            <Ionicons name="close" size={16} color={theme.colors.permissionButton.deny.background} />
+                            <Text style={styles.denyButtonText}>{t('claude.permissions.noTellClaude')}</Text>
                         </>
                     )}
                 </TouchableOpacity>
@@ -206,7 +206,9 @@ const styles = StyleSheet.create((theme) => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: theme.colors.permissionButton.allow.background,
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderColor: theme.colors.permissionButton.allow.background,
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 8,
@@ -215,7 +217,9 @@ const styles = StyleSheet.create((theme) => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: theme.colors.permissionButton.allowAll.background,
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderColor: theme.colors.permissionButton.allowAll.background,
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 8,
@@ -225,13 +229,25 @@ const styles = StyleSheet.create((theme) => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: theme.colors.permissionButton.deny.background,
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderColor: theme.colors.permissionButton.deny.background,
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 8,
     },
-    buttonText: {
-        color: '#FFFFFF',
+    allowButtonText: {
+        color: theme.colors.permissionButton.allow.background,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    suggestionButtonText: {
+        color: theme.colors.permissionButton.allowAll.background,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    denyButtonText: {
+        color: theme.colors.permissionButton.deny.background,
         fontSize: 14,
         fontWeight: '600',
     },
