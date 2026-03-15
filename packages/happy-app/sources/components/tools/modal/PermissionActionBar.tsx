@@ -215,7 +215,7 @@ const styles = StyleSheet.create((theme) => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: theme.colors.textLink,
+        backgroundColor: theme.colors.permissionButton.allowAll.background,
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 8,
