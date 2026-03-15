@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useMemo } from 'react';
-import { View, Modal, Pressable, SafeAreaView, Text, useWindowDimensions } from 'react-native';
-import { StyleSheet as RNStyleSheet } from 'react-native';
+import { View, Modal, Pressable, Text, useWindowDimensions } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import Animated, {
     useSharedValue,
@@ -19,6 +18,7 @@ import { DiffModalContent } from './DiffModalContent';
 import { AgentModalContent } from './AgentModalContent';
 import { FileViewModalContent } from './FileViewModalContent';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Metadata } from '@/sync/storageTypes';
 import { useLocalSettingMutable } from '@/sync/storage';
 
@@ -45,6 +45,7 @@ export const ToolModal = React.memo<ToolModalProps>(
     ({ visible, tool, metadata, messages, onClose, hideOutput }) => {
         const { theme } = useUnistyles();
         const { height: screenHeight } = useWindowDimensions();
+        const insets = useSafeAreaInsets();
 
         // Height persistence (global across all tool types)
         const [toolModalHeight, setToolModalHeight] = useLocalSettingMutable('toolModalHeight');
@@ -122,49 +123,55 @@ export const ToolModal = React.memo<ToolModalProps>(
                             style={styles.backdrop}
                             onPress={onClose}
                         />
-                        
-                        {/* Card — positioned at bottom by parent's flex-end */}
-                        <Animated.View
-                            entering={SlideInDown.springify().damping(20).stiffness(200)}
-                            style={animatedStyle}
-                        >
-                            <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surfaceHigh }]}>
-                                {/* Drag Handle wrapped in GestureDetector */}
-                                <GestureDetector gesture={panGesture}>
-                                    <View style={styles.dragHandleArea}>
-                                        <View style={[styles.dragHandle, { backgroundColor: theme.colors.surfaceRipple }]} />
-                                    </View>
-                                </GestureDetector>
-                                
-                                {/* Modal Header */}
-                                <View style={[styles.header, { borderBottomColor: theme.colors.surfaceRipple }]}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.toolName}>
-                                            {AGENT_TOOLS.has(tool.name)
-                                                ? (tool.input?.subagent_type || tool.name)
-                                                : tool.name}
-                                        </Text>
-                                        {AGENT_TOOLS.has(tool.name) && tool.input?.description && typeof tool.input.description === 'string' && (
-                                            <Text style={styles.toolSubtitle} numberOfLines={1}>
-                                                {tool.input.description}
-                                            </Text>
-                                        )}
-                                    </View>
-                                    <Pressable onPress={onClose} hitSlop={8}>
-                                        <Ionicons name="close" size={24} color={theme.colors.text} />
-                                    </Pressable>
-                                </View>
 
-                                {/* Content — route by tool type */}
-                                {AGENT_TOOLS.has(tool.name)
-                                    ? <AgentModalContent tool={tool} metadata={metadata} messages={messages || []} />
-                                    : DIFF_TOOLS.has(tool.name)
-                                    ? <DiffModalContent tool={tool} />
-                                    : FILE_VIEW_TOOLS.has(tool.name)
-                                    ? <FileViewModalContent tool={tool} />
-                                    : <ToolModalTabs tool={tool} hideOutput={hideOutput} />
-                                }
-                            </SafeAreaView>
+                        {/* Floating card — bottom-justified with margins */}
+                        <Animated.View
+                            testID="tool-modal-card"
+                            entering={SlideInDown.springify().damping(20).stiffness(200)}
+                            style={[
+                                animatedStyle,
+                                styles.card,
+                                {
+                                    backgroundColor: theme.colors.surfaceHigh,
+                                    marginBottom: insets.bottom + 8,
+                                },
+                            ]}
+                        >
+                            {/* Drag Handle wrapped in GestureDetector */}
+                            <GestureDetector gesture={panGesture}>
+                                <View style={styles.dragHandleArea}>
+                                    <View style={[styles.dragHandle, { backgroundColor: theme.colors.surfaceRipple }]} />
+                                </View>
+                            </GestureDetector>
+
+                            {/* Modal Header */}
+                            <View style={[styles.header, { borderBottomColor: theme.colors.surfaceRipple }]}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.toolName}>
+                                        {AGENT_TOOLS.has(tool.name)
+                                            ? (tool.input?.subagent_type || tool.name)
+                                            : tool.name}
+                                    </Text>
+                                    {AGENT_TOOLS.has(tool.name) && tool.input?.description && typeof tool.input.description === 'string' && (
+                                        <Text style={styles.toolSubtitle} numberOfLines={1}>
+                                            {tool.input.description}
+                                        </Text>
+                                    )}
+                                </View>
+                                <Pressable onPress={onClose} hitSlop={8}>
+                                    <Ionicons name="close" size={24} color={theme.colors.text} />
+                                </Pressable>
+                            </View>
+
+                            {/* Content — route by tool type */}
+                            {AGENT_TOOLS.has(tool.name)
+                                ? <AgentModalContent tool={tool} metadata={metadata} messages={messages || []} />
+                                : DIFF_TOOLS.has(tool.name)
+                                ? <DiffModalContent tool={tool} />
+                                : FILE_VIEW_TOOLS.has(tool.name)
+                                ? <FileViewModalContent tool={tool} />
+                                : <ToolModalTabs tool={tool} hideOutput={hideOutput} />
+                            }
                         </Animated.View>
                     </View>
                 </GestureHandlerRootView>
@@ -182,11 +189,15 @@ const styles = StyleSheet.create((theme) => ({
         right: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.4)',
     },
-    container: {
-        flex: 1,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
+    card: {
+        marginHorizontal: 12,
+        borderRadius: 16,
         overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+        elevation: 8,
     },
     dragHandleArea: {
         paddingVertical: 12,
