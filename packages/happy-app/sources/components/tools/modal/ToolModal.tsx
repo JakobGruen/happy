@@ -21,6 +21,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Metadata } from '@/sync/storageTypes';
 import { useLocalSettingMutable } from '@/sync/storage';
+import { CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
+import { UsePermissionActionsResult } from '@/hooks/usePermissionActions';
+import { PermissionActionBar } from './PermissionActionBar';
 
 const DIFF_TOOLS = new Set(['Edit', 'MultiEdit']);
 const FILE_VIEW_TOOLS = new Set(['Read', 'Write']);
@@ -39,10 +42,13 @@ interface ToolModalProps {
     messages?: Message[];
     onClose: () => void;
     hideOutput?: boolean;
+    permission?: CurrentSessionPermissionItem | null;
+    permissionActions?: UsePermissionActionsResult | null;
+    queueCount?: number;
 }
 
 export const ToolModal = React.memo<ToolModalProps>(
-    ({ visible, tool, metadata, messages, onClose, hideOutput }) => {
+    ({ visible, tool, metadata, messages, onClose, hideOutput, permission, permissionActions, queueCount }) => {
         const { theme } = useUnistyles();
         const { height: screenHeight } = useWindowDimensions();
         const insets = useSafeAreaInsets();
@@ -103,6 +109,8 @@ export const ToolModal = React.memo<ToolModalProps>(
                 }
             }), [screenHeight]);
 
+        const hasActionBar = !!(permission && permissionActions);
+
         const animatedStyle = useAnimatedStyle(() => ({
             transform: [{ translateY: translateY.value }],
             height: modalHeight.value,
@@ -133,7 +141,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                                 styles.card,
                                 {
                                     backgroundColor: theme.colors.surfaceHigh,
-                                    marginBottom: insets.bottom + 8,
+                                    marginBottom: hasActionBar ? 0 : insets.bottom + 8,
                                 },
                             ]}
                         >
@@ -173,6 +181,18 @@ export const ToolModal = React.memo<ToolModalProps>(
                                 : <ToolModalTabs tool={tool} hideOutput={hideOutput} />
                             }
                         </Animated.View>
+
+                        {/* Permission Action Bar — separate floating card below */}
+                        {hasActionBar && (
+                            <View style={{ marginBottom: insets.bottom + 8 }}>
+                                <PermissionActionBar
+                                    actions={permissionActions!}
+                                    llmSummary={permission!.llmSummary}
+                                    queueCount={queueCount ?? 0}
+                                    suggestions={permission!.permissionSuggestions}
+                                />
+                            </View>
+                        )}
                     </View>
                 </GestureHandlerRootView>
             </Modal>
