@@ -36,8 +36,10 @@ const DIFF_HEIGHT_RATIO = 0.85;
 const DISMISS_VELOCITY = 1200;  // px/s — only checked at release moment, requires active fling
 const SPRING_CONFIG = { damping: 20, stiffness: 200, mass: 0.8 };
 
-const PERMISSION_CARD_OFFSET = 180;
-const INPUT_BOX_HEIGHT = 56;
+const INPUT_BOX_TOTAL_HEIGHT = 72;
+const MODAL_INPUT_GAP = 4;
+const PERMISSION_CARD_HEIGHT = 160;
+const GAP_BETWEEN_CARDS = 8;
 
 // Helper for input-box-aligned positioning (called from worklets)
 function getInputBoxAlignment(screenWidth: number) {
@@ -101,10 +103,18 @@ export const ToolModal = React.memo<ToolModalProps>(
                 cancelAnimation(modalHeight);
                 translateY.value = 0;
                 const isDiffTool = DIFF_TOOLS.has(tool.name);
-                modalHeight.value = (isDiffTool ? DIFF_HEIGHT_RATIO : MODAL_HEIGHT_RATIO) * screenHeight;
+                if (hasActionBar) {
+                    const permissionCardBottom = INPUT_BOX_TOTAL_HEIGHT + MODAL_INPUT_GAP + insets.bottom;
+                    const permissionCardTop = screenHeight - permissionCardBottom - PERMISSION_CARD_HEIGHT;
+                    const detailCardTop = screenHeight * 0.25;
+                    const availableHeight = permissionCardTop - detailCardTop - GAP_BETWEEN_CARDS;
+                    modalHeight.value = Math.max(availableHeight, screenHeight * 0.3);
+                } else {
+                    modalHeight.value = (isDiffTool ? DIFF_HEIGHT_RATIO : MODAL_HEIGHT_RATIO) * screenHeight;
+                }
                 setInternalVisible(true);
             }
-        }, [visible, screenHeight, tool.name]);
+        }, [visible, screenHeight, tool.name, hasActionBar, insets.bottom]);
 
         // Animate progress when internalVisible changes
         useEffect(() => {
@@ -173,7 +183,7 @@ export const ToolModal = React.memo<ToolModalProps>(
             return {
                 position: 'absolute' as const,
                 left: finalX,
-                bottom: INPUT_BOX_HEIGHT + insets.bottom,
+                bottom: INPUT_BOX_TOTAL_HEIGHT + MODAL_INPUT_GAP + insets.bottom,
                 width: finalWidth,
                 opacity: interpolate(progress.value, [0.5, 0.8], [0, 1], Extrapolation.CLAMP),
                 transform: [
@@ -186,7 +196,9 @@ export const ToolModal = React.memo<ToolModalProps>(
         const expandStyle = useAnimatedStyle(() => {
             const { left: finalX, width: finalWidth } = getInputBoxAlignment(screenWidth);
             const finalHeight = modalHeight.value;
-            const bottomMargin = hasActionBar ? PERMISSION_CARD_OFFSET : INPUT_BOX_HEIGHT + insets.bottom;
+            const bottomMargin = hasActionBar
+                ? (INPUT_BOX_TOTAL_HEIGHT + MODAL_INPUT_GAP + insets.bottom) + PERMISSION_CARD_HEIGHT + GAP_BETWEEN_CARDS
+                : INPUT_BOX_TOTAL_HEIGHT + MODAL_INPUT_GAP + insets.bottom;
             const finalY = screenHeight - finalHeight - bottomMargin;
 
             if (!sourceRect) {
@@ -253,7 +265,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                                     tool={tool}
                                     metadata={metadata}
                                     messages={messages}
-                                    expanded={true}
+                                    expanded={false}
                                 />
                             </Animated.View>
                         </GestureDetector>

@@ -178,10 +178,9 @@ const styles = StyleSheet.create((theme) => ({
         borderRadius: 8,
         marginVertical: 4,
         overflow: 'hidden',
-        borderWidth: 1.5,
-        borderColor: 'transparent',
     },
     pendingBorder: {
+        borderWidth: 1.5,
         borderColor: theme.colors.box.warning.border,
     },
     denyReasonContainer: {
