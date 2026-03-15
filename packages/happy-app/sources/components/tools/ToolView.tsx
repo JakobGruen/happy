@@ -23,7 +23,6 @@ interface ToolViewProps {
 
 export const ToolView = React.memo<ToolViewProps>((props) => {
     const { tool, onPress, sessionId, messageId } = props;
-    const { theme } = useUnistyles();
 
     // Modal state for full content view
     const [isModalVisible, setIsModalVisible] = React.useState(false);
