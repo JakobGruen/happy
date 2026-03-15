@@ -6,6 +6,8 @@ import { subscribe as subscribeBridge } from '@/realtime/voiceQuestionBridge';
 export interface QuestionOption {
     label: string;
     description: string;
+    /** Optional preview content shown in the preview pane when this option is focused. */
+    preview?: string;
 }
 
 export interface Question {
