@@ -105,6 +105,8 @@ export const ToolModal = React.memo<ToolModalProps>(
             handleCloseRef.current();
         }, []);
 
+        const hasActionBar = !!(permission && permissionActions);
+
         // Sync sourceRect into shared values for animation
         useEffect(() => {
             if (sourceRect) {
@@ -190,8 +192,6 @@ export const ToolModal = React.memo<ToolModalProps>(
                     translateY.value = withSpring(0);
                 }
             }), [startCloseAnimation]);
-
-        const hasActionBar = !!(permission && permissionActions);
 
         // Pan gesture for swipe-to-dismiss on permission card
         const permissionDismissGesture = useMemo(() => Gesture.Pan()
