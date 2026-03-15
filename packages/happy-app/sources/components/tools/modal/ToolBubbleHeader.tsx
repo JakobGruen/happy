@@ -107,6 +107,10 @@ export const ToolBubbleHeader = React.memo<ToolBubbleHeaderProps>(({
             minimal = knownTool.minimal;
         }
     }
+    // Unknown Gemini tools are minimal (hide raw INPUT/OUTPUT for internal tools)
+    if (!knownTool && metadata?.flavor === 'gemini') {
+        minimal = true;
+    }
 
     // --- Resolve noStatus flag ---
     let noStatus = false;
@@ -126,6 +130,7 @@ export const ToolBubbleHeader = React.memo<ToolBubbleHeaderProps>(({
         statusIcon = <Ionicons name="remove-circle-outline" size={20} color={theme.colors.textSecondary} />;
     } else if (isToolUseError) {
         statusIcon = <Ionicons name="remove-circle-outline" size={20} color={theme.colors.textSecondary} />;
+        minimal = true;
     } else {
         switch (tool.state) {
             case 'running':
