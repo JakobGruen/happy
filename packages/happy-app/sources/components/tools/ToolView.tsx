@@ -69,10 +69,13 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         };
     }, [isPending, tool.permission, tool.name, tool.input, tool.description, tool.createdAt]);
 
-    // Auto-open modal when permission becomes pending
+    // Auto-open modal when permission becomes pending, auto-close when resolved
     React.useEffect(() => {
         if (tool.permission?.status === 'pending') {
             setIsModalVisible(true);
+        } else if (tool.permission?.status) {
+            // Auto-dismiss when permission is resolved (approved, denied, canceled)
+            setIsModalVisible(false);
         }
     }, [tool.permission?.status]);
 
