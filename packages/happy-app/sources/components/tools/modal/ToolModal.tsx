@@ -210,19 +210,42 @@ export const ToolModal = React.memo<ToolModalProps>(
                 }
             }), [startCloseAnimation]);
 
-        // Permission card animated style — fades in during expand, follows dismiss gesture
+        // Permission card animated style — animates from below-bubble to bottom-of-screen
         const permissionCardStyle = useAnimatedStyle(() => {
             const { left: finalX, width: finalWidth } = getInputBoxAlignment(screenWidth);
+            const finalBottom = INPUT_BOX_TOTAL_HEIGHT + MODAL_INPUT_GAP + insets.bottom;
+
+            // Starting position: attached just below the bubble
+            const startX = targetX.value;
+            const startY = targetY.value + targetH.value;
+            const startWidth = targetW.value;
+
+            // Final position: bottom of screen above input (convert bottom → top coordinate)
+            const finalY = screenHeight - finalBottom - PERMISSION_CARD_HEIGHT;
+
+            const p = progress.value;
+            const hasTarget = targetW.value > 0;
+
+            if (!hasTarget) {
+                // Fallback: slide up from bottom
+                return {
+                    position: 'absolute' as const,
+                    left: finalX,
+                    bottom: interpolate(p, [0, 1], [-200, finalBottom]),
+                    width: finalWidth,
+                    opacity: interpolate(p, [0.3, 0.7], [0, 1], Extrapolation.CLAMP),
+                    transform: [{ translateY: Math.max(translateY.value, 0) }],
+                };
+            }
 
             return {
                 position: 'absolute' as const,
-                left: finalX,
-                bottom: INPUT_BOX_TOTAL_HEIGHT + MODAL_INPUT_GAP + insets.bottom,
-                width: finalWidth,
-                opacity: interpolate(progress.value, [0.5, 0.8], [0, 1], Extrapolation.CLAMP),
-                transform: [
-                    { translateY: Math.max(translateY.value, 0) },
-                ],
+                left: interpolate(p, [0, 1], [startX, finalX]),
+                top: interpolate(p, [0, 1], [startY, finalY]) + Math.max(translateY.value, 0),
+                width: interpolate(p, [0, 1], [startWidth, finalWidth]),
+                borderRadius: interpolate(p, [0, 1], [8, 12]),
+                // Quick fade-in so it's visible from the start of the animation
+                opacity: interpolate(p, [0, 0.15], [0, 1], Extrapolation.CLAMP),
             };
         });
 
