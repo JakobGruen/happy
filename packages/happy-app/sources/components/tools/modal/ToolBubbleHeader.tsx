@@ -10,6 +10,8 @@ import { ContentPreview } from './ContentPreview';
 import { useElapsedTime } from '@/hooks/useElapsedTime';
 import { parseToolUseError } from '@/utils/toolErrorParser';
 
+const ACTIVITY_INDICATOR_STYLE = { transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] } as const;
+
 interface ToolBubbleHeaderProps {
     tool: ToolCall;
     metadata: Metadata | null;
@@ -56,7 +58,7 @@ export const ToolBubbleHeader = React.memo<ToolBubbleHeaderProps>(({
                 description = stringParams
                     .map(([k, v]) => {
                         const val = String(v);
-                        const truncated = val.length > 30 ? val.substring(0, 30) + '...' : val;
+                        const truncated = val.length > 30 ? val.substring(0, 30) + '…' : val;
                         return `${k}=${truncated}`;
                     })
                     .join('  ');
@@ -96,6 +98,16 @@ export const ToolBubbleHeader = React.memo<ToolBubbleHeaderProps>(({
         icon = knownTool.icon(18, theme.colors.text);
     }
 
+    // --- Resolve minimal flag (suppress ContentPreview) ---
+    let minimal = false;
+    if (knownTool && knownTool.minimal !== undefined) {
+        if (typeof knownTool.minimal === 'function') {
+            minimal = knownTool.minimal({ tool, metadata, messages });
+        } else {
+            minimal = knownTool.minimal;
+        }
+    }
+
     // --- Resolve noStatus flag ---
     let noStatus = false;
     if (knownTool && typeof knownTool.noStatus === 'boolean') {
@@ -118,7 +130,7 @@ export const ToolBubbleHeader = React.memo<ToolBubbleHeaderProps>(({
         switch (tool.state) {
             case 'running':
                 if (!noStatus) {
-                    statusIcon = <ActivityIndicator size="small" color={theme.colors.text} style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }} />;
+                    statusIcon = <ActivityIndicator size="small" color={theme.colors.text} style={ACTIVITY_INDICATOR_STYLE} />;
                 }
                 break;
             case 'completed':
@@ -144,7 +156,7 @@ export const ToolBubbleHeader = React.memo<ToolBubbleHeaderProps>(({
                     {titleText}
                     {status ? <Text style={styles.status}>{` ${status}`}</Text> : null}
                 </Text>
-                {!expanded && (
+                {!expanded && !minimal && (
                     <ContentPreview tool={tool} />
                 )}
             </View>
