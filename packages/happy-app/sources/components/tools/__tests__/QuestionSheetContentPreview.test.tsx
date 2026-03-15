@@ -6,6 +6,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 
+// Stable form stub shared between the mock factory and tests.
+// Declared via vi.hoisted so it is available in the hoisted vi.mock() factories.
+const sharedFormStub = vi.hoisted(() => ({
+    selections: new Map(),
+    otherTexts: new Map(),
+    activeTab: 0,
+    setActiveTab: vi.fn(),
+    isSubmitting: false,
+    isSubmitted: false,
+    allQuestionsAnswered: false,
+    canInteract: true,
+    handleOptionToggle: vi.fn(),
+    handleOtherTextChange: vi.fn(),
+    handleSubmit: vi.fn(),
+    isQuestionAnswered: () => false,
+}));
+
 // --- React hooks mock: allow calling component as a plain function ---
 // In React 19, the dispatcher is ReactSharedInternals.H (previously ReactCurrentDispatcher.current)
 // We inject a fake dispatcher so useState/useCallback etc. work without a real renderer.
@@ -121,24 +138,12 @@ vi.mock('@/realtime/voiceQuestionBridge', () => ({
     subscribe: vi.fn(() => () => {}),
 }));
 
-// useQuestionFormState mock — returns a minimal stub so React hooks inside it don't run
-// Also re-exports OTHER_INDEX constant which the component uses
+// useQuestionFormState mock — returns a stable stub so the same spy references
+// are accessible both in the mock factory and in test assertions.
+// Also re-exports OTHER_INDEX constant which the component uses.
 vi.mock('@/hooks/useQuestionFormState', () => ({
     OTHER_INDEX: -1,
-    useQuestionFormState: () => ({
-        selections: new Map(),
-        otherTexts: new Map(),
-        activeTab: 0,
-        setActiveTab: vi.fn(),
-        isSubmitting: false,
-        isSubmitted: false,
-        allQuestionsAnswered: false,
-        canInteract: true,
-        handleOptionToggle: vi.fn(),
-        handleOtherTextChange: vi.fn(),
-        handleSubmit: vi.fn(),
-        isQuestionAnswered: () => false,
-    }),
+    useQuestionFormState: () => sharedFormStub,
 }));
 
 // detectContentType mock
@@ -195,6 +200,23 @@ function findByTestID(node: any, testID: string): any {
         return findByTestID(children, testID);
     }
     return null;
+}
+
+// Helper: recursively collect all nodes matching a predicate
+function findAll(node: any, predicate: (n: any) => boolean): any[] {
+    if (!node || typeof node !== 'object') return [];
+    if (Array.isArray(node)) {
+        return node.flatMap((child) => findAll(child, predicate));
+    }
+    const results: any[] = [];
+    if (predicate(node)) results.push(node);
+    const children = node.props?.children;
+    if (Array.isArray(children)) {
+        results.push(...children.flatMap((child: any) => findAll(child, predicate)));
+    } else if (children) {
+        results.push(...findAll(children, predicate));
+    }
+    return results;
 }
 
 // Helper: build a minimal permission item with questions
@@ -254,8 +276,8 @@ describe('QuestionSheetContent — preview pane', () => {
         expect(previewPane).toBeNull();
     });
 
-    it('renders preview pane when a different option with preview is selected', () => {
-        // Both options have preview content — selecting either should show the pane.
+    it('renders preview pane at initial state when all options have preview', () => {
+        // Both options have preview content — the pane is visible at initial render.
         const permission = makePermission([{
             header: 'Choose',
             question: 'Pick an option',
@@ -270,5 +292,34 @@ describe('QuestionSheetContent — preview pane', () => {
         const output = QuestionSheetContent({ permission, sessionId: 'sess-1' });
         const previewPane = findByTestID(output, 'option-preview-pane');
         expect(previewPane).not.toBeNull();
+    });
+
+    it('calls handleOptionToggle when an option button is pressed', () => {
+        // Reset the spy so previous test calls don't interfere
+        sharedFormStub.handleOptionToggle.mockClear();
+
+        const permission = makePermission([{
+            header: 'Choose',
+            question: 'Pick an option',
+            multiSelect: false,
+            options: [
+                { label: 'Option A', preview: 'Preview A text' },
+                { label: 'Option B', preview: 'Preview B text' },
+            ],
+        }]);
+
+        const output = QuestionSheetContent({ permission, sessionId: 'sess-1' });
+
+        // Find all pressable nodes (React elements whose props include onPress)
+        // JSX produces React elements with { type: MockTouchableOpacity, props: { onPress, ... } },
+        // so we match by the presence of an onPress prop rather than a string type name.
+        const buttons = findAll(output, (n) => typeof n.props?.onPress === 'function');
+        expect(buttons.length).toBeGreaterThanOrEqual(1);
+
+        // Press the second option button (index 1 — Option B)
+        buttons[1].props.onPress();
+
+        // handleOptionWithPreview calls form.handleOptionToggle(qIndex=0, oIndex=1, multiSelect=false)
+        expect(sharedFormStub.handleOptionToggle).toHaveBeenCalledWith(0, 1, false);
     });
 });
