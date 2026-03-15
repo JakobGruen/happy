@@ -1,0 +1,28 @@
+# === Packages not needed for app build ===
+packages/happy-cli/
+packages/happy-server/
+packages/happy-agent/
+packages/happy-voice-agent/
+
+# === Dev/build artifacts ===
+.claude/
+.serena/
+.mypy_cache/
+.pytest_cache/
+docs/
+notes/
+.github/
+
+# === App-specific exclusions ===
+packages/happy-app/src-tauri/
+packages/happy-app/**/*.test.ts
+packages/happy-app/**/*.test.tsx
+
+# === Already in .gitignore but be explicit ===
+node_modules/
+ios/
+android/
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
