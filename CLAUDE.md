@@ -308,25 +308,31 @@ When the `AskUserQuestion` tool sends options with a `preview` field, `QuestionS
 
 ### Unified Permission Modal
 
-Permission requests reuse the same **floating card tool modal** as completed tool views, with a **PermissionActionBar** rendered as a sibling card below. This replaces the old separate `PermissionSheetExpanded` flow for Claude sessions.
+Permission requests show an **inline PermissionActionBar** directly below the tool bubble, with a **tap-to-expand animation** that opens the full tool detail modal. The modal card expands from the bubble's measured screen position using a spring-driven `progress` shared value.
 
 **Architecture**:
-- `ToolView.tsx` — auto-opens modal on `tool.permission?.status === 'pending'`, auto-closes when resolved (approved/denied/canceled). Passes permission props to `ToolModal`. Amber border on pending bubbles via `box.warning.border`.
-- `ToolModal.tsx` — content routing: pending AskUserQuestion → `QuestionSheetContent`, pending ExitPlanMode → `PlanSheetContent`, pending FILE_VIEW_TOOLS → falls through to `ToolModalTabs` (not `FileViewModalContent`). `PermissionActionBar` is a **sibling** View below the card (not a child), with safe-area margin distribution.
-- `PermissionActionBar.tsx` — outline/bordered buttons (transparent bg + colored border + colored text). Allow (green), Suggestion/AllowAll (blue), Deny (red). LLM summary text above buttons. Queue badge below buttons (excludes current permission from count).
-- `PermissionSheetBar.tsx` — minimized bar with Allow/Deny for all tool types (no more `isRichTool` distinction).
+- `ToolView.tsx` — renders inline `PermissionActionBar` (with `inline` prop) for pending Claude permissions. No auto-open. Measures bubble with `measureInWindow` on tap, passes `sourceRect` to modal. Hides bubble (`opacity: 0`) while modal open. Amber border on pending bubbles.
+- `ToolModal.tsx` — `progress` shared value (0→1) drives expand animation via `interpolate`: card position/size from `sourceRect` to final bottom-justified rect, backdrop opacity 0→0.4, content fade-in at 30-70%. Close animation reverses progress (1→0) with spring, keeps Modal mounted via `internalVisible` state. Drag-to-resize blocked during animation (`progress < 0.95`). Falls back to slide-up when no `sourceRect`.
+- `PermissionActionBar.tsx` — outline/bordered buttons (transparent bg + colored border + colored text). Allow (green), Suggestion/AllowAll (blue), Deny (red). Supports `inline` variant (no shadow, flush with bubble). LLM summary text above buttons. Queue badge below.
+- `PermissionFooter.tsx` — kept for Codex sessions only (different permission model).
 
 **Key behaviors**:
-- Permission modal auto-opens (spring slide-up) and auto-dismisses on resolution
-- **Anti-stacking**: `permissionModalRegistry.ts` tracks open permission modals — auto-open is suppressed when another modal is already visible. Manual taps (banner) bypass the check and stack intentionally.
-- `PermissionFooter` (inline options) shown only for pending permissions, hidden after approval/denial
-- AskUserQuestion: no PermissionActionBar (has own submit/cancel buttons), collapses to minimal bubble after response
-- Queue badge shows `queueCount - 1` ("N more pending") only when > 1 pending
+- Pending permission → inline action bar below bubble (no auto-open modal)
+- Tap header → card expands from bubble position (spring animation, works on iOS/Android/web)
+- Close → card collapses back to bubble position (or fling-to-dismiss)
+- AskUserQuestion: no PermissionActionBar (has own submit/cancel buttons), collapses to minimal after response
+- Anti-stacking registry still active for banner modals
 - Tool bubbles with pending permissions get amber border (`box.warning.border`)
 
-**Global banner** (`PermissionBanner.tsx`): Cross-session permissions show as amber-bordered chip at top of screen (session name, tool description, input preview). Tap opens the same `ToolModal` + `PermissionActionBar` in-place — no navigation to the other session. Uses `buildSyntheticToolCall()` from `permissionBannerUtils.ts` to bridge `PendingPermissionItem` → `ToolCall`. One banner at a time (oldest first), "N more pending" count.
+**Global banner** (`PermissionBanner.tsx`): Cross-session permissions show as amber-bordered chip at top of screen (session name, tool description, input preview). Tap measures banner position, opens `ToolModal` expanding from banner. Uses `buildSyntheticToolCall()` from `permissionBannerUtils.ts` to bridge `PendingPermissionItem` → `ToolCall`.
 
-**Key files**: `ToolView.tsx`, `ToolModal.tsx`, `PermissionActionBar.tsx`, `PermissionSheetBar.tsx`, `PermissionBanner.tsx`, `permissionBannerUtils.ts`, `permissionModalRegistry.ts`, `useCurrentSessionPermissions.ts`, `usePermissionActions.ts`
+**Animation technical notes**:
+- Uses `useAnimatedStyle` + `interpolate` (not custom `entering` functions — those don't work on web)
+- `measureInWindow` returns screen coordinates, which match transparent Modal coordinate system
+- `internalVisible` state keeps `<Modal>` mounted during close animation so collapse is visible
+- `ACTION_BAR_ESTIMATED_HEIGHT` constant offsets final card position when permission bar is shown
+
+**Key files**: `ToolView.tsx`, `ToolModal.tsx`, `PermissionActionBar.tsx`, `PermissionFooter.tsx` (Codex only), `PermissionBanner.tsx`, `permissionBannerUtils.ts`, `permissionModalRegistry.ts`, `useCurrentSessionPermissions.ts`, `usePermissionActions.ts`
 
 
 ## Code Style (Cross-Package)
