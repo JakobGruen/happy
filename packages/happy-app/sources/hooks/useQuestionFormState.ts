@@ -6,6 +6,7 @@ import { subscribe as subscribeBridge } from '@/realtime/voiceQuestionBridge';
 export interface QuestionOption {
     label: string;
     description: string;
+    preview?: string;
 }
 
 export interface Question {
