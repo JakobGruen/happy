@@ -120,9 +120,12 @@ export const ToolModal = React.memo<ToolModalProps>(
         // Pan gesture for drag-to-resize and drag-to-dismiss
         const panGesture = useMemo(() => Gesture.Pan()
             .onBegin(() => {
+                // Skip gesture during expand/collapse animation
+                if (progress.value < 0.95) return;
                 heightAtStart.value = modalHeight.value;
             })
             .onUpdate((e) => {
+                if (progress.value < 0.95) return;
                 // Drag up = expand, drag down = shrink
                 const newHeight = Math.min(
                     Math.max(heightAtStart.value - e.translationY, MIN_HEIGHT_RATIO * screenHeight),
@@ -131,6 +134,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                 modalHeight.value = newHeight;
             })
             .onEnd((e) => {
+                if (progress.value < 0.95) return;
                 if (e.velocityY > DISMISS_VELOCITY) {
                     // Fast fling → collapse back to bubble
                     progress.value = withSpring(0, SPRING_CONFIG, (finished) => {
