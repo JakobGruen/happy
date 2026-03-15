@@ -25,6 +25,7 @@ import { UsePermissionActionsResult } from '@/hooks/usePermissionActions';
 import { PermissionActionBar } from './PermissionActionBar';
 import { QuestionSheetContent } from '../QuestionSheetContent';
 import { PlanSheetContent } from '../PlanSheetContent';
+import { layout } from '@/components/layout';
 
 const DIFF_TOOLS = new Set(['Edit', 'MultiEdit']);
 const FILE_VIEW_TOOLS = new Set(['Read', 'Write']);
@@ -35,6 +36,7 @@ const DISMISS_VELOCITY = 1200;  // px/s — only checked at release moment, requ
 const SPRING_CONFIG = { damping: 20, stiffness: 200, mass: 0.8 };
 
 const ACTION_BAR_ESTIMATED_HEIGHT = 140;
+const INPUT_BOX_HEIGHT = 56;
 
 interface ToolModalProps {
     visible: boolean;
@@ -132,10 +134,15 @@ export const ToolModal = React.memo<ToolModalProps>(
 
         // Expand-from-bubble animated style
         const expandStyle = useAnimatedStyle(() => {
-            const finalX = 12; // marginHorizontal
-            const finalWidth = screenWidth - 24;
+            // Align modal edges with input box (AgentInput container padding)
+            const isDesktop = screenWidth > 700;
+            const containerPadding = isDesktop ? 16 : 8;
+            const contentWidth = Math.min(screenWidth, layout.maxWidth);
+            const centeredOffset = Math.max((screenWidth - contentWidth) / 2, 0);
+            const finalX = centeredOffset + containerPadding;
+            const finalWidth = contentWidth - containerPadding * 2;
             const finalHeight = modalHeight.value;
-            const bottomMargin = hasActionBar ? ACTION_BAR_ESTIMATED_HEIGHT : insets.bottom + 8;
+            const bottomMargin = hasActionBar ? ACTION_BAR_ESTIMATED_HEIGHT : INPUT_BOX_HEIGHT + insets.bottom;
             const finalY = screenHeight - finalHeight - bottomMargin;
 
             if (!sourceRect) {
