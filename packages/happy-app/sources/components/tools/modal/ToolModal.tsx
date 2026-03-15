@@ -24,6 +24,8 @@ import { useLocalSettingMutable } from '@/sync/storage';
 import { CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
 import { UsePermissionActionsResult } from '@/hooks/usePermissionActions';
 import { PermissionActionBar } from './PermissionActionBar';
+import { QuestionSheetContent } from '../QuestionSheetContent';
+import { PlanSheetContent } from '../PlanSheetContent';
 
 const DIFF_TOOLS = new Set(['Edit', 'MultiEdit']);
 const FILE_VIEW_TOOLS = new Set(['Read', 'Write']);
@@ -42,13 +44,14 @@ interface ToolModalProps {
     messages?: Message[];
     onClose: () => void;
     hideOutput?: boolean;
+    sessionId?: string;
     permission?: CurrentSessionPermissionItem | null;
     permissionActions?: UsePermissionActionsResult | null;
     queueCount?: number;
 }
 
 export const ToolModal = React.memo<ToolModalProps>(
-    ({ visible, tool, metadata, messages, onClose, hideOutput, permission, permissionActions, queueCount }) => {
+    ({ visible, tool, metadata, messages, onClose, hideOutput, sessionId, permission, permissionActions, queueCount }) => {
         const { theme } = useUnistyles();
         const { height: screenHeight } = useWindowDimensions();
         const insets = useSafeAreaInsets();
@@ -172,14 +175,29 @@ export const ToolModal = React.memo<ToolModalProps>(
                             </View>
 
                             {/* Content — route by tool type */}
-                            {AGENT_TOOLS.has(tool.name)
-                                ? <AgentModalContent tool={tool} metadata={metadata} messages={messages || []} />
-                                : DIFF_TOOLS.has(tool.name)
-                                ? <DiffModalContent tool={tool} />
-                                : FILE_VIEW_TOOLS.has(tool.name)
-                                ? <FileViewModalContent tool={tool} />
-                                : <ToolModalTabs tool={tool} hideOutput={hideOutput} />
-                            }
+                            {/* Permission-aware routing — rich content tools get specialized views */}
+                            {(() => {
+                                const isPending = tool.permission?.status === 'pending';
+
+                                if (isPending && tool.name === 'AskUserQuestion' && permission) {
+                                    return <QuestionSheetContent permission={permission} sessionId={sessionId ?? ''} />;
+                                }
+                                if (isPending && (tool.name === 'ExitPlanMode' || tool.name === 'exit_plan_mode') && permission) {
+                                    return <PlanSheetContent permission={permission} />;
+                                }
+
+                                // Standard routing
+                                if (AGENT_TOOLS.has(tool.name)) {
+                                    return <AgentModalContent tool={tool} metadata={metadata} messages={messages || []} />;
+                                }
+                                if (DIFF_TOOLS.has(tool.name)) {
+                                    return <DiffModalContent tool={tool} />;
+                                }
+                                if (FILE_VIEW_TOOLS.has(tool.name)) {
+                                    return <FileViewModalContent tool={tool} />;
+                                }
+                                return <ToolModalTabs tool={tool} hideOutput={hideOutput} />;
+                            })()}
                         </Animated.View>
 
                         {/* Permission Action Bar — separate floating card below */}
