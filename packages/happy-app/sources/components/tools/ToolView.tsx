@@ -12,7 +12,7 @@ import { knownTools } from '@/components/tools/knownTools';
 import { Metadata } from '@/sync/storageTypes';
 import { useRouter } from 'expo-router';
 import { PermissionFooter } from './PermissionFooter';
-import { useIsPermissionSheetActive } from './permissionSheetContext';
+import { PermissionActionBar } from './modal/PermissionActionBar';
 import { parseToolUseError } from '@/utils/toolErrorParser';
 import { formatMCPTitle } from './views/MCPToolView';
 import { t } from '@/text';
@@ -21,7 +21,7 @@ import { ToolModal } from './modal/ToolModal';
 import { ContentPreview } from './modal/ContentPreview';
 import { usePermissionActions } from '@/hooks/usePermissionActions';
 import { useCurrentSessionPermissions, CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
-import { isAnyPermissionModalOpen, registerPermissionModalOpen, registerPermissionModalClose } from './permissionModalRegistry';
+import { registerPermissionModalOpen, registerPermissionModalClose } from './permissionModalRegistry';
 
 interface ToolViewProps {
     metadata: Metadata | null;
@@ -70,15 +70,9 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         };
     }, [isPending, tool.permission, tool.name, tool.input, tool.description, tool.createdAt]);
 
-    // Auto-open modal when permission becomes pending, auto-close when resolved.
-    // Suppressed when another permission modal is already open to prevent stacking.
+    // Auto-close modal when permission is resolved (approved, denied, canceled)
     React.useEffect(() => {
-        if (tool.permission?.status === 'pending') {
-            if (!isAnyPermissionModalOpen()) {
-                setIsModalVisible(true);
-            }
-        } else if (tool.permission?.status) {
-            // Auto-dismiss when permission is resolved (approved, denied, canceled)
+        if (tool.permission?.status && tool.permission.status !== 'pending') {
             setIsModalVisible(false);
         }
     }, [tool.permission?.status]);
@@ -234,19 +228,11 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
     // Collapse post-approval/denial tools to minimal header line for Claude sessions
     // This matches CC terminal behavior where completed tools show as a single line
-    const isClaude = props.metadata?.flavor !== 'codex' && props.metadata?.flavor !== 'gemini';
+    const isCodex = props.metadata?.flavor === 'codex';
+    const isClaude = !isCodex && props.metadata?.flavor !== 'gemini';
     if (isClaude && tool.permission && tool.permission.status !== 'pending' && tool.state !== 'running') {
         minimal = true;
     }
-
-    // When the permission sheet is active and this tool has a pending permission,
-    // collapse to one-liner in chat — the sheet shows the full context instead
-    const isSheetActive = useIsPermissionSheetActive();
-    if (isSheetActive && isClaude && tool.permission?.status === 'pending') {
-        minimal = true;
-    }
-
-
 
     const headerContent = (
         <View style={styles.headerLeft}>
@@ -327,9 +313,20 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 sessionId={sessionId}
             />
 
-            {/* Inline permission footer — only for actively pending permissions */}
-            {/* Past (approved/denied) permissions hide footer; AskUserQuestion has its own UI */}
-            {tool.permission?.status === 'pending' && sessionId && tool.name !== 'AskUserQuestion' && (
+            {/* Inline permission action bar for Claude sessions */}
+            {tool.permission?.status === 'pending' && sessionId && tool.name !== 'AskUserQuestion' && !isCodex && (
+                <PermissionActionBar
+                    inline
+                    actions={permissionActions}
+                    llmSummary={permissionItem?.llmSummary ?? null}
+                    queueCount={queueCount}
+                    suggestions={permissionItem?.permissionSuggestions ?? null}
+                    toolName={tool.name}
+                />
+            )}
+
+            {/* Codex permission footer fallback */}
+            {tool.permission?.status === 'pending' && sessionId && isCodex && (
                 <PermissionFooter permission={tool.permission} sessionId={sessionId} toolName={tool.name} toolInput={tool.input} metadata={props.metadata} />
             )}
         </View>
