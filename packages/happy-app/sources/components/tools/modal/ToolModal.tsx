@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo } from 'react';
-import { View, Modal, Pressable, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, useWindowDimensions } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import Animated, {
     useSharedValue,
@@ -35,7 +35,7 @@ const MODAL_HEIGHT_RATIO = 0.75;
 const DISMISS_VELOCITY = 1200;  // px/s — only checked at release moment, requires active fling
 const SPRING_CONFIG = { damping: 20, stiffness: 200, mass: 0.8 };
 
-const ACTION_BAR_ESTIMATED_HEIGHT = 140;
+const PERMISSION_CARD_OFFSET = 180;
 const INPUT_BOX_HEIGHT = 56;
 
 interface ToolModalProps {
@@ -132,6 +132,46 @@ export const ToolModal = React.memo<ToolModalProps>(
 
         const hasActionBar = !!(permission && permissionActions);
 
+        // Pan gesture for swipe-to-dismiss on permission card
+        const permissionDismissGesture = useMemo(() => Gesture.Pan()
+            .onUpdate((e) => {
+                if (progress.value < 0.95) return;
+                if (e.translationY > 0) {
+                    translateY.value = e.translationY;
+                }
+            })
+            .onEnd((e) => {
+                if (progress.value < 0.95) return;
+                if (e.translationY > 100 || e.velocityY > DISMISS_VELOCITY) {
+                    progress.value = withSpring(0, SPRING_CONFIG, (finished) => {
+                        if (finished) runOnJS(actualClose)();
+                    });
+                } else {
+                    translateY.value = withSpring(0);
+                }
+            }), [actualClose]);
+
+        // Permission card animated style — fades in during expand, follows dismiss gesture
+        const permissionCardStyle = useAnimatedStyle(() => {
+            const isDesktop = screenWidth > 700;
+            const containerPadding = isDesktop ? 16 : 8;
+            const contentWidth = Math.min(screenWidth, layout.maxWidth);
+            const centeredOffset = Math.max((screenWidth - contentWidth) / 2, 0);
+            const finalX = centeredOffset + containerPadding;
+            const finalWidth = contentWidth - containerPadding * 2;
+
+            return {
+                position: 'absolute' as const,
+                left: finalX,
+                bottom: INPUT_BOX_HEIGHT + insets.bottom,
+                width: finalWidth,
+                opacity: interpolate(progress.value, [0.5, 0.8], [0, 1], Extrapolation.CLAMP),
+                transform: [
+                    { translateY: Math.max(translateY.value, 0) },
+                ],
+            };
+        });
+
         // Expand-from-bubble animated style
         const expandStyle = useAnimatedStyle(() => {
             // Align modal edges with input box (AgentInput container padding)
@@ -142,7 +182,7 @@ export const ToolModal = React.memo<ToolModalProps>(
             const finalX = centeredOffset + containerPadding;
             const finalWidth = contentWidth - containerPadding * 2;
             const finalHeight = modalHeight.value;
-            const bottomMargin = hasActionBar ? ACTION_BAR_ESTIMATED_HEIGHT : INPUT_BOX_HEIGHT + insets.bottom;
+            const bottomMargin = hasActionBar ? PERMISSION_CARD_OFFSET : INPUT_BOX_HEIGHT + insets.bottom;
             const finalY = screenHeight - finalHeight - bottomMargin;
 
             if (!sourceRect) {
@@ -252,17 +292,19 @@ export const ToolModal = React.memo<ToolModalProps>(
                         </Animated.View>
                     </Animated.View>
 
-                    {/* Permission Action Bar — separate floating card below */}
+                    {/* Permission Action Bar — animated separate card at bottom */}
                     {hasActionBar && (
-                        <View style={{ position: 'absolute', bottom: insets.bottom + 8, left: 0, right: 0 }}>
-                            <PermissionActionBar
-                                actions={permissionActions!}
-                                llmSummary={permission!.llmSummary}
-                                queueCount={queueCount ?? 0}
-                                suggestions={permission!.permissionSuggestions}
-                                toolName={tool.name}
-                            />
-                        </View>
+                        <GestureDetector gesture={permissionDismissGesture}>
+                            <Animated.View style={[styles.permissionCard, permissionCardStyle, { backgroundColor: theme.colors.surfaceHigh }]}>
+                                <PermissionActionBar
+                                    actions={permissionActions!}
+                                    llmSummary={permission!.llmSummary}
+                                    queueCount={queueCount ?? 0}
+                                    suggestions={permission!.permissionSuggestions}
+                                    toolName={tool.name}
+                                />
+                            </Animated.View>
+                        </GestureDetector>
                     )}
                 </GestureHandlerRootView>
             </Modal>
@@ -286,6 +328,15 @@ const styles = StyleSheet.create((theme) => ({
         shadowOpacity: 0.25,
         shadowRadius: 12,
         elevation: 8,
+    },
+    permissionCard: {
+        overflow: 'hidden',
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 6,
     },
     closeButton: {
         position: 'absolute',
