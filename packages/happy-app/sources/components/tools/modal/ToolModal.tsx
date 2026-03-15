@@ -9,7 +9,6 @@ import Animated, {
     cancelAnimation,
     interpolate,
     Extrapolation,
-    measure,
     runOnUI,
 } from 'react-native-reanimated';
 import type { AnimatedRef } from 'react-native-reanimated';
@@ -36,13 +35,19 @@ const AGENT_TOOLS = new Set(['Task', 'Agent']);
 
 const MODAL_HEIGHT_RATIO = 0.75;
 const DIFF_HEIGHT_RATIO = 0.85;
-const DISMISS_VELOCITY = 1200;  // px/s — only checked at release moment, requires active fling
+const DISMISS_VELOCITY = 1200;
 const SPRING_CONFIG = { damping: 20, stiffness: 200, mass: 0.8 };
 
-const INPUT_BOX_TOTAL_HEIGHT = 72;
-const MODAL_INPUT_GAP = 4;
-const PERMISSION_CARD_HEIGHT = 160;
+const INPUT_BOX_TOTAL_HEIGHT = 44;
+const PERMISSION_CARD_HEIGHT_DEFAULT = 110; // Fallback when no pre-measurement available
 const GAP_BETWEEN_CARDS = 8;
+
+interface Rect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
 
 // Helper for input-box-aligned positioning (called from worklets)
 function getInputBoxAlignment(screenWidth: number) {
@@ -68,12 +73,16 @@ interface ToolModalProps {
     permission?: CurrentSessionPermissionItem | null;
     permissionActions?: UsePermissionActionsResult | null;
     queueCount?: number;
-    sourceRect?: { x: number; y: number; width: number; height: number } | null;
+    // Split source rects: header rect + optional permBar rect (from ToolView)
+    sourceRects?: { header: Rect; permBar: Rect | null } | null;
+    // Legacy single sourceRect (from PermissionBanner)
+    sourceRect?: Rect | null;
     bubbleRef?: AnimatedRef<Animated.View> | null;
+    permissionBarHeight?: number;
 }
 
 export const ToolModal = React.memo<ToolModalProps>(
-    ({ visible, tool, metadata, messages, onClose, hideOutput, sessionId, permission, permissionActions, queueCount, sourceRect, bubbleRef }) => {
+    ({ visible, tool, metadata, messages, onClose, hideOutput, sessionId, permission, permissionActions, queueCount, sourceRects, sourceRect, bubbleRef, permissionBarHeight: permBarHeightProp }) => {
         const { theme } = useUnistyles();
         const { width: screenWidth, height: screenHeight } = useWindowDimensions();
         const insets = useSafeAreaInsets();
@@ -85,11 +94,18 @@ export const ToolModal = React.memo<ToolModalProps>(
         // Expand/collapse animation progress (0 = at bubble, 1 = fully expanded)
         const progress = useSharedValue(0);
 
-        // Dynamic target position — updated from sourceRect at open, re-measured at close
-        const targetX = useSharedValue(0);
-        const targetY = useSharedValue(0);
-        const targetW = useSharedValue(0);
-        const targetH = useSharedValue(0);
+        // Permission card height — pre-measured from inline bar, fallback to constant
+        const measuredPermHeight = useSharedValue(permBarHeightProp || PERMISSION_CARD_HEIGHT_DEFAULT);
+
+        // Detail card (top half) source position
+        const headerX = useSharedValue(0);
+        const headerY = useSharedValue(0);
+        const headerW = useSharedValue(0);
+        const headerH = useSharedValue(0);
+
+        // Permission card (bottom half) source position
+        const permBarY = useSharedValue(0);
+        const permBarH = useSharedValue(0);
 
         // Internal visibility keeps Modal mounted during close animation
         const [internalVisible, setInternalVisible] = React.useState(false);
@@ -107,15 +123,34 @@ export const ToolModal = React.memo<ToolModalProps>(
 
         const hasActionBar = !!(permission && permissionActions);
 
-        // Sync sourceRect into shared values for animation
+        // Sync source rects into shared values
         useEffect(() => {
-            if (sourceRect) {
-                targetX.value = sourceRect.x;
-                targetY.value = sourceRect.y;
-                targetW.value = sourceRect.width;
-                targetH.value = sourceRect.height;
+            if (sourceRects) {
+                // Split rects from ToolView
+                headerX.value = sourceRects.header.x;
+                headerY.value = sourceRects.header.y;
+                headerW.value = sourceRects.header.width;
+                headerH.value = sourceRects.header.height;
+                if (sourceRects.permBar) {
+                    permBarY.value = sourceRects.permBar.y;
+                    permBarH.value = sourceRects.permBar.height;
+                }
+            } else if (sourceRect) {
+                // Legacy single rect (PermissionBanner path) — use full rect for header
+                headerX.value = sourceRect.x;
+                headerY.value = sourceRect.y;
+                headerW.value = sourceRect.width;
+                headerH.value = sourceRect.height;
+                // No permBar source — it will use fallback animation
             }
-        }, [sourceRect?.x, sourceRect?.y, sourceRect?.width, sourceRect?.height]);
+        }, [sourceRects, sourceRect]);
+
+        // Sync pre-measured permission bar height
+        useEffect(() => {
+            if (permBarHeightProp && permBarHeightProp > 0) {
+                measuredPermHeight.value = permBarHeightProp;
+            }
+        }, [permBarHeightProp]);
 
         // Open: set internal visible immediately, animate in
         useEffect(() => {
@@ -126,10 +161,11 @@ export const ToolModal = React.memo<ToolModalProps>(
                 translateY.value = 0;
                 const isDiffTool = DIFF_TOOLS.has(tool.name);
                 if (hasActionBar) {
-                    const permissionCardBottom = INPUT_BOX_TOTAL_HEIGHT + MODAL_INPUT_GAP + insets.bottom;
-                    const permissionCardTop = screenHeight - permissionCardBottom - PERMISSION_CARD_HEIGHT;
+                    const pcHeight = measuredPermHeight.value;
+                    const permCardBottom = INPUT_BOX_TOTAL_HEIGHT + insets.bottom;
+                    const permCardTop = screenHeight - permCardBottom - pcHeight;
                     const detailCardTop = screenHeight * 0.25;
-                    const availableHeight = permissionCardTop - detailCardTop - GAP_BETWEEN_CARDS;
+                    const availableHeight = permCardTop - detailCardTop - GAP_BETWEEN_CARDS;
                     modalHeight.value = Math.max(availableHeight, screenHeight * 0.3);
                 } else {
                     modalHeight.value = (isDiffTool ? DIFF_HEIGHT_RATIO : MODAL_HEIGHT_RATIO) * screenHeight;
@@ -147,7 +183,7 @@ export const ToolModal = React.memo<ToolModalProps>(
             }
         }, [internalVisible]);
 
-        // Close with animation — re-measures bubble position for accurate collapse target
+        // Close with animation — re-measures bubble position, splits mathematically
         const startCloseAnimation = React.useCallback(() => {
             if (isClosingRef.current) return;
             isClosingRef.current = true;
@@ -159,106 +195,109 @@ export const ToolModal = React.memo<ToolModalProps>(
                 });
             };
 
-            if (bubbleRef) {
-                runOnUI(() => {
-                    'worklet';
-                    const freshRect = measure(bubbleRef);
-                    if (freshRect) {
-                        targetX.value = freshRect.pageX;
-                        targetY.value = freshRect.pageY;
-                        targetW.value = freshRect.width;
-                        targetH.value = freshRect.height;
+            // Re-measure bubble using measureInWindow (same coord system as open path)
+            // measure() uses pageX/pageY which differs from measureInWindow on web
+            if (bubbleRef?.current) {
+                bubbleRef.current.measureInWindow((x, y, width, height) => {
+                    headerX.value = x;
+                    headerY.value = y;
+                    headerW.value = width;
+                    // Split: header height = total - permBar height
+                    const pH = measuredPermHeight.value;
+                    const hH = hasActionBar ? Math.max(height - pH, 40) : height;
+                    headerH.value = hH;
+                    if (hasActionBar) {
+                        permBarY.value = y + hH;
+                        permBarH.value = pH;
                     }
-                    doClose();
-                })();
+                    runOnUI(doClose)();
+                });
             } else {
                 runOnUI(doClose)();
             }
         }, [actualClose, bubbleRef]);
 
-        // Pan gesture for swipe-to-dismiss on header
-        const dismissGesture = useMemo(() => Gesture.Pan()
+        // Shared dismiss gesture factory — swipe up or down on either card dismisses both
+        const makeDismissGesture = () => Gesture.Pan()
             .onUpdate((e) => {
+                'worklet';
                 if (progress.value < 0.95) return;
-                if (e.translationY > 0) {
-                    translateY.value = e.translationY;
-                }
+                translateY.value = e.translationY;
             })
             .onEnd((e) => {
+                'worklet';
                 if (progress.value < 0.95) return;
-                if (e.translationY > 100 || e.velocityY > DISMISS_VELOCITY) {
+                if (Math.abs(e.translationY) > 80 || Math.abs(e.velocityY) > DISMISS_VELOCITY) {
                     runOnJS(startCloseAnimation)();
                 } else {
                     translateY.value = withSpring(0);
                 }
-            }), [startCloseAnimation]);
+            });
 
-        // Pan gesture for swipe-to-dismiss on permission card
-        const permissionDismissGesture = useMemo(() => Gesture.Pan()
-            .onUpdate((e) => {
-                if (progress.value < 0.95) return;
-                if (e.translationY > 0) {
-                    translateY.value = e.translationY;
-                }
-            })
-            .onEnd((e) => {
-                if (progress.value < 0.95) return;
-                if (e.translationY > 100 || e.velocityY > DISMISS_VELOCITY) {
-                    runOnJS(startCloseAnimation)();
-                } else {
-                    translateY.value = withSpring(0);
-                }
-            }), [startCloseAnimation]);
+        const dismissGesture = useMemo(() => makeDismissGesture(), [startCloseAnimation]);
+        const permissionDismissGesture = useMemo(() => makeDismissGesture(), [startCloseAnimation]);
 
-        // Permission card animated style — animates from below-bubble to bottom-of-screen
+        // Permission card (bottom half) — slides from inline position to bottom of screen
+        // Uses `bottom` positioning at rest for true auto-sizing (no fixed height needed).
+        // During animation, uses `top` with estimated height for smooth interpolation.
         const permissionCardStyle = useAnimatedStyle(() => {
             const { left: finalX, width: finalWidth } = getInputBoxAlignment(screenWidth);
-            const finalBottom = INPUT_BOX_TOTAL_HEIGHT + MODAL_INPUT_GAP + insets.bottom;
-
-            // Starting position: attached just below the bubble
-            const startX = targetX.value;
-            const startY = targetY.value + targetH.value;
-            const startWidth = targetW.value;
-
-            // Final position: bottom of screen above input (convert bottom → top coordinate)
-            const finalY = screenHeight - finalBottom - PERMISSION_CARD_HEIGHT;
+            const finalBottom = INPUT_BOX_TOTAL_HEIGHT + insets.bottom;
 
             const p = progress.value;
-            const hasTarget = targetW.value > 0;
+            const hasSource = permBarH.value > 0;
+            const atRest = p > 0.99;
 
-            if (!hasTarget) {
-                // Fallback: slide up from bottom
+            if (atRest) {
+                // Final resting state: bottom-anchored, auto-sized to content
                 return {
                     position: 'absolute' as const,
                     left: finalX,
-                    bottom: interpolate(p, [0, 1], [-200, finalBottom]),
+                    bottom: finalBottom,
                     width: finalWidth,
-                    opacity: interpolate(p, [0.3, 0.7], [0, 1], Extrapolation.CLAMP),
-                    transform: [{ translateY: Math.max(translateY.value, 0) }],
+                    borderRadius: 12,
+                    opacity: 1,
+                    transform: [{ translateY: translateY.value }],
                 };
             }
 
+            // Convert bottom to top for animation interpolation
+            const pcH = measuredPermHeight.value;
+            const finalY = screenHeight - finalBottom - pcH;
+
+            if (!hasSource) {
+                // No source rect (banner path) — slide up from bottom
+                return {
+                    position: 'absolute' as const,
+                    left: finalX,
+                    top: interpolate(p, [0, 1], [screenHeight, finalY]) + translateY.value,
+                    width: finalWidth,
+                    borderRadius: 12,
+                    opacity: interpolate(p, [0.1, 0.4], [0, 1], Extrapolation.CLAMP),
+                };
+            }
+
+            // Split animation: starts at its inline position, slides to bottom
             return {
                 position: 'absolute' as const,
-                left: interpolate(p, [0, 1], [startX, finalX]),
-                top: interpolate(p, [0, 1], [startY, finalY]) + Math.max(translateY.value, 0),
-                width: interpolate(p, [0, 1], [startWidth, finalWidth]),
-                borderRadius: interpolate(p, [0, 1], [8, 12]),
-                // Quick fade-in so it's visible from the start of the animation
-                opacity: interpolate(p, [0, 0.15], [0, 1], Extrapolation.CLAMP),
+                left: interpolate(p, [0, 1], [headerX.value, finalX]),
+                top: interpolate(p, [0, 1], [permBarY.value, finalY]) + translateY.value,
+                width: interpolate(p, [0, 1], [headerW.value, finalWidth]),
+                // Top corners round as it separates from header
+                borderRadius: interpolate(p, [0, 1], [0, 12]),
             };
         });
 
-        // Expand-from-bubble animated style
+        // Detail card (top half) — expands from header-only height to full modal
         const expandStyle = useAnimatedStyle(() => {
             const { left: finalX, width: finalWidth } = getInputBoxAlignment(screenWidth);
             const finalHeight = modalHeight.value;
             const bottomMargin = hasActionBar
-                ? (INPUT_BOX_TOTAL_HEIGHT + MODAL_INPUT_GAP + insets.bottom) + PERMISSION_CARD_HEIGHT + GAP_BETWEEN_CARDS
-                : INPUT_BOX_TOTAL_HEIGHT + MODAL_INPUT_GAP + insets.bottom;
+                ? (INPUT_BOX_TOTAL_HEIGHT + insets.bottom) + measuredPermHeight.value + GAP_BETWEEN_CARDS
+                : INPUT_BOX_TOTAL_HEIGHT + insets.bottom;
             const finalY = screenHeight - finalHeight - bottomMargin;
 
-            const hasTarget = targetW.value > 0;
+            const hasTarget = headerW.value > 0;
             if (!hasTarget) {
                 // Fallback: slide up from bottom
                 const fallbackY = interpolate(progress.value, [0, 1], [screenHeight, finalY]);
@@ -273,12 +312,13 @@ export const ToolModal = React.memo<ToolModalProps>(
             }
 
             const p = progress.value;
+            // Start from HEADER height only (not full bubble) — the "tear apart" effect
             return {
                 position: 'absolute' as const,
-                left: interpolate(p, [0, 1], [targetX.value, finalX]),
-                top: interpolate(p, [0, 1], [targetY.value, finalY]) + translateY.value,
-                width: interpolate(p, [0, 1], [targetW.value, finalWidth]),
-                height: interpolate(p, [0, 1], [targetH.value, finalHeight]),
+                left: interpolate(p, [0, 1], [headerX.value, finalX]),
+                top: interpolate(p, [0, 1], [headerY.value, finalY]) + translateY.value,
+                width: interpolate(p, [0, 1], [headerW.value, finalWidth]),
+                height: interpolate(p, [0, 1], [headerH.value, finalHeight]),
                 borderRadius: interpolate(p, [0, 1], [8, 12]),
             };
         });
@@ -306,7 +346,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                         <Pressable style={{ flex: 1 }} onPress={startCloseAnimation} />
                     </Animated.View>
 
-                    {/* Floating card — expands from bubble position */}
+                    {/* Detail card (top half) — expands from header */}
                     <Animated.View
                         testID="tool-modal-card"
                         style={[
@@ -335,8 +375,6 @@ export const ToolModal = React.memo<ToolModalProps>(
 
                         {/* Content — fades in during expansion */}
                         <Animated.View style={[{ flex: 1 }, contentOpacity]}>
-                            {/* Content — route by tool type */}
-                            {/* Permission-aware routing — rich content tools get specialized views */}
                             {(() => {
                                 const isPending = tool.permission?.status === 'pending';
 
@@ -347,16 +385,12 @@ export const ToolModal = React.memo<ToolModalProps>(
                                     return <PlanSheetContent permission={permission} />;
                                 }
 
-                                // Standard routing
                                 if (AGENT_TOOLS.has(tool.name)) {
                                     return <AgentModalContent tool={tool} metadata={metadata} messages={messages || []} />;
                                 }
                                 if (DIFF_TOOLS.has(tool.name)) {
                                     return <DiffModalContent tool={tool} />;
                                 }
-                                // Pending permission: Read/Write have no result yet, so FileViewModalContent
-                                // would show "Waiting for result..." — fall through to ToolModalTabs which
-                                // correctly renders INPUT parameters the user needs to review before approving.
                                 if (FILE_VIEW_TOOLS.has(tool.name) && !isPending) {
                                     return <FileViewModalContent tool={tool} />;
                                 }
@@ -365,11 +399,16 @@ export const ToolModal = React.memo<ToolModalProps>(
                         </Animated.View>
                     </Animated.View>
 
-                    {/* Permission Action Bar — animated separate card at bottom */}
+                    {/* Permission card (bottom half) — slides from inline position */}
                     {hasActionBar && (
                         <GestureDetector gesture={permissionDismissGesture}>
-                            <Animated.View style={[styles.permissionCard, permissionCardStyle, { backgroundColor: theme.colors.surfaceHigh }, { borderWidth: 1.5, borderColor: theme.colors.box.warning.border }]}>
+                            <Animated.View
+                                onLayout={(e) => { measuredPermHeight.value = e.nativeEvent.layout.height; }}
+                                style={[styles.permissionCard, permissionCardStyle, { backgroundColor: theme.colors.surfaceHigh }, { borderWidth: 1.5, borderColor: theme.colors.box.warning.border }]}
+                            >
                                 <PermissionActionBar
+                                    inline={true}
+                                    containerStyle={{ borderTopWidth: 0 }}
                                     actions={permissionActions!}
                                     llmSummary={permission!.llmSummary}
                                     queueCount={queueCount ?? 0}

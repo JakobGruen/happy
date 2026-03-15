@@ -14,6 +14,7 @@ interface PermissionActionBarProps {
     suggestions: any[] | null;
     toolName?: string;
     inline?: boolean;
+    containerStyle?: any;
 }
 
 /**
@@ -28,6 +29,7 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
     suggestions,
     toolName,
     inline = false,
+    containerStyle,
 }) => {
     const { theme } = useUnistyles();
     const [showFeedback, setShowFeedback] = useState(false);
@@ -71,7 +73,7 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
     } : undefined;
 
     return (
-        <View style={[styles.container, inlineStyle]}>
+        <View style={[styles.container, inlineStyle, containerStyle]}>
             {/* Deny feedback input — shown after first deny tap */}
             {showFeedback && (
                 <View style={styles.feedbackRow}>

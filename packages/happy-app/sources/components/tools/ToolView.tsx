@@ -13,6 +13,13 @@ import { usePermissionActions } from '@/hooks/usePermissionActions';
 import { useCurrentSessionPermissions, CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
 import { registerPermissionModalOpen, registerPermissionModalClose } from './permissionModalRegistry';
 
+interface Rect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
 interface ToolViewProps {
     metadata: Metadata | null;
     tool: ToolCall;
@@ -30,7 +37,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
     // Measure bubble position for expand-from-bubble animation
     const containerRef = useAnimatedRef<Animated.View>();
-    const sourceRectRef = React.useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+    const sourceRectRef = React.useRef<{ header: Rect; permBar: Rect | null } | null>(null);
 
     // Permission state
     const isPending = tool.permission?.status === 'pending';
@@ -46,6 +53,10 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
     // Queue count from session permissions
     const { queueCount } = useCurrentSessionPermissions(sessionId ?? '');
+
+    // Pre-measure inline heights for split animation
+    const [headerHeight, setHeaderHeight] = React.useState(0);
+    const [permissionBarHeight, setPermissionBarHeight] = React.useState(0);
 
     // Map tool.permission to CurrentSessionPermissionItem for ToolModal
     const permissionItem: CurrentSessionPermissionItem | null = React.useMemo(() => {
@@ -82,17 +93,37 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         setIsModalVisible(false);
     }, []);
 
-    // Open modal on header press — measure bubble position first
+    // Stable refs for measured heights (available synchronously in measureInWindow callback)
+    const headerHeightRef = React.useRef(headerHeight);
+    headerHeightRef.current = headerHeight;
+    const permBarHeightRef = React.useRef(permissionBarHeight);
+    permBarHeightRef.current = permissionBarHeight;
+
+    const hasInlineActionBar = isPending && sessionId &&
+        tool.name !== 'AskUserQuestion' && tool.name !== 'ExitPlanMode' && tool.name !== 'exit_plan_mode' &&
+        props.metadata?.flavor !== 'codex';
+
+    // Open modal on header press — measure bubble, then split into header + permBar rects
     const handlePress = React.useCallback(() => {
         if (containerRef.current) {
             containerRef.current.measureInWindow((x, y, width, height) => {
-                sourceRectRef.current = { x, y, width, height };
+                const hH = headerHeightRef.current;
+                const pH = permBarHeightRef.current;
+
+                const headerRect: Rect = { x, y, width, height: hH || height };
+
+                // Only provide permBar rect if we have the inline action bar with a measured height
+                const permBarRect: Rect | null = (hasInlineActionBar && pH > 0)
+                    ? { x, y: y + (hH || height), width, height: pH }
+                    : null;
+
+                sourceRectRef.current = { header: headerRect, permBar: permBarRect };
                 setIsModalVisible(true);
             });
         } else {
             setIsModalVisible(true);
         }
-    }, []);
+    }, [hasInlineActionBar]);
 
     // Internal Claude Code tools (e.g. ToolSearch) are completely hidden from the UI
     const knownTool = knownTools[tool.name as keyof typeof knownTools] as any;
@@ -108,14 +139,16 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
     return (
         <Animated.View ref={containerRef} style={[styles.container, isPending && styles.pendingBorder, isModalVisible && { opacity: 0 }]}>
-            <ToolBubbleHeader
-                tool={tool}
-                metadata={props.metadata}
-                messages={props.messages}
-                expanded={shouldCollapseToMinimal}
-                onPress={handlePress}
-                isPending={isPending}
-            />
+            <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
+                <ToolBubbleHeader
+                    tool={tool}
+                    metadata={props.metadata}
+                    messages={props.messages}
+                    expanded={shouldCollapseToMinimal}
+                    onPress={handlePress}
+                    isPending={isPending}
+                />
+            </View>
 
             {/* Deny feedback — shown when user denied with a reason */}
             {tool.permission?.status === 'denied' && tool.permission.reason && (
@@ -150,20 +183,24 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 permissionActions={isPending && tool.name !== 'AskUserQuestion' && tool.name !== 'ExitPlanMode' && tool.name !== 'exit_plan_mode' ? permissionActions : null}
                 queueCount={queueCount}
                 sessionId={sessionId}
-                sourceRect={sourceRectRef.current}
+                sourceRects={sourceRectRef.current}
                 bubbleRef={containerRef}
+                permissionBarHeight={permissionBarHeight}
             />
 
             {/* Inline permission action bar for Claude sessions */}
-            {tool.permission?.status === 'pending' && sessionId && tool.name !== 'AskUserQuestion' && tool.name !== 'ExitPlanMode' && tool.name !== 'exit_plan_mode' && !isCodex && (
-                <PermissionActionBar
-                    inline
-                    actions={permissionActions}
-                    llmSummary={permissionItem?.llmSummary ?? null}
-                    queueCount={queueCount}
-                    suggestions={permissionItem?.permissionSuggestions ?? null}
-                    toolName={tool.name}
-                />
+            {hasInlineActionBar && (
+                <View onLayout={(e) => setPermissionBarHeight(e.nativeEvent.layout.height)}>
+                    <PermissionActionBar
+                        inline
+                        containerStyle={{ borderTopWidth: 0 }}
+                        actions={permissionActions}
+                        llmSummary={permissionItem?.llmSummary ?? null}
+                        queueCount={queueCount}
+                        suggestions={permissionItem?.permissionSuggestions ?? null}
+                        toolName={tool.name}
+                    />
+                </View>
             )}
 
             {/* Codex permission footer fallback */}
