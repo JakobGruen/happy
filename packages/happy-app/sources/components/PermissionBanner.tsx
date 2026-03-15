@@ -12,10 +12,26 @@ import { ToolModal } from '@/components/tools/modal/ToolModal';
 import { t } from '@/text';
 
 /**
+ * Extracts a one-line preview from tool input for the banner subtitle.
+ * Finds the first non-empty string value in the input object.
+ */
+function getInputPreview(toolInput: any): string | null {
+    if (!toolInput || typeof toolInput !== 'object') return null;
+    for (const value of Object.values(toolInput)) {
+        if (typeof value === 'string' && value.length > 0) {
+            // Take first line only, truncate long values
+            const firstLine = value.split('\n')[0];
+            return firstLine.length > 80 ? firstLine.substring(0, 80) + '…' : firstLine;
+        }
+    }
+    return null;
+}
+
+/**
  * Global floating banner that shows pending permission requests from sessions
  * the user is NOT currently viewing. Displays a minimal amber chip with shield icon,
- * tool name, and session name. Tapping opens the unified ToolModal with full
- * permission details and action bar.
+ * session name, tool description, and input preview. Tapping opens the unified
+ * ToolModal with full permission details and action bar.
  *
  * Mounted in _layout.tsx — visible on all screens.
  */
@@ -44,7 +60,8 @@ export const PermissionBanner = React.memo(() => {
     if (!current || !syntheticTool || !permissionItem) return null;
 
     const sessionName = getSessionName(current.session);
-    const toolDescription = current.llmSummary ?? current.description ?? current.tool;
+    const toolDescription = current.description ?? current.llmSummary ?? current.tool;
+    const inputPreview = getInputPreview(current.toolInput);
     const remaining = queue.length - 1;
     const isAskUserQuestion = current.tool === 'AskUserQuestion';
 
@@ -75,6 +92,11 @@ export const PermissionBanner = React.memo(() => {
                         <Text style={styles.toolDescription} numberOfLines={1}>
                             {toolDescription}
                         </Text>
+                        {inputPreview && (
+                            <Text style={styles.inputPreview} numberOfLines={1}>
+                                {inputPreview}
+                            </Text>
+                        )}
                         {remaining > 0 && (
                             <Text style={styles.moreCount}>
                                 {t('notifications.morePermissions', { count: remaining })}
@@ -182,6 +204,13 @@ const styles = StyleSheet.create((theme) => ({
         fontSize: 12,
         color: theme.colors.textSecondary,
         marginTop: 1,
+    },
+    inputPreview: {
+        fontSize: 11,
+        color: theme.colors.textSecondary,
+        marginTop: 2,
+        fontFamily: 'monospace',
+        opacity: 0.7,
     },
     moreCount: {
         fontSize: 11,
