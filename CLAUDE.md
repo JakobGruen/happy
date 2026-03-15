@@ -306,6 +306,7 @@ When the `AskUserQuestion` tool sends options with a `preview` field, `QuestionS
 
 **Animation gotcha**: `key` prop on a single React child is ignored — must wrap `Animated.View` in a single-element array for the key to cause remount and re-trigger `entering`.
 
+
 ## Code Style (Cross-Package)
 
 - TypeScript strict mode everywhere
