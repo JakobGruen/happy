@@ -271,7 +271,7 @@ export const FileViewModalContent = React.memo<FileViewModalContentProps>(({ too
 
     // Running Read tool: no result yet
     if (tool.name === 'Read' && tool.state === 'running') {
-        return <FallbackText text="Waiting for result\u2026" />;
+        return <FallbackText text="Waiting for result…" />;
     }
 
     const data = extractFileViewData(tool);
