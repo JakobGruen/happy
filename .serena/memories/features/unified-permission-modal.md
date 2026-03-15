@@ -34,5 +34,32 @@ Permission requests now reuse the same floating card tool modal as completed too
 - Queue count from `useCurrentSessionPermissions` includes the current permission — subtract 1 for badge display
 - `knownTools.tsx` `minimal` can be a function `(opts: { tool }) => boolean` — not just a static boolean
 
+## Global Permission Banner Redesign
+
+The `PermissionBanner.tsx` was rewritten from 638 lines to ~190 lines. The old `ExpandedBannerOverlay` (300+ line nested component) was deleted entirely.
+
+### Architecture
+- **Banner chip**: Amber-bordered chip at top of screen (session name + tool description + input preview). Single mode for all tools — no more regular vs notification-only distinction.
+- **On tap**: Opens `ToolModal` + `PermissionActionBar` in-place (no navigation to other session). Uses `buildSyntheticToolCall()` from `permissionBannerUtils.ts` to bridge `PendingPermissionItem` → `ToolCall`.
+- **`BannerModal`**: Extracted memo component isolates `usePermissionActions` hook call. Only rendered when modal is visible.
+- **Queue**: One banner at a time (oldest first), "N more pending" count via `usePendingPermissionQueue()`.
+- **Input preview**: `getInputPreview()` extracts first non-empty string value from `toolInput`, truncated to 80 chars, first line only. Rendered in monospace.
+
+### Anti-Stacking (`permissionModalRegistry.ts`)
+Module-level counter + `useSyncExternalStore` hook prevents permission modals from auto-opening on top of each other:
+- `registerPermissionModalOpen()` / `registerPermissionModalClose()` — called by ToolView and BannerModal
+- `isAnyPermissionModalOpen()` — checked by ToolView auto-open useEffect before opening
+- Manual taps (banner) bypass the check — intentional stacking allowed
+
+### Key Files
+- `PermissionBanner.tsx` — global cross-session banner + ToolModal overlay
+- `permissionBannerUtils.ts` — `buildSyntheticToolCall()`, `buildPermissionItem()`
+- `permissionModalRegistry.ts` — anti-stacking registry
+
+### Gotchas
+- All React hooks must be called before any early return — `useMemo` for synthetic objects moved above `if (!current) return null` guard
+- `BannerModal` extracted as separate component to avoid conditional `usePermissionActions` hook call
+- AskUserQuestion from other session: passes `null` for `permissionActions` (ToolModal already routes to `QuestionSheetContent` which has own submit/cancel)
+
 ## Branch
 `feature/unified-permission-modal` (worktree at `.worktrees/unified-permission-modal`)

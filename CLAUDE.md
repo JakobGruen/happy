@@ -318,12 +318,15 @@ Permission requests reuse the same **floating card tool modal** as completed too
 
 **Key behaviors**:
 - Permission modal auto-opens (spring slide-up) and auto-dismisses on resolution
+- **Anti-stacking**: `permissionModalRegistry.ts` tracks open permission modals — auto-open is suppressed when another modal is already visible. Manual taps (banner) bypass the check and stack intentionally.
 - `PermissionFooter` (inline options) shown only for pending permissions, hidden after approval/denial
 - AskUserQuestion: no PermissionActionBar (has own submit/cancel buttons), collapses to minimal bubble after response
 - Queue badge shows `queueCount - 1` ("N more pending") only when > 1 pending
 - Tool bubbles with pending permissions get amber border (`box.warning.border`)
 
-**Key files**: `ToolView.tsx`, `ToolModal.tsx`, `PermissionActionBar.tsx`, `PermissionSheetBar.tsx`, `useCurrentSessionPermissions.ts`, `usePermissionActions.ts`
+**Global banner** (`PermissionBanner.tsx`): Cross-session permissions show as amber-bordered chip at top of screen (session name, tool description, input preview). Tap opens the same `ToolModal` + `PermissionActionBar` in-place — no navigation to the other session. Uses `buildSyntheticToolCall()` from `permissionBannerUtils.ts` to bridge `PendingPermissionItem` → `ToolCall`. One banner at a time (oldest first), "N more pending" count.
+
+**Key files**: `ToolView.tsx`, `ToolModal.tsx`, `PermissionActionBar.tsx`, `PermissionSheetBar.tsx`, `PermissionBanner.tsx`, `permissionBannerUtils.ts`, `permissionModalRegistry.ts`, `useCurrentSessionPermissions.ts`, `usePermissionActions.ts`
 
 
 ## Code Style (Cross-Package)
