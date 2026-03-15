@@ -31,6 +31,7 @@ Master index of all project memories for quick navigation and understanding.
 - `features/agent-single-bubble-dataflow.md` — Agent tool call data flow (CLI→wire→app), FIFO dedup, sidechain redirect, pitfalls
 - `features/swipe-gestures-rewrite.md` — Unified SwipeableRow (Gesture.Pan), vanish animations, optimistic reactivation UI
 - `features/askuserquestion-preview-pane.md` — HTML/code/text preview pane above options, FadeIn gotcha (single-element array), voice bridge tab reset
+- `features/unified-permission-modal.md` — Permission requests reuse tool detail modal, PermissionActionBar sibling card, auto-open/close, outline buttons, bug fixes
 
 #### UI Components
 - `UI Components/SessionInitPanel.md` — Session initialization panel
@@ -80,7 +81,8 @@ Master index of all project memories for quick navigation and understanding.
 │   ├── Skill Expansion Messages Handling.md
 │   ├── agent-single-bubble-dataflow.md
 │   ├── swipe-gestures-rewrite.md
-│   └── askuserquestion-preview-pane.md
+│   ├── askuserquestion-preview-pane.md
+│   └── unified-permission-modal.md
 │
 └── UI Components/
     └── SessionInitPanel.md
@@ -117,5 +119,5 @@ Example: Starting a new UI component redesign?
 ## 📞 Last Updated
 
 - **Date**: 2026-03-15
-- **Latest work**: AskUserQuestion preview pane — HTML/code/text rendering in QuestionSheetContent
-- **Status**: All changes on main branch
+- **Latest work**: Unified permission modal — permission requests reuse tool detail modal with PermissionActionBar
+- **Status**: Feature branch `feature/unified-permission-modal` (worktree)

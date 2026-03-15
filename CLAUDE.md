@@ -219,7 +219,7 @@ Tools are displayed with a **minimized 2-line chat bubble** that opens a **slide
 
 **Components** (`packages/happy-app/sources/components/tools/modal/`):
 - `ToolView.tsx` — Main tool container, triggers modal on header tap
-- `ToolModal.tsx` — Slide-up modal with SafeAreaView, close button, backdrop
+- `ToolModal.tsx` — Floating card modal (all corners rounded, margin 12px, shadow on all sides), close button, backdrop
 - `ToolModalTabs.tsx` — INPUT/OUTPUT tabs with dynamic parameter counts
   - INPUT count: `Object.keys(tool.input).length`
   - OUTPUT count: `Object.keys(tool.result).length` (only for objects, 0 for strings/arrays/primitives)
@@ -305,6 +305,25 @@ When the `AskUserQuestion` tool sends options with a `preview` field, `QuestionS
 - Tab change resets via `useEffect` on `form.activeTab` (handles both manual tap and voice bridge path)
 
 **Animation gotcha**: `key` prop on a single React child is ignored — must wrap `Animated.View` in a single-element array for the key to cause remount and re-trigger `entering`.
+
+### Unified Permission Modal
+
+Permission requests reuse the same **floating card tool modal** as completed tool views, with a **PermissionActionBar** rendered as a sibling card below. This replaces the old separate `PermissionSheetExpanded` flow for Claude sessions.
+
+**Architecture**:
+- `ToolView.tsx` — auto-opens modal on `tool.permission?.status === 'pending'`, auto-closes when resolved (approved/denied/canceled). Passes permission props to `ToolModal`. Amber border on pending bubbles via `box.warning.border`.
+- `ToolModal.tsx` — content routing: pending AskUserQuestion → `QuestionSheetContent`, pending ExitPlanMode → `PlanSheetContent`, pending FILE_VIEW_TOOLS → falls through to `ToolModalTabs` (not `FileViewModalContent`). `PermissionActionBar` is a **sibling** View below the card (not a child), with safe-area margin distribution.
+- `PermissionActionBar.tsx` — outline/bordered buttons (transparent bg + colored border + colored text). Allow (green), Suggestion/AllowAll (blue), Deny (red). LLM summary text above buttons. Queue badge below buttons (excludes current permission from count).
+- `PermissionSheetBar.tsx` — minimized bar with Allow/Deny for all tool types (no more `isRichTool` distinction).
+
+**Key behaviors**:
+- Permission modal auto-opens (spring slide-up) and auto-dismisses on resolution
+- `PermissionFooter` (inline options) shown only for pending permissions, hidden after approval/denial
+- AskUserQuestion: no PermissionActionBar (has own submit/cancel buttons), collapses to minimal bubble after response
+- Queue badge shows `queueCount - 1` ("N more pending") only when > 1 pending
+- Tool bubbles with pending permissions get amber border (`box.warning.border`)
+
+**Key files**: `ToolView.tsx`, `ToolModal.tsx`, `PermissionActionBar.tsx`, `PermissionSheetBar.tsx`, `useCurrentSessionPermissions.ts`, `usePermissionActions.ts`
 
 
 ## Code Style (Cross-Package)
