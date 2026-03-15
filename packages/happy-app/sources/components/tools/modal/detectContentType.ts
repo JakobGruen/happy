@@ -3,7 +3,7 @@ export type ContentType = 'json' | 'html' | 'code' | 'text';
 /**
  * Detects content type for rendering in ContentFormatter.
  *
- * Detection order: JSON → Code → Plain Text
+ * Detection order: JSON → HTML → Code → Plain Text
  *
  * Removed diff detection (false positives with markdown `---`;
  * diff tools now use DiffModalContent instead).

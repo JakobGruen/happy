@@ -203,6 +203,10 @@ describe('ContentFormatter', () => {
         it('does not classify markdown as HTML', () => {
             expect(detectContentType('# Title\n\nParagraph text')).not.toBe('html');
         });
+
+        it('detects HTML with leading whitespace', () => {
+            expect(detectContentType('  <div>hello</div>')).toBe('html');
+        });
     });
 
 });
