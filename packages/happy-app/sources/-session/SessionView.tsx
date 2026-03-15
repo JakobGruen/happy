@@ -205,16 +205,16 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
 
     const permissionMode = React.useMemo<PermissionMode | null>(() => (
         resolveCurrentOption(availableModes, [
-            session.permissionMode,
-            session.metadata?.currentOperatingModeCode,
+            session.metadata?.currentOperatingModeCode,   // CC is source of truth
+            session.permissionMode,                       // fallback before metadata arrives
             getDefaultPermissionModeKey(flavor),
         ])
     ), [availableModes, session.permissionMode, session.metadata?.currentOperatingModeCode, flavor]);
 
     const modelMode = React.useMemo<ModelMode | null>(() => (
         resolveCurrentOption(availableModels, [
-            session.modelMode,
-            session.metadata?.currentModelCode,
+            session.metadata?.currentModelCode,           // CC is source of truth
+            session.modelMode,                            // fallback before metadata arrives
             getDefaultModelKey(flavor),
         ])
     ), [availableModels, session.modelMode, session.metadata?.currentModelCode, flavor]);
@@ -241,15 +241,13 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         }
     }, [machineId, cliVersion, acknowledgedCliVersions]);
 
-    // Function to update permission mode — sync to CLI immediately via RPC
+    // Function to update permission mode — send RPC to CLI, display updates when CLI confirms via metadata
     const updatePermissionMode = React.useCallback((mode: PermissionMode) => {
-        storage.getState().updateSessionPermissionMode(sessionId, mode.key);
         apiSocket.sessionRPC(sessionId, 'switch-permission-mode', { mode: mode.key }).catch(() => {});
     }, [sessionId]);
 
-    // Function to update model — sync to CLI immediately via RPC
+    // Function to update model — send RPC to CLI, display updates when CLI confirms via metadata
     const updateModelMode = React.useCallback((mode: ModelMode) => {
-        storage.getState().updateSessionModelMode(sessionId, mode.key);
         apiSocket.sessionRPC(sessionId, 'switch-model', { model: mode.key }).catch(() => {});
     }, [sessionId]);
 
