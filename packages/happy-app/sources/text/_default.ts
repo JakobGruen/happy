@@ -537,6 +537,8 @@ export const en = {
             other: 'Other',
             otherDescription: 'Type your own answer',
             otherPlaceholder: 'Type your answer...',
+            notesPlaceholder: 'Add notes on this option...',
+            notesLabel: 'Notes',
         },
         desc: {
             terminalCmd: ({ cmd }: { cmd: string }) => `Terminal(cmd: ${cmd})`,

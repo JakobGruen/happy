@@ -566,6 +566,8 @@ export const pl: TranslationStructure = {
             other: 'Inne',
             otherDescription: 'Wpisz własną odpowiedź',
             otherPlaceholder: 'Wpisz swoją odpowiedź...',
+            notesPlaceholder: 'Dodaj uwagi do tej opcji...',
+            notesLabel: 'Uwagi',
         }
     },
 

@@ -547,6 +547,11 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         onSessionReady: (sessionInstance) => {
             // Store reference for hook server callback
             currentSession = sessionInstance;
+            // Wire up model switch callback so RPC handler can update running model state
+            sessionInstance.onModelSwitch = (model: string) => {
+                currentModel = model;
+                logger.debug(`[loop] Model switched via RPC to: ${model}`);
+            };
             // Mark session as reactivation so message forwarding skips history replay
             if (reactivateSessionId && response?.id === reactivateSessionId) {
                 sessionInstance.isReactivation = true;

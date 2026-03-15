@@ -42,9 +42,15 @@ export interface UseQuestionFormStateProps {
     canInteract: boolean;
 }
 
+/** Returns true if a question has ≥1 option with preview content. */
+export function questionHasPreview(question: Question): boolean {
+    return question.options.some(o => o.preview != null && o.preview !== '');
+}
+
 export interface UseQuestionFormStateResult {
     selections: Map<number, Set<number>>;
     otherTexts: Map<number, string>;
+    noteTexts: Map<number, string>;
     activeTab: number;
     setActiveTab: (tab: number) => void;
     isSubmitting: boolean;
@@ -53,6 +59,7 @@ export interface UseQuestionFormStateResult {
     canInteract: boolean;
     handleOptionToggle: (questionIndex: number, optionIndex: number, multiSelect: boolean) => void;
     handleOtherTextChange: (questionIndex: number, text: string) => void;
+    handleNoteChange: (questionIndex: number, text: string) => void;
     handleSubmit: () => Promise<void>;
     isQuestionAnswered: (questionIndex: number) => boolean;
 }
@@ -68,8 +75,22 @@ export function useQuestionFormState({
     sessionId,
     canInteract: canInteractProp,
 }: UseQuestionFormStateProps): UseQuestionFormStateResult {
-    const [selections, setSelections] = React.useState<Map<number, Set<number>>>(new Map());
+    // Pre-select first option for each question that has previews
+    const initialSelections = React.useMemo(() => {
+        const map = new Map<number, Set<number>>();
+        if (questions) {
+            questions.forEach((q, qIndex) => {
+                if (questionHasPreview(q)) {
+                    map.set(qIndex, new Set([0]));
+                }
+            });
+        }
+        return map;
+    }, [questions]);
+
+    const [selections, setSelections] = React.useState<Map<number, Set<number>>>(initialSelections);
     const [otherTexts, setOtherTexts] = React.useState<Map<number, string>>(new Map());
+    const [noteTexts, setNoteTexts] = React.useState<Map<number, string>>(new Map());
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [isSubmitted, setIsSubmitted] = React.useState(false);
     const [activeTab, setActiveTab] = React.useState(0);
@@ -190,6 +211,14 @@ export function useQuestionFormState({
         });
     }, []);
 
+    const handleNoteChange = React.useCallback((questionIndex: number, text: string) => {
+        setNoteTexts(prev => {
+            const newMap = new Map(prev);
+            newMap.set(questionIndex, text);
+            return newMap;
+        });
+    }, []);
+
     const handleSubmit = React.useCallback(async () => {
         if (!sessionId || !permissionId || !allQuestionsAnswered || isSubmitting) return;
 
@@ -225,19 +254,30 @@ export function useQuestionFormState({
             }
         });
 
+        // Build annotations from noteTexts (keyed by question text, matching CC schema)
+        const annotations: Record<string, { notes?: string }> = {};
+        safeQuestions.forEach((q, qIndex) => {
+            const note = noteTexts.get(qIndex)?.trim();
+            if (note) {
+                annotations[q.question] = { notes: note };
+            }
+        });
+        const hasAnnotations = Object.keys(annotations).length > 0;
+
         try {
-            await sessionAllow(sessionId, permissionId, undefined, undefined, undefined, answers);
+            await sessionAllow(sessionId, permissionId, undefined, undefined, undefined, answers, hasAnnotations ? annotations : undefined);
             trackPermissionResponse(true);
         } catch (error) {
             console.error('Failed to submit answer:', error);
         } finally {
             setIsSubmitting(false);
         }
-    }, [sessionId, permissionId, safeQuestions, selections, otherTexts, allQuestionsAnswered, isSubmitting]);
+    }, [sessionId, permissionId, safeQuestions, selections, otherTexts, noteTexts, allQuestionsAnswered, isSubmitting]);
 
     return {
         selections,
         otherTexts,
+        noteTexts,
         activeTab,
         setActiveTab,
         isSubmitting,
@@ -246,6 +286,7 @@ export function useQuestionFormState({
         canInteract,
         handleOptionToggle,
         handleOtherTextChange,
+        handleNoteChange,
         handleSubmit,
         isQuestionAnswered,
     };

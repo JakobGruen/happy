@@ -23,6 +23,9 @@ export class Session {
     /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
     readonly jsRuntime: JsRuntime;
 
+    /** Callback to update the running model state from RPC handlers (set by runClaude) */
+    onModelSwitch?: (model: string) => void;
+
     sessionId: string | null;
     mode: 'local' | 'remote' = 'local';
     thinking: boolean = false;

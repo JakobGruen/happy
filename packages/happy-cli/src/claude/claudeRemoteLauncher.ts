@@ -129,11 +129,17 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
             const { model } = data;
             logger.debug(`[remote]: Model switch → ${model}`);
 
+            // Update running model state so next CC invocation uses it
+            session.onModelSwitch?.(model);
+
             // Sync metadata so app shows correct model
             session.client.updateMetadata((m) => ({
                 ...m,
                 currentModelCode: model,
             }));
+
+            // Notify app that model was applied
+            session.client.sendSessionEvent({ type: 'model-changed', model });
         }
     );
 
@@ -173,6 +179,7 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
 
     // Handle messages
     let planModeToolCalls = new Set<string>();
+    let prePlanMode: PermissionMode | undefined;
     let ongoingToolCalls = new Map<string, { parentToolCallId: string | null }>();
 
     // Track turn data for summary generation
@@ -202,14 +209,29 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
         // Write to permission handler for tool id resolving
         permissionHandler.onMessage(message);
 
-        // Detect plan mode tool call
+        // Reconcile mode state: detect plan mode tool calls and sync to app
         if (message.type === 'assistant') {
             let umessage = message as SDKAssistantMessage;
             if (umessage.message.content && Array.isArray(umessage.message.content)) {
                 for (let c of umessage.message.content) {
-                    if (c.type === 'tool_use' && (c.name === 'exit_plan_mode' || c.name === 'ExitPlanMode')) {
-                        logger.debug('[remote]: detected plan mode tool call ' + c.id!);
-                        planModeToolCalls.add(c.id! as string);
+                    if (c.type === 'tool_use') {
+                        // CC entered plan mode
+                        if (c.name === 'enter_plan_mode' || c.name === 'EnterPlanMode') {
+                            logger.debug('[remote]: mode reconciliation — CC entered plan mode');
+                            prePlanMode = permissionHandler.getPermissionMode();
+                            permissionHandler.handleModeChange('plan');
+                            session.client.updateMetadata((m) => ({
+                                ...m, currentOperatingModeCode: 'plan',
+                            }));
+                            session.client.sendSessionEvent({
+                                type: 'permission-mode-changed', mode: 'plan',
+                            });
+                        }
+                        // CC wants to exit plan mode — track for result handling
+                        if (c.name === 'exit_plan_mode' || c.name === 'ExitPlanMode') {
+                            logger.debug('[remote]: detected ExitPlanMode tool call ' + c.id!);
+                            planModeToolCalls.add(c.id! as string);
+                        }
                     }
                 }
             }
@@ -241,6 +263,21 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
 
                         // When tool result received, release any delayed messages for this tool call
                         messageQueue.releaseToolCall(c.tool_use_id);
+
+                        // Mode reconciliation: CC exited plan mode — restore previous mode
+                        if (planModeToolCalls.has(c.tool_use_id)) {
+                            const restoreMode = prePlanMode ?? 'default';
+                            logger.debug(`[remote]: mode reconciliation — CC exited plan mode, restoring ${restoreMode}`);
+                            permissionHandler.handleModeChange(restoreMode);
+                            session.client.updateMetadata((m) => ({
+                                ...m, currentOperatingModeCode: restoreMode,
+                            }));
+                            session.client.sendSessionEvent({
+                                type: 'permission-mode-changed', mode: restoreMode,
+                            });
+                            planModeToolCalls.delete(c.tool_use_id);
+                            prePlanMode = undefined;
+                        }
                     }
                 }
             }
@@ -490,6 +527,8 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                                 } : {}),
                             };
                         });
+                        // Notify app of actual model CC is using
+                        session.client.sendSessionEvent({ type: 'model-changed', model: normalized });
                     },
                     onThinkingChange: session.onThinkingChange,
                     claudeEnvVars: session.claudeEnvVars,

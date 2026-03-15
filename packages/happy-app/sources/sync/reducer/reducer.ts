@@ -225,6 +225,7 @@ export type ReducerResult = {
     };
     hasReadyEvent?: boolean;
     permissionModeChanged?: string;
+    modelChanged?: string;
 };
 
 export function reducer(state: ReducerState, messages: NormalizedMessage[], agentState?: AgentState | null): ReducerResult {
@@ -242,6 +243,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
     let changed: Set<string> = new Set();
     let hasReadyEvent = false;
     let permissionModeChanged: string | undefined;
+    let modelChanged: string | undefined;
 
     // First, trace all messages to identify sidechains
     const tracedMessages = traceMessages(state.tracerState, messages);
@@ -300,6 +302,13 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
         if (msg.role === 'event' && msg.content.type === 'permission-mode-changed') {
             state.messageIds.set(msg.id, msg.id);
             permissionModeChanged = msg.content.mode;
+            continue;
+        }
+
+        // Filter out model-changed events - apply side-effect, don't create visible message
+        if (msg.role === 'event' && msg.content.type === 'model-changed') {
+            state.messageIds.set(msg.id, msg.id);
+            modelChanged = msg.content.model;
             continue;
         }
 
@@ -1303,7 +1312,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             contextSize: state.latestUsage.contextSize
         } : undefined,
         hasReadyEvent: hasReadyEvent || undefined,
-        permissionModeChanged: permissionModeChanged || undefined
+        permissionModeChanged: permissionModeChanged || undefined,
+        modelChanged: modelChanged || undefined
     };
 }
 

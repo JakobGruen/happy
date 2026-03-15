@@ -566,6 +566,8 @@ export const ru: TranslationStructure = {
             other: 'Другое',
             otherDescription: 'Введите свой ответ',
             otherPlaceholder: 'Введите ваш ответ...',
+            notesPlaceholder: 'Добавить заметки к этому варианту...',
+            notesLabel: 'Заметки',
         }
     },
 

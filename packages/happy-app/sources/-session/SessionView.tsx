@@ -205,16 +205,16 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
 
     const permissionMode = React.useMemo<PermissionMode | null>(() => (
         resolveCurrentOption(availableModes, [
-            session.permissionMode,
-            session.metadata?.currentOperatingModeCode,
+            session.metadata?.currentOperatingModeCode,   // CC is source of truth
+            session.permissionMode,                       // fallback before metadata arrives
             getDefaultPermissionModeKey(flavor),
         ])
     ), [availableModes, session.permissionMode, session.metadata?.currentOperatingModeCode, flavor]);
 
     const modelMode = React.useMemo<ModelMode | null>(() => (
         resolveCurrentOption(availableModels, [
-            session.modelMode,
-            session.metadata?.currentModelCode,
+            session.metadata?.currentModelCode,           // CC is source of truth
+            session.modelMode,                            // fallback before metadata arrives
             getDefaultModelKey(flavor),
         ])
     ), [availableModels, session.modelMode, session.metadata?.currentModelCode, flavor]);
@@ -241,16 +241,30 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         }
     }, [machineId, cliVersion, acknowledgedCliVersions]);
 
-    // Function to update permission mode — sync to CLI immediately via RPC
+    // Function to update permission mode — send RPC to CLI, retry if not confirmed after 2s
     const updatePermissionMode = React.useCallback((mode: PermissionMode) => {
-        storage.getState().updateSessionPermissionMode(sessionId, mode.key);
-        apiSocket.sessionRPC(sessionId, 'switch-permission-mode', { mode: mode.key }).catch(() => {});
+        const sendRPC = () => apiSocket.sessionRPC(sessionId, 'switch-permission-mode', { mode: mode.key });
+        sendRPC().then(() => {
+            setTimeout(() => {
+                const s = storage.getState().sessions[sessionId];
+                if (s?.metadata?.currentOperatingModeCode !== mode.key) {
+                    sendRPC().catch(() => storage.getState().updateSessionPermissionMode(sessionId, mode.key));
+                }
+            }, 2000);
+        }).catch(() => storage.getState().updateSessionPermissionMode(sessionId, mode.key));
     }, [sessionId]);
 
-    // Function to update model — sync to CLI immediately via RPC
+    // Function to update model — send RPC to CLI, retry if not confirmed after 2s
     const updateModelMode = React.useCallback((mode: ModelMode) => {
-        storage.getState().updateSessionModelMode(sessionId, mode.key);
-        apiSocket.sessionRPC(sessionId, 'switch-model', { model: mode.key }).catch(() => {});
+        const sendRPC = () => apiSocket.sessionRPC(sessionId, 'switch-model', { model: mode.key });
+        sendRPC().then(() => {
+            setTimeout(() => {
+                const s = storage.getState().sessions[sessionId];
+                if (s?.metadata?.currentModelCode !== mode.key) {
+                    sendRPC().catch(() => storage.getState().updateSessionModelMode(sessionId, mode.key));
+                }
+            }, 2000);
+        }).catch(() => storage.getState().updateSessionModelMode(sessionId, mode.key));
     }, [sessionId]);
 
     // Function to update auto-approve tools toggle — sync to CLI via same RPC

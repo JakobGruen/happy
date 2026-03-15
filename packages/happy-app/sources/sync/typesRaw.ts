@@ -43,6 +43,9 @@ const agentEventSchema = z.discriminatedUnion('type', [z.object({
 }), z.object({
     type: z.literal('permission-mode-changed'),
     mode: z.string(),
+}), z.object({
+    type: z.literal('model-changed'),
+    model: z.string(),
 })]);
 export type AgentEvent = z.infer<typeof agentEventSchema>;
 

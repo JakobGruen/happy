@@ -541,6 +541,8 @@ export const it: TranslationStructure = {
             other: 'Altro',
             otherDescription: 'Scrivi la tua risposta',
             otherPlaceholder: 'Scrivi la tua risposta...',
+            notesPlaceholder: 'Aggiungi note su questa opzione...',
+            notesLabel: 'Note',
         },
         multiEdit: {
             editNumber: ({ index, total }: { index: number; total: number }) => `Modifica ${index} di ${total}`,

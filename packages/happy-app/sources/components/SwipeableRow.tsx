@@ -53,11 +53,15 @@ const FULL_SWIPE_RATIO = 0.50;
 const OPEN_THRESHOLD = ACTION_WIDTH * 0.35;
 const VELOCITY_OPEN = 500;
 const VELOCITY_FULL_SWIPE = 1200;
-const FULL_SWIPE_DURATION = 200;
-const VANISH_DURATION = 250;
+const FULL_SWIPE_DURATION = 400;
+const VANISH_DURATION = 600;
 // Mild rubber band only at the very edge (past 80% of row width)
 const RUBBER_BAND_FACTOR = 0.5;
 const RUBBER_BAND_START_RATIO = 0.80;
+// Web wheel/trackpad: velocity-only triggers decided on first event
+const WHEEL_OPEN_VELOCITY = 8;    // Min |deltaX| on FIRST event to trigger panel open
+const WHEEL_THROW_VELOCITY = 30;  // Min |deltaX| on FIRST event to trigger full swipe
+const WHEEL_CLOSE_THRESHOLD = 30; // Accumulated |deltaX| for reverse-scroll-to-close
 
 // ---------------------------------------------------------------------------
 // Types
@@ -127,6 +131,17 @@ export const SwipeableRow = React.forwardRef<SwipeableRowRef, SwipeableRowProps>
 
         const hasRightFullSwipe = !!onRightAction && !!renderRightActions;
         const hasLeftFullSwipe = !!onLeftAction && !!renderLeftActions;
+
+        // ---------------------------------------------------------------
+        // Web desktop: suppress click after drag
+        // ---------------------------------------------------------------
+        const isDraggingRef = useRef(false);
+        const contentRef = useRef<View>(null);
+
+        const markDragging = useCallback(() => { isDraggingRef.current = true; }, []);
+        const clearDraggingNextFrame = useCallback(() => {
+            requestAnimationFrame(() => { isDraggingRef.current = false; });
+        }, []);
 
         // ---------------------------------------------------------------
         // Close handler
@@ -231,6 +246,9 @@ export const SwipeableRow = React.forwardRef<SwipeableRowRef, SwipeableRowProps>
                 })
                 .onStart(() => {
                     runOnJS(closeOtherRows)();
+                    if (Platform.OS === 'web') {
+                        runOnJS(markDragging)();
+                    }
                 })
                 .onUpdate((e) => {
                     let next = startX.value + e.translationX;
@@ -330,6 +348,12 @@ export const SwipeableRow = React.forwardRef<SwipeableRowRef, SwipeableRowProps>
                     translateX.value = withSpring(0, { ...SNAP_BACK_SPRING, velocity: vx });
                     rightProgress.value = withTiming(0, { duration: 200 });
                     leftProgress.value = withTiming(0, { duration: 200 });
+                })
+                .onFinalize(() => {
+                    // Clear drag flag after click event has fired (rAF delay)
+                    if (Platform.OS === 'web') {
+                        runOnJS(clearDraggingNextFrame)();
+                    }
                 });
 
             return gesture;
@@ -339,6 +363,7 @@ export const SwipeableRow = React.forwardRef<SwipeableRowRef, SwipeableRowProps>
             hasRightFullSwipe, hasLeftFullSwipe,
             closeOtherRows, completeFullSwipeRight, completeFullSwipeLeft,
             fireHapticLight, fireHapticMedium,
+            markDragging, clearDraggingNextFrame,
             translateX, startX, rightProgress, leftProgress, rowWidth,
             didHapticOpen, didHapticFull,
         ]);
@@ -369,10 +394,125 @@ export const SwipeableRow = React.forwardRef<SwipeableRowRef, SwipeableRowProps>
         });
 
         // ---------------------------------------------------------------
+        // Web desktop: capture-phase click suppression after drag
+        // ---------------------------------------------------------------
+        useEffect(() => {
+            if (Platform.OS !== 'web') return;
+            const node = contentRef.current as unknown as HTMLElement;
+            if (!node) return;
+            const handler = (e: MouseEvent) => {
+                if (isDraggingRef.current) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+            };
+            node.addEventListener('click', handler, true); // capture phase
+            return () => node.removeEventListener('click', handler, true);
+        }, []);
+
+        // ---------------------------------------------------------------
+        // Web desktop: horizontal wheel/trackpad → swipe
+        // ---------------------------------------------------------------
+        const containerRef = useRef<View>(null);
+
+        useEffect(() => {
+            if (Platform.OS !== 'web') return;
+            const node = containerRef.current as unknown as HTMLElement;
+            if (!node) return;
+
+            let triggered = false;
+            let isFirstEvent = true;
+            let openAtStart = 0;
+            // For reverse-scroll-to-close (only case needing accumulation)
+            let accumulated = 0;
+
+            const onWheel = (e: WheelEvent) => {
+                if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+                if (triggered) { e.preventDefault(); return; }
+                e.preventDefault();
+
+                accumulated -= e.deltaX;
+
+                // First event only: decide action based on initial velocity
+                if (isFirstEvent) {
+                    isFirstEvent = false;
+                    openAtStart = translateX.value;
+                    closeOtherRows();
+
+                    const velocity = Math.abs(e.deltaX);
+                    const direction = e.deltaX > 0 ? 'left' : 'right';
+
+                    // Throw → open panel + full swipe after delay
+                    if (velocity >= WHEEL_THROW_VELOCITY) {
+                        triggered = true;
+                        if (direction === 'left' && hasRightFullSwipe) {
+                            translateX.value = withSpring(-ACTION_WIDTH, SPRING_CONFIG);
+                            setTimeout(completeFullSwipeRight, 250);
+                        } else if (direction === 'right' && hasLeftFullSwipe) {
+                            translateX.value = withSpring(ACTION_WIDTH, SPRING_CONFIG);
+                            setTimeout(completeFullSwipeLeft, 250);
+                        } else if (direction === 'left' && renderRightActions) {
+                            translateX.value = withSpring(-ACTION_WIDTH, SPRING_CONFIG);
+                        } else if (direction === 'right' && renderLeftActions) {
+                            translateX.value = withSpring(ACTION_WIDTH, SPRING_CONFIG);
+                        }
+                        return;
+                    }
+
+                    // Slow scroll → open panel
+                    if (velocity >= WHEEL_OPEN_VELOCITY) {
+                        triggered = true;
+                        if (direction === 'left' && renderRightActions) {
+                            translateX.value = withSpring(-ACTION_WIDTH, SPRING_CONFIG);
+                        } else if (direction === 'right' && renderLeftActions) {
+                            translateX.value = withSpring(ACTION_WIDTH, SPRING_CONFIG);
+                        }
+                        return;
+                    }
+                }
+
+                // Subsequent events: only check reverse-scroll-to-close
+                if (openAtStart !== 0 && Math.abs(accumulated) >= WHEEL_CLOSE_THRESHOLD) {
+                    const isReversing = (openAtStart < 0 && accumulated > 0)
+                        || (openAtStart > 0 && accumulated < 0);
+                    if (isReversing) {
+                        triggered = true;
+                        closeToZero();
+                        return;
+                    }
+                }
+            };
+
+            // Reset accumulated state when scrolling stops
+            let resetTimeout: ReturnType<typeof setTimeout> | null = null;
+            const onWheelWrapped = (e: WheelEvent) => {
+                onWheel(e);
+                if (resetTimeout) clearTimeout(resetTimeout);
+                resetTimeout = setTimeout(() => {
+                    accumulated = 0;
+                    triggered = false;
+                    isFirstEvent = true;
+                }, 150);
+            };
+
+            node.addEventListener('wheel', onWheelWrapped, { passive: false });
+            return () => {
+                node.removeEventListener('wheel', onWheelWrapped);
+                if (resetTimeout) clearTimeout(resetTimeout);
+            };
+        }, [
+            renderRightActions, renderLeftActions,
+            hasRightFullSwipe, hasLeftFullSwipe,
+            closeOtherRows, closeToZero, completeFullSwipeRight, completeFullSwipeLeft,
+            translateX,
+        ]);
+
+        // ---------------------------------------------------------------
         // Render
         // ---------------------------------------------------------------
         return (
             <Animated.View
+                ref={containerRef}
                 style={[{ overflow: 'hidden', position: 'relative' }, containerAnimStyle]}
                 onLayout={(e) => {
                     const h = e.nativeEvent.layout.height;
@@ -404,6 +544,7 @@ export const SwipeableRow = React.forwardRef<SwipeableRowRef, SwipeableRowProps>
 
                 <GestureDetector gesture={panGesture}>
                     <Animated.View
+                        ref={contentRef}
                         style={[
                             contentAnimStyle,
                             // touch-action: pan-y tells browser to handle vertical scroll natively

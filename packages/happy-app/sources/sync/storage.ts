@@ -107,7 +107,7 @@ interface StorageState {
     applyMachines: (machines: Machine[], replace?: boolean) => void;
     applyLoaded: () => void;
     applyReady: () => void;
-    applyMessages: (sessionId: string, messages: NormalizedMessage[]) => { changed: string[], hasReadyEvent: boolean, permissionModeChanged?: string };
+    applyMessages: (sessionId: string, messages: NormalizedMessage[]) => { changed: string[], hasReadyEvent: boolean, permissionModeChanged?: string, modelChanged?: string };
     applyMessagesLoaded: (sessionId: string) => void;
     applySettings: (settings: Settings, version: number) => void;
     applySettingsLocal: (settings: Partial<Settings>) => void;
@@ -496,6 +496,7 @@ export const storage = create<StorageState>()((set, get) => {
             let changed = new Set<string>();
             let hasReadyEvent = false;
             let permissionModeChanged: string | undefined;
+            let modelChanged: string | undefined;
             set((state) => {
 
                 // Resolve session messages state
@@ -524,6 +525,9 @@ export const storage = create<StorageState>()((set, get) => {
                 }
                 if (reducerResult.permissionModeChanged) {
                     permissionModeChanged = reducerResult.permissionModeChanged;
+                }
+                if (reducerResult.modelChanged) {
+                    modelChanged = reducerResult.modelChanged;
                 }
 
                 // Merge messages
@@ -576,8 +580,11 @@ export const storage = create<StorageState>()((set, get) => {
             if (permissionModeChanged) {
                 get().updateSessionPermissionMode(sessionId, permissionModeChanged);
             }
+            if (modelChanged) {
+                get().updateSessionModelMode(sessionId, modelChanged);
+            }
 
-            return { changed: Array.from(changed), hasReadyEvent, permissionModeChanged };
+            return { changed: Array.from(changed), hasReadyEvent, permissionModeChanged, modelChanged };
         },
         applyMessagesLoaded: (sessionId: string) => set((state) => {
             const existingSession = state.sessionMessages[sessionId];

@@ -25,6 +25,7 @@ interface PermissionResponse {
     allowTools?: string[];
     receivedAt?: number;
     answers?: Record<string, string>;
+    annotations?: Record<string, { notes?: string }>;
     updatedPermissions?: PermissionUpdate[];
 }
 
@@ -145,11 +146,22 @@ export class PermissionHandler {
                         .map(([question, answer]) => `"${question}"="${answer}"`)
                         .join(', ');
 
+                    // Append user notes from annotations (if any)
+                    const noteParts: string[] = [];
+                    if (response.annotations) {
+                        for (const [question, annotation] of Object.entries(response.annotations)) {
+                            if (annotation.notes?.trim()) {
+                                noteParts.push(`User's notes on "${question}": "${annotation.notes.trim()}"`);
+                            }
+                        }
+                    }
+                    const notesSuffix = noteParts.length > 0 ? ` ${noteParts.join('. ')}.` : '';
+
                     logger.debug('[AskUserQuestion] Using deny-with-message workaround, answers:', formattedAnswers);
 
                     pending.resolve({
                         behavior: 'deny',
-                        message: `User has answered your questions: ${formattedAnswers}. You can now continue with the user's answers in mind.`
+                        message: `User has answered your questions: ${formattedAnswers}.${notesSuffix} You can now continue with the user's answers in mind.`
                     });
                     return;
                 }
