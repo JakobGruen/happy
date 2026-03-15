@@ -3,6 +3,7 @@ import { View, Text } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { ToolCall } from '@/sync/typesMessage';
 import { analyzeContent, formatSize } from '../adaptive/contentAnalyzer';
+import { languageFromPath } from '@/utils/languageFromPath';
 
 interface ContentPreviewProps {
     tool: ToolCall;
@@ -13,6 +14,26 @@ export const ContentPreview = React.memo<ContentPreviewProps>(({ tool }) => {
 
     // Get first line of output or first parameter
     const previewLine = React.useMemo(() => {
+        // File-aware preview for Read/Write
+        if (tool.name === 'Read' || tool.name === 'Write') {
+            const filePath = tool.input?.file_path;
+            if (typeof filePath === 'string') {
+                const lang = languageFromPath(filePath);
+                const langLabel = lang ? lang.charAt(0).toUpperCase() + lang.slice(1) : 'File';
+                if (tool.name === 'Read' && tool.result) {
+                    const file = (tool.result as any)?.file;
+                    if (file?.totalLines) {
+                        return `${langLabel} · ${file.totalLines} lines`;
+                    }
+                }
+                if (tool.name === 'Write' && tool.input?.content) {
+                    const lineCount = String(tool.input.content).split('\n').length;
+                    return `${langLabel} · ${lineCount} lines`;
+                }
+                return langLabel;
+            }
+        }
+
         // First try result/output
         if (tool.result && typeof tool.result === 'string') {
             const firstLine = tool.result.split('\n')[0];

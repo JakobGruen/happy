@@ -6,21 +6,23 @@ import { knownTools } from '@/components/tools/knownTools';
 import { ToolDiffView } from '@/components/tools/ToolDiffView';
 import { DiffView } from '@/components/diff/DiffView';
 import { trimIdent } from '@/utils/trimIdent';
-import { useSetting } from '@/sync/storage';
+import { useSetting, useSettingMutable } from '@/sync/storage';
+import { WrapToggleButton } from './FileViewModalContent';
+import { Typography } from '@/constants/Typography';
 
 interface DiffModalContentProps {
     tool: ToolCall;
 }
 
 /**
- * Single-tab diff view for Edit / Write / MultiEdit tools.
+ * Single-tab diff view for Edit / MultiEdit tools.
  * Replaces ToolModalTabs for these tools — no INPUT/OUTPUT tabs,
  * just the diff(s).
  */
 export const DiffModalContent = React.memo<DiffModalContentProps>(({ tool }) => {
     const { theme } = useUnistyles();
     const showLineNumbers = useSetting('showLineNumbersInToolViews');
-    const wrapLines = useSetting('wrapLinesInDiffs');
+    const [wrapLines, setWrapLines] = useSettingMutable('wrapLinesInDiffs');
 
     if (tool.name === 'Edit') {
         const parsed = knownTools.Edit.input.safeParse(tool.input);
@@ -31,7 +33,11 @@ export const DiffModalContent = React.memo<DiffModalContentProps>(({ tool }) => 
 
         return (
             <View style={styles.container}>
-                <DiffHeader filePath={parsed.data.file_path} />
+                <DiffHeader
+                    filePath={parsed.data.file_path}
+                    wrapLines={wrapLines}
+                    onToggleWrap={() => setWrapLines(!wrapLines)}
+                />
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
@@ -40,31 +46,6 @@ export const DiffModalContent = React.memo<DiffModalContentProps>(({ tool }) => 
                     <ToolDiffView
                         oldText={oldString}
                         newText={newString}
-                        showLineNumbers={showLineNumbers}
-                        showPlusMinusSymbols={showLineNumbers}
-                    />
-                </ScrollView>
-            </View>
-        );
-    }
-
-    if (tool.name === 'Write') {
-        const parsed = knownTools.Write.input.safeParse(tool.input);
-        if (!parsed.success) return <FallbackText />;
-
-        const contents = typeof parsed.data.content === 'string' ? parsed.data.content : '';
-
-        return (
-            <View style={styles.container}>
-                <DiffHeader filePath={parsed.data.file_path} />
-                <ScrollView
-                    style={styles.scrollView}
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator
-                >
-                    <ToolDiffView
-                        oldText=""
-                        newText={contents}
                         showLineNumbers={showLineNumbers}
                         showPlusMinusSymbols={showLineNumbers}
                     />
@@ -82,7 +63,11 @@ export const DiffModalContent = React.memo<DiffModalContentProps>(({ tool }) => 
 
         return (
             <View style={styles.container}>
-                <DiffHeader filePath={parsed.data?.file_path} />
+                <DiffHeader
+                    filePath={parsed.data?.file_path}
+                    wrapLines={wrapLines}
+                    onToggleWrap={() => setWrapLines(!wrapLines)}
+                />
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
@@ -110,11 +95,18 @@ export const DiffModalContent = React.memo<DiffModalContentProps>(({ tool }) => 
     return <FallbackText />;
 });
 
-function DiffHeader({ filePath }: { filePath?: string }) {
+function DiffHeader({
+    filePath,
+    wrapLines,
+    onToggleWrap,
+}: {
+    filePath?: string;
+    wrapLines: boolean;
+    onToggleWrap: () => void;
+}) {
     const { theme } = useUnistyles();
     if (!filePath) return null;
 
-    // Show only filename from path
     const fileName = filePath.split('/').pop() || filePath;
 
     return (
@@ -125,6 +117,7 @@ function DiffHeader({ filePath }: { filePath?: string }) {
             >
                 {fileName}
             </Text>
+            <WrapToggleButton wrapLines={wrapLines} onPress={onToggleWrap} />
         </View>
     );
 }
@@ -149,11 +142,15 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderBottomWidth: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
     diffHeaderText: {
         fontSize: 13,
-        fontFamily: 'monospace',
+        fontFamily: Typography.mono().fontFamily,
         fontWeight: '500',
+        flex: 1,
     },
     scrollView: {
         flex: 1,

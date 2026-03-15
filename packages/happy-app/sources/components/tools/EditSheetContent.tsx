@@ -6,6 +6,8 @@ import { knownTools } from '@/components/tools/knownTools';
 import { ToolDiffView } from '@/components/tools/ToolDiffView';
 import { DiffView } from '@/components/diff/DiffView';
 import { trimIdent } from '@/utils/trimIdent';
+import { SimpleSyntaxHighlighter } from '@/components/SimpleSyntaxHighlighter';
+import { languageFromPath } from '@/utils/languageFromPath';
 import { useSetting } from '@/sync/storage';
 
 interface EditSheetContentProps {
@@ -52,6 +54,7 @@ export const EditSheetContent = React.memo<EditSheetContentProps>(({ permission 
         const parsed = knownTools.Write.input.safeParse(input);
         if (!parsed.success) return null;
         const contents = typeof parsed.data.content === 'string' ? parsed.data.content : '';
+        const language = languageFromPath(parsed.data.file_path ?? '');
 
         return (
             <View style={styles.container}>
@@ -61,12 +64,7 @@ export const EditSheetContent = React.memo<EditSheetContentProps>(({ permission 
                     showsVerticalScrollIndicator
                     nestedScrollEnabled
                 >
-                    <ToolDiffView
-                        oldText=""
-                        newText={contents}
-                        showLineNumbers={showLineNumbers}
-                        showPlusMinusSymbols={showLineNumbers}
-                    />
+                    <SimpleSyntaxHighlighter code={contents} language={language} selectable />
                 </ScrollView>
             </View>
         );

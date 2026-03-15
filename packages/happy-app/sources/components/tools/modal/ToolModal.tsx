@@ -17,11 +17,13 @@ import { ToolCall, Message } from '@/sync/typesMessage';
 import { ToolModalTabs } from './ToolModalTabs';
 import { DiffModalContent } from './DiffModalContent';
 import { AgentModalContent } from './AgentModalContent';
+import { FileViewModalContent } from './FileViewModalContent';
 import { Ionicons } from '@expo/vector-icons';
 import { Metadata } from '@/sync/storageTypes';
 import { useLocalSettingMutable } from '@/sync/storage';
 
-const DIFF_TOOLS = new Set(['Edit', 'Write', 'MultiEdit']);
+const DIFF_TOOLS = new Set(['Edit', 'MultiEdit']);
+const FILE_VIEW_TOOLS = new Set(['Read', 'Write']);
 const AGENT_TOOLS = new Set(['Task', 'Agent']);
 
 const DEFAULT_HEIGHT_RATIO = 0.5;
@@ -158,6 +160,8 @@ export const ToolModal = React.memo<ToolModalProps>(
                                     ? <AgentModalContent tool={tool} metadata={metadata} messages={messages || []} />
                                     : DIFF_TOOLS.has(tool.name)
                                     ? <DiffModalContent tool={tool} />
+                                    : FILE_VIEW_TOOLS.has(tool.name)
+                                    ? <FileViewModalContent tool={tool} />
                                     : <ToolModalTabs tool={tool} hideOutput={hideOutput} />
                                 }
                             </SafeAreaView>
