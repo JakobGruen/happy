@@ -241,14 +241,30 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         }
     }, [machineId, cliVersion, acknowledgedCliVersions]);
 
-    // Function to update permission mode — send RPC to CLI, display updates when CLI confirms via metadata
+    // Function to update permission mode — send RPC to CLI, retry if not confirmed after 2s
     const updatePermissionMode = React.useCallback((mode: PermissionMode) => {
-        apiSocket.sessionRPC(sessionId, 'switch-permission-mode', { mode: mode.key }).catch(() => {});
+        const sendRPC = () => apiSocket.sessionRPC(sessionId, 'switch-permission-mode', { mode: mode.key });
+        sendRPC().then(() => {
+            setTimeout(() => {
+                const s = storage.getState().sessions[sessionId];
+                if (s?.metadata?.currentOperatingModeCode !== mode.key) {
+                    sendRPC().catch(() => storage.getState().updateSessionPermissionMode(sessionId, mode.key));
+                }
+            }, 2000);
+        }).catch(() => storage.getState().updateSessionPermissionMode(sessionId, mode.key));
     }, [sessionId]);
 
-    // Function to update model — send RPC to CLI, display updates when CLI confirms via metadata
+    // Function to update model — send RPC to CLI, retry if not confirmed after 2s
     const updateModelMode = React.useCallback((mode: ModelMode) => {
-        apiSocket.sessionRPC(sessionId, 'switch-model', { model: mode.key }).catch(() => {});
+        const sendRPC = () => apiSocket.sessionRPC(sessionId, 'switch-model', { model: mode.key });
+        sendRPC().then(() => {
+            setTimeout(() => {
+                const s = storage.getState().sessions[sessionId];
+                if (s?.metadata?.currentModelCode !== mode.key) {
+                    sendRPC().catch(() => storage.getState().updateSessionModelMode(sessionId, mode.key));
+                }
+            }, 2000);
+        }).catch(() => storage.getState().updateSessionModelMode(sessionId, mode.key));
     }, [sessionId]);
 
     // Function to update auto-approve tools toggle — sync to CLI via same RPC

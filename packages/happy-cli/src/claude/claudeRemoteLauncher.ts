@@ -137,6 +137,9 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                 ...m,
                 currentModelCode: model,
             }));
+
+            // Notify app that model was applied
+            session.client.sendSessionEvent({ type: 'model-changed', model });
         }
     );
 
@@ -524,6 +527,8 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                                 } : {}),
                             };
                         });
+                        // Notify app of actual model CC is using
+                        session.client.sendSessionEvent({ type: 'model-changed', model: normalized });
                     },
                     onThinkingChange: session.onThinkingChange,
                     claudeEnvVars: session.claudeEnvVars,

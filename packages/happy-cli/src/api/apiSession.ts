@@ -467,6 +467,8 @@ export class ApiSessionClient extends EventEmitter {
     } | {
         type: 'permission-mode-changed', mode: PermissionMode
     } | {
+        type: 'model-changed', model: string
+    } | {
         type: 'ready'
     }, id?: string) {
         let content = {
