@@ -9,7 +9,10 @@ import Animated, {
     cancelAnimation,
     interpolate,
     Extrapolation,
+    measure,
+    runOnUI,
 } from 'react-native-reanimated';
+import type { AnimatedRef } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ToolCall, Message } from '@/sync/typesMessage';
 import { ToolModalTabs } from './ToolModalTabs';
@@ -66,10 +69,11 @@ interface ToolModalProps {
     permissionActions?: UsePermissionActionsResult | null;
     queueCount?: number;
     sourceRect?: { x: number; y: number; width: number; height: number } | null;
+    bubbleRef?: AnimatedRef<Animated.View> | null;
 }
 
 export const ToolModal = React.memo<ToolModalProps>(
-    ({ visible, tool, metadata, messages, onClose, hideOutput, sessionId, permission, permissionActions, queueCount, sourceRect }) => {
+    ({ visible, tool, metadata, messages, onClose, hideOutput, sessionId, permission, permissionActions, queueCount, sourceRect, bubbleRef }) => {
         const { theme } = useUnistyles();
         const { width: screenWidth, height: screenHeight } = useWindowDimensions();
         const insets = useSafeAreaInsets();
@@ -80,6 +84,12 @@ export const ToolModal = React.memo<ToolModalProps>(
 
         // Expand/collapse animation progress (0 = at bubble, 1 = fully expanded)
         const progress = useSharedValue(0);
+
+        // Dynamic target position — updated from sourceRect at open, re-measured at close
+        const targetX = useSharedValue(0);
+        const targetY = useSharedValue(0);
+        const targetW = useSharedValue(0);
+        const targetH = useSharedValue(0);
 
         // Internal visibility keeps Modal mounted during close animation
         const [internalVisible, setInternalVisible] = React.useState(false);
@@ -94,6 +104,16 @@ export const ToolModal = React.memo<ToolModalProps>(
             setInternalVisible(false);
             handleCloseRef.current();
         }, []);
+
+        // Sync sourceRect into shared values for animation
+        useEffect(() => {
+            if (sourceRect) {
+                targetX.value = sourceRect.x;
+                targetY.value = sourceRect.y;
+                targetW.value = sourceRect.width;
+                targetH.value = sourceRect.height;
+            }
+        }, [sourceRect?.x, sourceRect?.y, sourceRect?.width, sourceRect?.height]);
 
         // Open: set internal visible immediately, animate in
         useEffect(() => {
@@ -125,16 +145,34 @@ export const ToolModal = React.memo<ToolModalProps>(
             }
         }, [internalVisible]);
 
-        // Close with animation
-        const handleClose = React.useCallback(() => {
+        // Close with animation — re-measures bubble position for accurate collapse target
+        const startCloseAnimation = React.useCallback(() => {
             if (isClosingRef.current) return;
             isClosingRef.current = true;
-            progress.value = withSpring(0, SPRING_CONFIG, (finished) => {
-                if (finished) {
-                    runOnJS(actualClose)();
-                }
-            });
-        }, [actualClose]);
+
+            const doClose = () => {
+                'worklet';
+                progress.value = withSpring(0, SPRING_CONFIG, (finished) => {
+                    if (finished) runOnJS(actualClose)();
+                });
+            };
+
+            if (bubbleRef) {
+                runOnUI(() => {
+                    'worklet';
+                    const freshRect = measure(bubbleRef);
+                    if (freshRect) {
+                        targetX.value = freshRect.pageX;
+                        targetY.value = freshRect.pageY;
+                        targetW.value = freshRect.width;
+                        targetH.value = freshRect.height;
+                    }
+                    doClose();
+                })();
+            } else {
+                runOnUI(doClose)();
+            }
+        }, [actualClose, bubbleRef]);
 
         // Pan gesture for swipe-to-dismiss on header
         const dismissGesture = useMemo(() => Gesture.Pan()
@@ -147,13 +185,11 @@ export const ToolModal = React.memo<ToolModalProps>(
             .onEnd((e) => {
                 if (progress.value < 0.95) return;
                 if (e.translationY > 100 || e.velocityY > DISMISS_VELOCITY) {
-                    progress.value = withSpring(0, SPRING_CONFIG, (finished) => {
-                        if (finished) runOnJS(actualClose)();
-                    });
+                    runOnJS(startCloseAnimation)();
                 } else {
                     translateY.value = withSpring(0);
                 }
-            }), [actualClose]);
+            }), [startCloseAnimation]);
 
         const hasActionBar = !!(permission && permissionActions);
 
@@ -168,13 +204,11 @@ export const ToolModal = React.memo<ToolModalProps>(
             .onEnd((e) => {
                 if (progress.value < 0.95) return;
                 if (e.translationY > 100 || e.velocityY > DISMISS_VELOCITY) {
-                    progress.value = withSpring(0, SPRING_CONFIG, (finished) => {
-                        if (finished) runOnJS(actualClose)();
-                    });
+                    runOnJS(startCloseAnimation)();
                 } else {
                     translateY.value = withSpring(0);
                 }
-            }), [actualClose]);
+            }), [startCloseAnimation]);
 
         // Permission card animated style — fades in during expand, follows dismiss gesture
         const permissionCardStyle = useAnimatedStyle(() => {
@@ -201,7 +235,8 @@ export const ToolModal = React.memo<ToolModalProps>(
                 : INPUT_BOX_TOTAL_HEIGHT + MODAL_INPUT_GAP + insets.bottom;
             const finalY = screenHeight - finalHeight - bottomMargin;
 
-            if (!sourceRect) {
+            const hasTarget = targetW.value > 0;
+            if (!hasTarget) {
                 // Fallback: slide up from bottom
                 const fallbackY = interpolate(progress.value, [0, 1], [screenHeight, finalY]);
                 return {
@@ -217,10 +252,10 @@ export const ToolModal = React.memo<ToolModalProps>(
             const p = progress.value;
             return {
                 position: 'absolute' as const,
-                left: interpolate(p, [0, 1], [sourceRect.x, finalX]),
-                top: interpolate(p, [0, 1], [sourceRect.y, finalY]) + translateY.value,
-                width: interpolate(p, [0, 1], [sourceRect.width, finalWidth]),
-                height: interpolate(p, [0, 1], [sourceRect.height, finalHeight]),
+                left: interpolate(p, [0, 1], [targetX.value, finalX]),
+                top: interpolate(p, [0, 1], [targetY.value, finalY]) + translateY.value,
+                width: interpolate(p, [0, 1], [targetW.value, finalWidth]),
+                height: interpolate(p, [0, 1], [targetH.value, finalHeight]),
                 borderRadius: interpolate(p, [0, 1], [8, 12]),
             };
         });
@@ -240,12 +275,12 @@ export const ToolModal = React.memo<ToolModalProps>(
                 visible={internalVisible}
                 transparent={true}
                 animationType="none"
-                onRequestClose={handleClose}
+                onRequestClose={startCloseAnimation}
             >
                 <GestureHandlerRootView style={{ flex: 1 }}>
                     {/* Backdrop overlay — animated opacity */}
                     <Animated.View style={[styles.backdrop, backdropStyle]}>
-                        <Pressable style={{ flex: 1 }} onPress={handleClose} />
+                        <Pressable style={{ flex: 1 }} onPress={startCloseAnimation} />
                     </Animated.View>
 
                     {/* Floating card — expands from bubble position */}
@@ -271,7 +306,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                         </GestureDetector>
 
                         {/* Close button overlay */}
-                        <Pressable onPress={handleClose} hitSlop={8} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceRipple }]}>
+                        <Pressable onPress={startCloseAnimation} hitSlop={8} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceRipple }]}>
                             <Ionicons name="close" size={16} color={theme.colors.textSecondary} />
                         </Pressable>
 

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { View, Text } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { Message, ToolCall } from '@/sync/typesMessage';
 import { Metadata } from '@/sync/storageTypes';
 import { knownTools } from '@/components/tools/knownTools';
@@ -28,7 +29,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     const [isModalVisible, setIsModalVisible] = React.useState(false);
 
     // Measure bubble position for expand-from-bubble animation
-    const containerRef = React.useRef<View>(null);
+    const containerRef = useAnimatedRef<Animated.View>();
     const sourceRectRef = React.useRef<{ x: number; y: number; width: number; height: number } | null>(null);
 
     // Permission state
@@ -106,7 +107,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     const shouldCollapseToMinimal = isClaude && !!tool.permission && tool.permission.status !== 'pending' && tool.state !== 'running';
 
     return (
-        <View ref={containerRef} style={[styles.container, isPending && styles.pendingBorder, isModalVisible && { opacity: 0 }]}>
+        <Animated.View ref={containerRef} style={[styles.container, isPending && styles.pendingBorder, isModalVisible && { opacity: 0 }]}>
             <ToolBubbleHeader
                 tool={tool}
                 metadata={props.metadata}
@@ -150,6 +151,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 queueCount={queueCount}
                 sessionId={sessionId}
                 sourceRect={sourceRectRef.current}
+                bubbleRef={containerRef}
             />
 
             {/* Inline permission action bar for Claude sessions */}
@@ -168,7 +170,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
             {tool.permission?.status === 'pending' && sessionId && isCodex && (
                 <PermissionFooter permission={tool.permission} sessionId={sessionId} toolName={tool.name} toolInput={tool.input} metadata={props.metadata} />
             )}
-        </View>
+        </Animated.View>
     );
 });
 
