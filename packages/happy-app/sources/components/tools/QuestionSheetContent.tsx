@@ -340,6 +340,7 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
 
 const styles = StyleSheet.create((theme) => ({
     container: {
+        flex: 1,
         borderTopWidth: 1,
         borderColor: theme.colors.divider,
     },

@@ -12,13 +12,16 @@ import { knownTools } from '@/components/tools/knownTools';
 import { Metadata } from '@/sync/storageTypes';
 import { useRouter } from 'expo-router';
 import { PermissionFooter } from './PermissionFooter';
-import { useIsPermissionSheetActive } from './permissionSheetContext';
+import { PermissionActionBar } from './modal/PermissionActionBar';
 import { parseToolUseError } from '@/utils/toolErrorParser';
 import { formatMCPTitle } from './views/MCPToolView';
 import { t } from '@/text';
 
 import { ToolModal } from './modal/ToolModal';
 import { ContentPreview } from './modal/ContentPreview';
+import { usePermissionActions } from '@/hooks/usePermissionActions';
+import { useCurrentSessionPermissions, CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
+import { registerPermissionModalOpen, registerPermissionModalClose } from './permissionModalRegistry';
 
 interface ToolViewProps {
     metadata: Metadata | null;
@@ -37,9 +40,70 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     // Modal state for full content view
     const [isModalVisible, setIsModalVisible] = React.useState(false);
 
-    // Open modal on header press
+    // Measure bubble position for expand-from-bubble animation
+    const containerRef = React.useRef<View>(null);
+    const sourceRectRef = React.useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+
+    // Permission state
+    const isPending = tool.permission?.status === 'pending';
+
+    // Permission actions hook (called unconditionally per React rules)
+    const permissionActions = usePermissionActions(
+        sessionId ?? '',
+        tool.permission?.id ?? null,
+        tool.name,
+        tool.input,
+        isPending ?? false,
+    );
+
+    // Queue count from session permissions
+    const { queueCount } = useCurrentSessionPermissions(sessionId ?? '');
+
+    // Map tool.permission to CurrentSessionPermissionItem for ToolModal
+    const permissionItem: CurrentSessionPermissionItem | null = React.useMemo(() => {
+        if (!isPending || !tool.permission) return null;
+        return {
+            permissionId: tool.permission.id,
+            tool: tool.name,
+            toolInput: tool.input,
+            description: tool.permission.description ?? tool.description,
+            llmSummary: tool.permission.decisionReason ?? null,
+            permissionSuggestions: tool.permission.permissionSuggestions ?? null,
+            decisionReason: tool.permission.decisionReason ?? null,
+            createdAt: tool.createdAt ?? null,
+        };
+    }, [isPending, tool.permission, tool.name, tool.input, tool.description, tool.createdAt]);
+
+    // Auto-close modal when permission is resolved (approved, denied, canceled)
+    React.useEffect(() => {
+        if (tool.permission?.status && tool.permission.status !== 'pending') {
+            setIsModalVisible(false);
+        }
+    }, [tool.permission?.status]);
+
+    // Track open/close in the shared registry so other modals know not to auto-open
+    React.useEffect(() => {
+        if (isModalVisible && isPending) {
+            registerPermissionModalOpen();
+            return () => registerPermissionModalClose();
+        }
+    }, [isModalVisible, isPending]);
+
+    // Close modal handler
+    const handleModalClose = React.useCallback(() => {
+        setIsModalVisible(false);
+    }, []);
+
+    // Open modal on header press — measure bubble position first
     const handlePress = React.useCallback(() => {
-        setIsModalVisible(true);
+        if (containerRef.current) {
+            containerRef.current.measureInWindow((x, y, width, height) => {
+                sourceRectRef.current = { x, y, width, height };
+                setIsModalVisible(true);
+            });
+        } else {
+            setIsModalVisible(true);
+        }
     }, []);
 
     // Always make header pressable to open modal
@@ -175,19 +239,11 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
     // Collapse post-approval/denial tools to minimal header line for Claude sessions
     // This matches CC terminal behavior where completed tools show as a single line
-    const isClaude = props.metadata?.flavor !== 'codex' && props.metadata?.flavor !== 'gemini';
+    const isCodex = props.metadata?.flavor === 'codex';
+    const isClaude = !isCodex && props.metadata?.flavor !== 'gemini';
     if (isClaude && tool.permission && tool.permission.status !== 'pending' && tool.state !== 'running') {
         minimal = true;
     }
-
-    // When the permission sheet is active and this tool has a pending permission,
-    // collapse to one-liner in chat — the sheet shows the full context instead
-    const isSheetActive = useIsPermissionSheetActive();
-    if (isSheetActive && isClaude && tool.permission?.status === 'pending') {
-        minimal = true;
-    }
-
-
 
     const headerContent = (
         <View style={styles.headerLeft}>
@@ -212,7 +268,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     );
 
     return (
-        <View style={styles.container}>
+        <View ref={containerRef} style={[styles.container, isPending && styles.pendingBorder, isModalVisible && { opacity: 0 }]}>
             <View style={styles.header}>
                 {isPressable ? (
                     <TouchableOpacity style={styles.headerMain} onPress={handlePress} activeOpacity={0.8}>
@@ -254,19 +310,35 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 </View>
             )}
 
-            {/* Modal (opens on preview tap) */}
+            {/* Modal (opens on preview tap or auto-opened for permissions) */}
             <ToolModal
                 visible={isModalVisible}
                 tool={tool}
                 metadata={props.metadata}
                 messages={props.messages}
-                onClose={() => setIsModalVisible(false)}
-                hideOutput={tool.permission?.status === 'pending'}
+                onClose={handleModalClose}
+                hideOutput={isPending}
+                permission={permissionItem}
+                permissionActions={isPending && tool.name !== 'AskUserQuestion' ? permissionActions : null}
+                queueCount={queueCount}
+                sessionId={sessionId}
+                sourceRect={sourceRectRef.current}
             />
 
-            {/* Permission footer - always renders when permission exists to maintain consistent height */}
-            {/* AskUserQuestion has its own Submit button UI - no permission footer needed */}
-            {tool.permission && sessionId && tool.name !== 'AskUserQuestion' && (
+            {/* Inline permission action bar for Claude sessions */}
+            {tool.permission?.status === 'pending' && sessionId && tool.name !== 'AskUserQuestion' && !isCodex && (
+                <PermissionActionBar
+                    inline
+                    actions={permissionActions}
+                    llmSummary={permissionItem?.llmSummary ?? null}
+                    queueCount={queueCount}
+                    suggestions={permissionItem?.permissionSuggestions ?? null}
+                    toolName={tool.name}
+                />
+            )}
+
+            {/* Codex permission footer fallback */}
+            {tool.permission?.status === 'pending' && sessionId && isCodex && (
                 <PermissionFooter permission={tool.permission} sessionId={sessionId} toolName={tool.name} toolInput={tool.input} metadata={props.metadata} />
             )}
         </View>
@@ -284,7 +356,12 @@ const styles = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.surfaceHigh,
         borderRadius: 8,
         marginVertical: 4,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        borderWidth: 1.5,
+        borderColor: 'transparent',
+    },
+    pendingBorder: {
+        borderColor: theme.colors.box.warning.border,
     },
     header: {
         flexDirection: 'row',

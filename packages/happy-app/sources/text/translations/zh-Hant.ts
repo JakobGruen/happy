@@ -668,7 +668,7 @@ export const zhHant: TranslationStructure = {
         permissionTool: ({ tool, description }: { tool: string, description?: string }) => description ? `${tool} · ${description}` : tool,
         permissionQuestion: '有問題要問你',
         permissionPlanReview: '計畫已準備好審核',
-        morePermissions: ({ count }: { count: number }) => `+${count} 更多`,
+        morePermissions: ({ count }: { count: number }) => `+${count} 更多待處理`,
         browserAllow: '允許',
         browserDeny: '拒絕',
     },

@@ -915,7 +915,11 @@ export const knownTools = {
             return t('tools.names.question');
         },
         icon: ICON_QUESTION,
-        minimal: false,  // Always show expanded to display options
+        minimal: (opts: { tool: ToolCall }) => {
+            // Expanded only while permission is pending (user needs to interact)
+            // After responding, collapse to minimal bubble
+            return opts.tool.permission?.status !== 'pending';
+        },
         noStatus: true,
         input: z.object({
             questions: z.array(z.object({

@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 import { UsePermissionActionsResult } from '@/hooks/usePermissionActions';
 import { CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
-import { isNotificationOnlyTool } from '@/utils/web/browserNotifications';
 import { t } from '@/text';
 
 interface PermissionSheetBarProps {
@@ -18,9 +17,7 @@ interface PermissionSheetBarProps {
 
 /**
  * Compact bar for the permission sheet — always visible when a permission is pending.
- * Shows tool icon, name/summary, Allow/Deny buttons, and expand chevron.
- *
- * For rich content tools (plan/question), shows "Tap to expand" instead of buttons.
+ * Shows tool icon, name/description, Allow/Deny buttons, and expand chevron.
  */
 export const PermissionSheetBar = React.memo<PermissionSheetBarProps>(({
     permission,
@@ -29,8 +26,6 @@ export const PermissionSheetBar = React.memo<PermissionSheetBarProps>(({
     isExpanded,
     onToggleExpand,
 }) => {
-    const isRichTool = isNotificationOnlyTool(permission.tool);
-
     // Resolve display text — prefer llmSummary, fall back to description or tool name
     const displayText = permission.llmSummary
         ?? permission.description
@@ -45,17 +40,22 @@ export const PermissionSheetBar = React.memo<PermissionSheetBarProps>(({
                 onPress={onToggleExpand}
                 activeOpacity={0.7}
             >
-                <View style={isRichTool ? styles.iconContainerRich : styles.iconContainer}>
+                <View style={styles.iconContainer}>
                     <Ionicons
-                        name={isRichTool ? 'chatbubble-ellipses-outline' : 'shield-outline'}
+                        name="shield-outline"
                         size={18}
-                        style={isRichTool ? styles.richIcon : styles.shieldIcon}
+                        style={styles.shieldIcon}
                     />
                 </View>
                 <View style={styles.textArea}>
                     <Text style={styles.toolName} numberOfLines={1}>
                         {displayText}
                     </Text>
+                    {permission.description && (
+                        <Text style={styles.toolDescription} numberOfLines={1}>
+                            {permission.description}
+                        </Text>
+                    )}
                     {remaining > 0 && (
                         <Text style={styles.moreCount}>
                             {t('notifications.morePermissions', { count: remaining })}
@@ -64,61 +64,49 @@ export const PermissionSheetBar = React.memo<PermissionSheetBarProps>(({
                 </View>
             </TouchableOpacity>
 
-            {isRichTool ? (
-                /* Rich content tools: show "Tap to expand" instead of allow/deny */
+            <View style={styles.actions}>
+                {/* Deny button */}
                 <TouchableOpacity
-                    style={styles.tapToExpandButton}
-                    onPress={onToggleExpand}
+                    style={styles.denyButton}
+                    onPress={() => actions.handleDeny()}
+                    disabled={actions.loadingKey !== null}
                     activeOpacity={0.7}
                 >
-                    <Text style={styles.tapToExpandText}>{t('permissions.tapToExpand')}</Text>
-                    <Ionicons name="chevron-up" size={16} style={styles.tapToExpandIcon} />
+                    {actions.loadingKey === 'deny' ? (
+                        <ActivityIndicator size="small" />
+                    ) : (
+                        <Ionicons name="close" size={18} style={styles.denyIcon} />
+                    )}
                 </TouchableOpacity>
-            ) : (
-                <View style={styles.actions}>
-                    {/* Deny button */}
-                    <TouchableOpacity
-                        style={styles.denyButton}
-                        onPress={() => actions.handleDeny()}
-                        disabled={actions.loadingKey !== null}
-                        activeOpacity={0.7}
-                    >
-                        {actions.loadingKey === 'deny' ? (
-                            <ActivityIndicator size="small" />
-                        ) : (
-                            <Ionicons name="close" size={18} style={styles.denyIcon} />
-                        )}
-                    </TouchableOpacity>
 
-                    {/* Allow button */}
-                    <TouchableOpacity
-                        style={styles.allowButton}
-                        onPress={actions.handleAllowOnce}
-                        disabled={actions.loadingKey !== null}
-                        activeOpacity={0.7}
-                    >
-                        {actions.loadingKey === 'allow-once' ? (
-                            <ActivityIndicator size="small" />
-                        ) : (
-                            <Ionicons name="checkmark" size={18} style={styles.allowIcon} />
-                        )}
-                    </TouchableOpacity>
+                {/* Allow button */}
+                <TouchableOpacity
+                    style={styles.allowButton}
+                    onPress={actions.handleAllowOnce}
+                    disabled={actions.loadingKey !== null}
+                    activeOpacity={0.7}
+                >
+                    {actions.loadingKey === 'allow-once' ? (
+                        <ActivityIndicator size="small" />
+                    ) : (
+                        <Ionicons name="checkmark" size={18} style={styles.allowIcon} />
+                    )}
+                </TouchableOpacity>
 
-                    {/* Expand/collapse chevron */}
-                    <TouchableOpacity
-                        style={styles.expandButton}
-                        onPress={onToggleExpand}
-                        activeOpacity={0.7}
-                        hitSlop={8}
-                    >
-                        <Ionicons
-                            name={isExpanded ? 'chevron-down' : 'chevron-up'}
-                            size={18}
-                            style={styles.expandIcon}
-                        />
-                    </TouchableOpacity>
-                </View>
-            )}
+                {/* Expand/collapse chevron */}
+                <TouchableOpacity
+                    style={styles.expandButton}
+                    onPress={onToggleExpand}
+                    activeOpacity={0.7}
+                    hitSlop={8}
+                >
+                    <Ionicons
+                        name={isExpanded ? 'chevron-down' : 'chevron-up'}
+                        size={18}
+                        style={styles.expandIcon}
+                    />
+                </TouchableOpacity>
+            </View>
         </View>
     );
 });
@@ -148,20 +136,8 @@ const styles = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         marginRight: 10,
     },
-    iconContainerRich: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: theme.colors.textLink + '20',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 10,
-    },
     shieldIcon: {
         color: theme.colors.box.warning.border,
-    },
-    richIcon: {
-        color: theme.colors.textLink,
     },
     textArea: {
         flex: 1,
@@ -170,6 +146,11 @@ const styles = StyleSheet.create((theme) => ({
         fontSize: 13,
         fontWeight: '600',
         color: theme.colors.text,
+    },
+    toolDescription: {
+        color: theme.colors.textSecondary,
+        fontSize: 11,
+        marginTop: 1,
     },
     moreCount: {
         fontSize: 11,
@@ -180,22 +161,6 @@ const styles = StyleSheet.create((theme) => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-    },
-    tapToExpandButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 8,
-    },
-    tapToExpandText: {
-        fontSize: 13,
-        fontWeight: '500',
-        color: theme.colors.textLink,
-    },
-    tapToExpandIcon: {
-        color: theme.colors.textLink,
     },
     denyButton: {
         width: 34,

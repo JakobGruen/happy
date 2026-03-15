@@ -699,7 +699,7 @@ export const ja: TranslationStructure = {
         permissionTool: ({ tool, description }: { tool: string, description?: string }) => description ? `${tool} · ${description}` : tool,
         permissionQuestion: '質問があります',
         permissionPlanReview: 'プランのレビュー準備完了',
-        morePermissions: ({ count }: { count: number }) => `+${count} 件`,
+        morePermissions: ({ count }: { count: number }) => `+${count} 件保留中`,
         browserAllow: '許可',
         browserDeny: '拒否',
     },
