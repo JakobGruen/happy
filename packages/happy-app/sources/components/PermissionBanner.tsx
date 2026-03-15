@@ -39,6 +39,8 @@ function getInputPreview(toolInput: any): string | null {
 export const PermissionBanner = React.memo(() => {
     const queue = usePendingPermissionQueue();
     const [modalVisible, setModalVisible] = React.useState(false);
+    const bannerRef = React.useRef<View>(null);
+    const sourceRectRef = React.useRef<{ x: number; y: number; width: number; height: number } | null>(null);
 
     const current = queue.length > 0 ? queue[0] : null;
     const currentPermId = current?.permissionId ?? null;
@@ -68,15 +70,20 @@ export const PermissionBanner = React.memo(() => {
 
     return (
         <>
-            <Animated.View
-                key={current.permissionId}
-                entering={FadeIn.duration(200)}
-                exiting={FadeOut.duration(150)}
-                style={styles.container}
-            >
+            <View ref={bannerRef} style={styles.container}>
+                <Animated.View
+                    key={current.permissionId}
+                    entering={FadeIn.duration(200)}
+                    exiting={FadeOut.duration(150)}
+                >
                 <TouchableOpacity
                     style={styles.banner}
-                    onPress={() => setModalVisible(true)}
+                    onPress={() => {
+                        bannerRef.current?.measureInWindow((x, y, width, height) => {
+                            sourceRectRef.current = { x, y, width, height };
+                            setModalVisible(true);
+                        });
+                    }}
                     activeOpacity={0.7}
                 >
                     <View style={styles.iconContainer}>
@@ -105,7 +112,8 @@ export const PermissionBanner = React.memo(() => {
                         )}
                     </View>
                 </TouchableOpacity>
-            </Animated.View>
+                </Animated.View>
+            </View>
 
             {modalVisible && (
                 <BannerModal
@@ -115,6 +123,7 @@ export const PermissionBanner = React.memo(() => {
                     isAskUserQuestion={isAskUserQuestion}
                     queueCount={queue.length}
                     onClose={() => setModalVisible(false)}
+                    sourceRect={sourceRectRef.current}
                 />
             )}
         </>
@@ -132,7 +141,8 @@ const BannerModal = React.memo<{
     isAskUserQuestion: boolean;
     queueCount: number;
     onClose: () => void;
-}>(({ current, syntheticTool, permissionItem, isAskUserQuestion, queueCount, onClose }) => {
+    sourceRect: { x: number; y: number; width: number; height: number } | null;
+}>(({ current, syntheticTool, permissionItem, isAskUserQuestion, queueCount, onClose, sourceRect }) => {
     // Track in shared registry so ToolView auto-open is suppressed while this is open
     React.useEffect(() => {
         registerPermissionModalOpen();
@@ -158,6 +168,7 @@ const BannerModal = React.memo<{
             permission={permissionItem}
             permissionActions={isAskUserQuestion ? null : actions}
             queueCount={queueCount}
+            sourceRect={sourceRect}
         />
     );
 });
