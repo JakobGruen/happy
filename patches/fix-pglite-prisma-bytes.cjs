@@ -15,6 +15,9 @@ const path = require('path');
 const files = [
     'node_modules/pglite-prisma-adapter/dist/index.mjs',
     'node_modules/pglite-prisma-adapter/dist/index.cjs',
+    // Bun places workspace deps in the package's own node_modules
+    'packages/happy-server/node_modules/pglite-prisma-adapter/dist/index.mjs',
+    'packages/happy-server/node_modules/pglite-prisma-adapter/dist/index.cjs',
 ];
 
 let patched = 0;
