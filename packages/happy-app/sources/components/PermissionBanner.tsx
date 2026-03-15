@@ -178,7 +178,7 @@ const styles = StyleSheet.create((theme) => ({
         shadowOpacity: theme.dark ? 0.4 : 0.15,
         elevation: 8,
         borderWidth: 1,
-        borderColor: theme.colors.box.warning.border + '80',
+        borderColor: theme.colors.box.warning.border,
     },
     iconContainer: {
         width: 32,
