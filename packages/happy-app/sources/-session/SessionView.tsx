@@ -1,7 +1,6 @@
 import { AgentContentView } from '@/components/AgentContentView';
 import { AgentInput } from '@/components/AgentInput';
-import { SessionPermissionSheet } from '@/components/tools/SessionPermissionSheet';
-import { PermissionSheetContext } from '@/components/tools/permissionSheetContext';
+import { PermissionModalOrchestrator } from '@/components/tools/PermissionModalOrchestrator';
 import { isClaudeFlavor } from '@/components/tools/permissionUtils';
 import {
     getAvailableModels,
@@ -465,8 +464,19 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
 
     const isClaude = isClaudeFlavor(session.metadata?.flavor);
 
-    return (
-        <PermissionSheetContext.Provider value={isClaude}>
+    const wrapWithOrchestrator = (content: React.ReactNode) => {
+        if (isClaude) {
+            return (
+                <PermissionModalOrchestrator sessionId={sessionId}>
+                    {content}
+                </PermissionModalOrchestrator>
+            );
+        }
+        return content;
+    };
+
+    return wrapWithOrchestrator(
+        <>
             {/* CLI Version Warning Overlay - Subtle centered pill */}
             {shouldShowCliWarning && !(isLandscape && deviceType === 'phone') && (
                 <Pressable
@@ -510,9 +520,6 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                 />
             </View >
 
-            {/* Permission sheet for Claude sessions — slides up from bottom */}
-            {isClaude && <SessionPermissionSheet sessionId={sessionId} />}
-
             {/* Back button for landscape phone mode when header is hidden */}
             {
                 isLandscape && deviceType === 'phone' && (
@@ -550,6 +557,6 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                     </Pressable>
                 )
             }
-        </PermissionSheetContext.Provider>
+        </>
     )
 }
