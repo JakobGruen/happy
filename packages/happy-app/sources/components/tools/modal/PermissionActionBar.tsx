@@ -164,13 +164,14 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
                     )}
                 </TouchableOpacity>
 
-                {/* Queue badge */}
-                {queueCount > 0 && (
-                    <Text style={styles.queueBadge}>
-                        {t('notifications.morePermissions', { count: queueCount })}
-                    </Text>
-                )}
             </View>
+
+            {/* Queue badge — below buttons, not inline */}
+            {queueCount > 0 && (
+                <Text style={styles.queueBadge}>
+                    {t('notifications.morePermissions', { count: queueCount })}
+                </Text>
+            )}
         </View>
     );
 });
@@ -237,7 +238,8 @@ const styles = StyleSheet.create((theme) => ({
     queueBadge: {
         fontSize: 12,
         color: theme.colors.textSecondary,
-        marginLeft: 'auto',
+        textAlign: 'center',
+        marginTop: 8,
     },
     feedbackRow: {
         marginBottom: 10,
