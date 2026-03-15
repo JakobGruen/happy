@@ -166,10 +166,10 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
 
             </View>
 
-            {/* Queue badge — below buttons, not inline */}
-            {queueCount > 0 && (
+            {/* Queue badge — below buttons, excludes the currently displayed permission */}
+            {queueCount > 1 && (
                 <Text style={styles.queueBadge}>
-                    {t('notifications.morePermissions', { count: queueCount })}
+                    {t('notifications.morePermissions', { count: queueCount - 1 })}
                 </Text>
             )}
         </View>
