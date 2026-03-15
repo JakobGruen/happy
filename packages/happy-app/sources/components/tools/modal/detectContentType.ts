@@ -1,4 +1,4 @@
-export type ContentType = 'json' | 'code' | 'text';
+export type ContentType = 'json' | 'html' | 'code' | 'text';
 
 /**
  * Detects content type for rendering in ContentFormatter.
@@ -34,12 +34,27 @@ export function detectContentType(value: unknown): ContentType {
         }
     }
 
+    // Detect HTML — require an opening tag with lowercase tag name.
+    // Placed before code detection so <div>...</div> doesn't get misclassified.
+    if (looksLikeHtml(str)) {
+        return 'html';
+    }
+
     // Detect code — require multiple signals to reduce false positives
     if (looksLikeCode(str)) {
         return 'code';
     }
 
     return 'text';
+}
+
+/**
+ * Returns true if the string starts with a lowercase HTML-like opening tag.
+ * Lowercase check prevents TypeScript generic expressions (e.g. <T>) from
+ * being misclassified as HTML.
+ */
+function looksLikeHtml(str: string): boolean {
+    return /^<[a-z][a-z0-9]*[\s/>]/.test(str.trimStart());
 }
 
 /**

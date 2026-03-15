@@ -182,6 +182,27 @@ describe('ContentFormatter', () => {
             const longString = 'a'.repeat(10000);
             expect(detectContentType(longString)).toBe('text');
         });
+
+        it('detects HTML with a div tag', () => {
+            expect(detectContentType('<div>hello</div>')).toBe('html');
+        });
+
+        it('detects HTML with a pre block', () => {
+            expect(detectContentType('<pre>code here</pre>')).toBe('html');
+        });
+
+        it('detects HTML with attributes', () => {
+            expect(detectContentType('<span class="foo">bar</span>')).toBe('html');
+        });
+
+        it('does not classify TypeScript generics as HTML (uppercase tag)', () => {
+            // Generic type parameters are uppercase — should not trigger HTML detection
+            expect(detectContentType('<T extends string>(x: T) => x')).not.toBe('html');
+        });
+
+        it('does not classify markdown as HTML', () => {
+            expect(detectContentType('# Title\n\nParagraph text')).not.toBe('html');
+        });
     });
 
 });
