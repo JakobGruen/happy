@@ -259,7 +259,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     );
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, isPending && styles.pendingBorder]}>
             <View style={styles.header}>
                 {isPressable ? (
                     <TouchableOpacity style={styles.headerMain} onPress={handlePress} activeOpacity={0.8}>
@@ -335,7 +335,12 @@ const styles = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.surfaceHigh,
         borderRadius: 8,
         marginVertical: 4,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        borderWidth: 1.5,
+        borderColor: 'transparent',
+    },
+    pendingBorder: {
+        borderColor: theme.colors.box.warning.border,
     },
     header: {
         flexDirection: 'row',
