@@ -19,6 +19,8 @@ import { t } from '@/text';
 
 import { ToolModal } from './modal/ToolModal';
 import { ContentPreview } from './modal/ContentPreview';
+import { usePermissionActions } from '@/hooks/usePermissionActions';
+import { useCurrentSessionPermissions, CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
 
 interface ToolViewProps {
     metadata: Metadata | null;
@@ -36,6 +38,48 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
     // Modal state for full content view
     const [isModalVisible, setIsModalVisible] = React.useState(false);
+
+    // Permission state
+    const isPending = tool.permission?.status === 'pending';
+
+    // Permission actions hook (called unconditionally per React rules)
+    const permissionActions = usePermissionActions(
+        sessionId ?? '',
+        tool.permission?.id ?? null,
+        tool.name,
+        tool.input,
+        isPending ?? false,
+    );
+
+    // Queue count from session permissions
+    const { queueCount } = useCurrentSessionPermissions(sessionId ?? '');
+
+    // Map tool.permission to CurrentSessionPermissionItem for ToolModal
+    const permissionItem: CurrentSessionPermissionItem | null = React.useMemo(() => {
+        if (!isPending || !tool.permission) return null;
+        return {
+            permissionId: tool.permission.id,
+            tool: tool.name,
+            toolInput: tool.input,
+            description: tool.permission.description ?? tool.description,
+            llmSummary: tool.permission.decisionReason ?? null,
+            permissionSuggestions: tool.permission.permissionSuggestions ?? null,
+            decisionReason: tool.permission.decisionReason ?? null,
+            createdAt: tool.createdAt ?? null,
+        };
+    }, [isPending, tool.permission, tool.name, tool.input, tool.description, tool.createdAt]);
+
+    // Auto-open modal when permission becomes pending
+    React.useEffect(() => {
+        if (tool.permission?.status === 'pending') {
+            setIsModalVisible(true);
+        }
+    }, [tool.permission?.status]);
+
+    // Close modal handler
+    const handleModalClose = React.useCallback(() => {
+        setIsModalVisible(false);
+    }, []);
 
     // Open modal on header press
     const handlePress = React.useCallback(() => {
@@ -254,14 +298,18 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 </View>
             )}
 
-            {/* Modal (opens on preview tap) */}
+            {/* Modal (opens on preview tap or auto-opened for permissions) */}
             <ToolModal
                 visible={isModalVisible}
                 tool={tool}
                 metadata={props.metadata}
                 messages={props.messages}
-                onClose={() => setIsModalVisible(false)}
-                hideOutput={tool.permission?.status === 'pending'}
+                onClose={handleModalClose}
+                hideOutput={isPending}
+                permission={permissionItem}
+                permissionActions={isPending && tool.name !== 'AskUserQuestion' ? permissionActions : null}
+                queueCount={queueCount}
+                sessionId={sessionId}
             />
 
             {/* Permission footer - always renders when permission exists to maintain consistent height */}
