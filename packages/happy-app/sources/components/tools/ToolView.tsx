@@ -40,6 +40,10 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     // Modal state for full content view
     const [isModalVisible, setIsModalVisible] = React.useState(false);
 
+    // Measure bubble position for expand-from-bubble animation
+    const containerRef = React.useRef<View>(null);
+    const sourceRectRef = React.useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+
     // Permission state
     const isPending = tool.permission?.status === 'pending';
 
@@ -90,9 +94,16 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         setIsModalVisible(false);
     }, []);
 
-    // Open modal on header press
+    // Open modal on header press — measure bubble position first
     const handlePress = React.useCallback(() => {
-        setIsModalVisible(true);
+        if (containerRef.current) {
+            containerRef.current.measureInWindow((x, y, width, height) => {
+                sourceRectRef.current = { x, y, width, height };
+                setIsModalVisible(true);
+            });
+        } else {
+            setIsModalVisible(true);
+        }
     }, []);
 
     // Always make header pressable to open modal
@@ -257,7 +268,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     );
 
     return (
-        <View style={[styles.container, isPending && styles.pendingBorder]}>
+        <View ref={containerRef} style={[styles.container, isPending && styles.pendingBorder, isModalVisible && { opacity: 0 }]}>
             <View style={styles.header}>
                 {isPressable ? (
                     <TouchableOpacity style={styles.headerMain} onPress={handlePress} activeOpacity={0.8}>
@@ -311,6 +322,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 permissionActions={isPending && tool.name !== 'AskUserQuestion' ? permissionActions : null}
                 queueCount={queueCount}
                 sessionId={sessionId}
+                sourceRect={sourceRectRef.current}
             />
 
             {/* Inline permission action bar for Claude sessions */}
