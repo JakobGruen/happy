@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo } from 'react';
-import { View, Modal, Pressable, Text, useWindowDimensions } from 'react-native';
+import { View, Modal, Pressable, useWindowDimensions } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import Animated, {
     useSharedValue,
@@ -16,10 +16,10 @@ import { ToolModalTabs } from './ToolModalTabs';
 import { DiffModalContent } from './DiffModalContent';
 import { AgentModalContent } from './AgentModalContent';
 import { FileViewModalContent } from './FileViewModalContent';
+import { ToolBubbleHeader } from './ToolBubbleHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Metadata } from '@/sync/storageTypes';
-import { useLocalSettingMutable } from '@/sync/storage';
 import { CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
 import { UsePermissionActionsResult } from '@/hooks/usePermissionActions';
 import { PermissionActionBar } from './PermissionActionBar';
@@ -30,9 +30,7 @@ const DIFF_TOOLS = new Set(['Edit', 'MultiEdit']);
 const FILE_VIEW_TOOLS = new Set(['Read', 'Write']);
 const AGENT_TOOLS = new Set(['Task', 'Agent']);
 
-const DEFAULT_HEIGHT_RATIO = 0.5;
-const MIN_HEIGHT_RATIO = 0.25;
-const MAX_HEIGHT_RATIO = 0.93;
+const MODAL_HEIGHT_RATIO = 0.75;
 const DISMISS_VELOCITY = 1200;  // px/s — only checked at release moment, requires active fling
 const SPRING_CONFIG = { damping: 20, stiffness: 200, mass: 0.8 };
 
@@ -58,15 +56,9 @@ export const ToolModal = React.memo<ToolModalProps>(
         const { width: screenWidth, height: screenHeight } = useWindowDimensions();
         const insets = useSafeAreaInsets();
 
-        // Height persistence (global across all tool types)
-        const [toolModalHeight, setToolModalHeight] = useLocalSettingMutable('toolModalHeight');
-        const savedHeightRatio = toolModalHeight || 0;
-        const initialHeight = (savedHeightRatio || DEFAULT_HEIGHT_RATIO) * screenHeight;
-
-        // Gesture state for drag-to-resize and drag-to-dismiss
+        // Gesture state for drag-to-dismiss
         const translateY = useSharedValue(0);
-        const modalHeight = useSharedValue(initialHeight);
-        const heightAtStart = useSharedValue(initialHeight);
+        const modalHeight = useSharedValue(MODAL_HEIGHT_RATIO * screenHeight);
 
         // Expand/collapse animation progress (0 = at bubble, 1 = fully expanded)
         const progress = useSharedValue(0);
@@ -92,10 +84,10 @@ export const ToolModal = React.memo<ToolModalProps>(
                 cancelAnimation(translateY);
                 cancelAnimation(modalHeight);
                 translateY.value = 0;
-                modalHeight.value = (savedHeightRatio || DEFAULT_HEIGHT_RATIO) * screenHeight;
+                modalHeight.value = MODAL_HEIGHT_RATIO * screenHeight;
                 setInternalVisible(true);
             }
-        }, [visible, screenHeight, savedHeightRatio]);
+        }, [visible, screenHeight]);
 
         // Animate progress when internalVisible changes
         useEffect(() => {
@@ -117,35 +109,24 @@ export const ToolModal = React.memo<ToolModalProps>(
             });
         }, [actualClose]);
 
-        // Pan gesture for drag-to-resize and drag-to-dismiss
-        const panGesture = useMemo(() => Gesture.Pan()
-            .onBegin(() => {
-                // Skip gesture during expand/collapse animation
-                if (progress.value < 0.95) return;
-                heightAtStart.value = modalHeight.value;
-            })
+        // Pan gesture for swipe-to-dismiss on header
+        const dismissGesture = useMemo(() => Gesture.Pan()
             .onUpdate((e) => {
                 if (progress.value < 0.95) return;
-                // Drag up = expand, drag down = shrink
-                const newHeight = Math.min(
-                    Math.max(heightAtStart.value - e.translationY, MIN_HEIGHT_RATIO * screenHeight),
-                    MAX_HEIGHT_RATIO * screenHeight,
-                );
-                modalHeight.value = newHeight;
+                if (e.translationY > 0) {
+                    translateY.value = e.translationY;
+                }
             })
             .onEnd((e) => {
                 if (progress.value < 0.95) return;
-                if (e.velocityY > DISMISS_VELOCITY) {
-                    // Fast fling → collapse back to bubble
+                if (e.translationY > 100 || e.velocityY > DISMISS_VELOCITY) {
                     progress.value = withSpring(0, SPRING_CONFIG, (finished) => {
                         if (finished) runOnJS(actualClose)();
                     });
                 } else {
-                    // Slow drag → persist new height (no spring-back)
-                    const finalRatio = modalHeight.value / screenHeight;
-                    runOnJS(setToolModalHeight)(finalRatio);
+                    translateY.value = withSpring(0);
                 }
-            }), [screenHeight, actualClose]);
+            }), [actualClose]);
 
         const hasActionBar = !!(permission && permissionActions);
 
@@ -215,34 +196,25 @@ export const ToolModal = React.memo<ToolModalProps>(
                             },
                         ]}
                     >
-                        {/* Content fades in as card expands */}
+                        {/* Header — always visible, matches bubble */}
+                        <GestureDetector gesture={dismissGesture}>
+                            <Animated.View>
+                                <ToolBubbleHeader
+                                    tool={tool}
+                                    metadata={metadata}
+                                    messages={messages}
+                                    expanded={true}
+                                />
+                            </Animated.View>
+                        </GestureDetector>
+
+                        {/* Close button overlay */}
+                        <Pressable onPress={handleClose} hitSlop={8} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceRipple }]}>
+                            <Ionicons name="close" size={16} color={theme.colors.textSecondary} />
+                        </Pressable>
+
+                        {/* Content — fades in during expansion */}
                         <Animated.View style={[{ flex: 1 }, contentOpacity]}>
-                            {/* Drag Handle wrapped in GestureDetector */}
-                            <GestureDetector gesture={panGesture}>
-                                <View style={styles.dragHandleArea}>
-                                    <View style={[styles.dragHandle, { backgroundColor: theme.colors.surfaceRipple }]} />
-                                </View>
-                            </GestureDetector>
-
-                            {/* Modal Header */}
-                            <View style={[styles.header, { borderBottomColor: theme.colors.surfaceRipple }]}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.toolName}>
-                                        {AGENT_TOOLS.has(tool.name)
-                                            ? (tool.input?.subagent_type || tool.name)
-                                            : tool.name}
-                                    </Text>
-                                    {AGENT_TOOLS.has(tool.name) && tool.input?.description && typeof tool.input.description === 'string' && (
-                                        <Text style={styles.toolSubtitle} numberOfLines={1}>
-                                            {tool.input.description}
-                                        </Text>
-                                    )}
-                                </View>
-                                <Pressable onPress={handleClose} hitSlop={8}>
-                                    <Ionicons name="close" size={24} color={theme.colors.text} />
-                                </Pressable>
-                            </View>
-
                             {/* Content — route by tool type */}
                             {/* Permission-aware routing — rich content tools get specialized views */}
                             {(() => {
@@ -308,30 +280,15 @@ const styles = StyleSheet.create((theme) => ({
         shadowRadius: 12,
         elevation: 8,
     },
-    dragHandleArea: {
-        paddingVertical: 12,
+    closeButton: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        justifyContent: 'center',
         alignItems: 'center',
-    },
-    dragHandle: {
-        width: 40,
-        height: 4,
-        borderRadius: 2,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-    },
-    toolName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: theme.colors.text,
-    },
-    toolSubtitle: {
-        fontSize: 13,
-        color: theme.colors.textSecondary,
-        marginTop: 2,
+        zIndex: 10,
     },
 }));
