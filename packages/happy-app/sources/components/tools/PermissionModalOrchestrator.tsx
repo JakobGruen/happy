@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View } from 'react-native';
 import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
