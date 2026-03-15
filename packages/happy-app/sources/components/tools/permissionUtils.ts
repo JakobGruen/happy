@@ -3,7 +3,7 @@ import { t } from '@/text';
 /**
  * Derives a human-readable label from a CC permission suggestion.
  * Inspects the shape of the opaque suggestion object to generate contextual labels.
- * Shared between PermissionFooter (inline) and PermissionSheetExpanded (sheet).
+ * Shared between PermissionFooter (inline) and PermissionActionBar (modal).
  */
 export function getSuggestionLabel(suggestion: any): string {
     const destination = suggestion.destination as string | undefined;

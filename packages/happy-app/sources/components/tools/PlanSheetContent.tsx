@@ -11,7 +11,7 @@ interface PlanSheetContentProps {
 
 /**
  * Renders plan markdown inside the permission sheet.
- * Action buttons are handled by the parent PermissionSheetExpanded
+ * Action buttons are handled by the parent PermissionActionBar
  * which renders CC's dynamic suggestion buttons (approve + accept all, etc.).
  */
 export const PlanSheetContent = React.memo<PlanSheetContentProps>(({ permission }) => {
