@@ -31,15 +31,21 @@ export const PermissionBanner = React.memo(() => {
         setModalVisible(false);
     }, [currentPermId]);
 
-    if (!current) return null;
+    // All hooks must be called before any early return to satisfy React rules of hooks
+    const syntheticTool = React.useMemo(
+        () => current ? buildSyntheticToolCall(current) : null,
+        [currentPermId],
+    );
+    const permissionItem = React.useMemo(
+        () => current ? buildPermissionItem(current) : null,
+        [currentPermId],
+    );
+
+    if (!current || !syntheticTool || !permissionItem) return null;
 
     const sessionName = getSessionName(current.session);
     const toolDescription = current.llmSummary ?? current.description ?? current.tool;
     const remaining = queue.length - 1;
-
-    const syntheticTool = React.useMemo(() => buildSyntheticToolCall(current), [currentPermId]);
-    const permissionItem = React.useMemo(() => buildPermissionItem(current), [currentPermId]);
-
     const isAskUserQuestion = current.tool === 'AskUserQuestion';
 
     return (
