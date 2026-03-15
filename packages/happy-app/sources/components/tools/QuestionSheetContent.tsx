@@ -45,8 +45,13 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
 
     const handleTabChange = React.useCallback((tab: number) => {
         form.setActiveTab(tab);
-        setPreviewOptionIndex(0);
     }, [form]);
+
+    // Reset preview to first option whenever the active tab changes,
+    // whether from manual tap or voice bridge.
+    React.useEffect(() => {
+        setPreviewOptionIndex(0);
+    }, [form.activeTab]);
 
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
         return null;
@@ -122,7 +127,7 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
                 )}
                 <Text style={styles.questionText}>{question.question}</Text>
                 {/* Preview pane — only rendered when ≥1 option has preview content */}
-                {previewContent != null && (
+                {previewContent != null && [
                     <Animated.View
                         key={`preview-${previewOptionIndex}`}
                         entering={FadeIn.duration(200)}
@@ -133,7 +138,7 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
                             testID="option-preview-pane"
                         />
                     </Animated.View>
-                )}
+                ]}
                 <View style={styles.optionsContainer}>
                     {question.options.map((option, oIndex) => {
                         const isSelected = selectedOptions.has(oIndex);
