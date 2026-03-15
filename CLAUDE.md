@@ -236,7 +236,8 @@ Tools are displayed with a **minimized 2-line chat bubble** that opens a **slide
   - Detects code by language patterns (uses `SimpleSyntaxHighlighter`)
   - Detects markdown by headers, lists, links, bold/italic markers
   - Falls back to plain text with proper scrolling
-- `detectContentType.ts` — **New** pure utility function exported for reuse
+  - Renders `html` type as plain text (HTML fragments in tool params are rare; full rendering via `OptionPreviewPane`)
+- `detectContentType.ts` — Pure utility function exported for reuse. Detection order: `JSON → HTML → Code → Text`. HTML detected by lowercase opening tag (`/^<[a-z]/`). Extended to support `'html'` type for `OptionPreviewPane`.
 - `ContentPreview.tsx` — 2-line summary (content type badge + first line)
 
 **Modal behavior**:
@@ -286,6 +287,24 @@ Agent/subagent tool calls display as a **single chat bubble** with a 3-tab modal
 - `knownTools.tsx` — Agent bubble shows `subagent_type` as title, `description` as subtitle
 
 **Detailed architecture docs**: `.serena/memories/features/agent-single-bubble-dataflow.md`
+
+### AskUserQuestion — Option Preview Pane
+
+When the `AskUserQuestion` tool sends options with a `preview` field, `QuestionSheetContent` displays a preview pane ABOVE the options list showing the selected option's preview content.
+
+**Components** (`packages/happy-app/sources/components/tools/`):
+- `OptionPreviewPane.tsx` — Smart content renderer: HTML → `WebView` (with injected theme CSS), code → `SimpleSyntaxHighlighter`, text → monospace `Text`
+- `QuestionSheetContent.tsx` — Contains `previewOptionIndex` state + `handleOptionWithPreview` wrapper. Preview pane uses `Animated.View` in a single-element array (`[<Animated.View key=... />]`) so `key` prop triggers remount + `FadeIn.duration(200)` on selection change
+
+**Data model**: `QuestionOption.preview?: string` in `useQuestionFormState.ts`. No wire changes — `preview` already flows through as untyped JSON from Claude's tool call.
+
+**Key behaviors**:
+- Preview shown only when ≥1 option has `preview`
+- First option shown by default; selection updates preview
+- `OTHER_INDEX` selection never updates preview
+- Tab change resets via `useEffect` on `form.activeTab` (handles both manual tap and voice bridge path)
+
+**Animation gotcha**: `key` prop on a single React child is ignored — must wrap `Animated.View` in a single-element array for the key to cause remount and re-trigger `entering`.
 
 ## Code Style (Cross-Package)
 

@@ -30,6 +30,7 @@ Master index of all project memories for quick navigation and understanding.
 - `features/Skill Expansion Messages Handling.md` — Skill content attachment to tool results, chat filtering
 - `features/agent-single-bubble-dataflow.md` — Agent tool call data flow (CLI→wire→app), FIFO dedup, sidechain redirect, pitfalls
 - `features/swipe-gestures-rewrite.md` — Unified SwipeableRow (Gesture.Pan), vanish animations, optimistic reactivation UI
+- `features/askuserquestion-preview-pane.md` — HTML/code/text preview pane above options, FadeIn gotcha (single-element array), voice bridge tab reset
 
 #### UI Components
 - `UI Components/SessionInitPanel.md` — Session initialization panel
@@ -78,7 +79,8 @@ Master index of all project memories for quick navigation and understanding.
 ├── features/
 │   ├── Skill Expansion Messages Handling.md
 │   ├── agent-single-bubble-dataflow.md
-│   └── swipe-gestures-rewrite.md
+│   ├── swipe-gestures-rewrite.md
+│   └── askuserquestion-preview-pane.md
 │
 └── UI Components/
     └── SessionInitPanel.md
@@ -114,6 +116,6 @@ Example: Starting a new UI component redesign?
 
 ## 📞 Last Updated
 
-- **Date**: 2026-03-14
-- **Latest work**: Agent single bubble + swipe gestures rewrite — both merged to main
-- **Status**: All worktree branches merged and cleaned up
+- **Date**: 2026-03-15
+- **Latest work**: AskUserQuestion preview pane — HTML/code/text rendering in QuestionSheetContent
+- **Status**: All changes on main branch

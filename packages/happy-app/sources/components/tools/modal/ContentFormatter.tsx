@@ -24,7 +24,7 @@ export function ContentFormatter({ value, testID }: ContentFormatterProps) {
         <View testID={testID}>
             {type === 'json' && <JsonRenderer value={value} />}
             {type === 'code' && <CodeRenderer content={String(value)} />}
-            {type === 'text' && <TextRenderer content={String(value)} />}
+            {(type === 'text' || type === 'html') && <TextRenderer content={String(value)} />}
         </View>
     );
 }
