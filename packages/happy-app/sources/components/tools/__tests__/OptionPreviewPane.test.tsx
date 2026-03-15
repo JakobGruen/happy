@@ -83,6 +83,9 @@ describe('OptionPreviewPane', () => {
         const output = OptionPreviewPane({ content: 'const x = 5;', testID: 'preview' });
         // Code content uses ScrollView — no WebView
         expect(output.type).toBe(MockScrollView);
+        // The child should be SimpleSyntaxHighlighter (not plain Text)
+        const child = output.props.children;
+        expect(child.type).toBe(MockSyntaxHighlighter);
     });
 
     it('renders plain text for text content', () => {
