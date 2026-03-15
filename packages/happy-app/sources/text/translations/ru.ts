@@ -665,7 +665,7 @@ export const ru: TranslationStructure = {
         permissionTool: ({ tool, description }: { tool: string, description?: string }) => description ? `${tool} · ${description}` : tool,
         permissionQuestion: 'Есть вопрос к вам',
         permissionPlanReview: 'План готов к проверке',
-        morePermissions: ({ count }: { count: number }) => `+${count} ещё`,
+        morePermissions: ({ count }: { count: number }) => `+${count} ещё ожидают`,
         browserAllow: 'Разрешить',
         browserDeny: 'Запретить',
     },

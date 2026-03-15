@@ -677,7 +677,7 @@ export const pl: TranslationStructure = {
         permissionTool: ({ tool, description }: { tool: string, description?: string }) => description ? `${tool} · ${description}` : tool,
         permissionQuestion: 'Ma do ciebie pytanie',
         permissionPlanReview: 'Plan gotowy do przeglądu',
-        morePermissions: ({ count }: { count: number }) => `+${count} więcej`,
+        morePermissions: ({ count }: { count: number }) => `+${count} więcej oczekujących`,
         browserAllow: 'Zezwól',
         browserDeny: 'Odrzuć',
     },
