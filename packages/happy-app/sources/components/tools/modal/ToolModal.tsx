@@ -193,7 +193,10 @@ export const ToolModal = React.memo<ToolModalProps>(
                                 if (DIFF_TOOLS.has(tool.name)) {
                                     return <DiffModalContent tool={tool} />;
                                 }
-                                if (FILE_VIEW_TOOLS.has(tool.name)) {
+                                // Pending permission: Read/Write have no result yet, so FileViewModalContent
+                                // would show "Waiting for result…" — fall through to ToolModalTabs which
+                                // correctly renders INPUT parameters the user needs to review before approving.
+                                if (FILE_VIEW_TOOLS.has(tool.name) && !isPending) {
                                     return <FileViewModalContent tool={tool} />;
                                 }
                                 return <ToolModalTabs tool={tool} hideOutput={hideOutput} />;
