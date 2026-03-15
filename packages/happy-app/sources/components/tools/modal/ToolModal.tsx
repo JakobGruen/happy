@@ -5,11 +5,10 @@ import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withSpring,
-    withTiming,
-    withDecay,
     runOnJS,
     cancelAnimation,
-    SlideInDown,
+    interpolate,
+    Extrapolation,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ToolCall, Message } from '@/sync/typesMessage';
@@ -37,6 +36,8 @@ const MAX_HEIGHT_RATIO = 0.93;
 const DISMISS_VELOCITY = 1200;  // px/s — only checked at release moment, requires active fling
 const SPRING_CONFIG = { damping: 20, stiffness: 200, mass: 0.8 };
 
+const ACTION_BAR_ESTIMATED_HEIGHT = 140;
+
 interface ToolModalProps {
     visible: boolean;
     tool: ToolCall;
@@ -48,12 +49,13 @@ interface ToolModalProps {
     permission?: CurrentSessionPermissionItem | null;
     permissionActions?: UsePermissionActionsResult | null;
     queueCount?: number;
+    sourceRect?: { x: number; y: number; width: number; height: number } | null;
 }
 
 export const ToolModal = React.memo<ToolModalProps>(
-    ({ visible, tool, metadata, messages, onClose, hideOutput, sessionId, permission, permissionActions, queueCount }) => {
+    ({ visible, tool, metadata, messages, onClose, hideOutput, sessionId, permission, permissionActions, queueCount, sourceRect }) => {
         const { theme } = useUnistyles();
-        const { height: screenHeight } = useWindowDimensions();
+        const { width: screenWidth, height: screenHeight } = useWindowDimensions();
         const insets = useSafeAreaInsets();
 
         // Height persistence (global across all tool types)
@@ -66,23 +68,54 @@ export const ToolModal = React.memo<ToolModalProps>(
         const modalHeight = useSharedValue(initialHeight);
         const heightAtStart = useSharedValue(initialHeight);
 
-        // Reset animations when modal opens
+        // Expand/collapse animation progress (0 = at bubble, 1 = fully expanded)
+        const progress = useSharedValue(0);
+
+        // Internal visibility keeps Modal mounted during close animation
+        const [internalVisible, setInternalVisible] = React.useState(false);
+        const isClosingRef = useRef(false);
+
+        // Stable ref for onClose callback
+        const handleCloseRef = useRef(onClose);
+        handleCloseRef.current = onClose;
+
+        const actualClose = React.useCallback(() => {
+            isClosingRef.current = false;
+            setInternalVisible(false);
+            handleCloseRef.current();
+        }, []);
+
+        // Open: set internal visible immediately, animate in
         useEffect(() => {
             if (visible) {
+                isClosingRef.current = false;
                 cancelAnimation(translateY);
                 cancelAnimation(modalHeight);
                 translateY.value = 0;
                 modalHeight.value = (savedHeightRatio || DEFAULT_HEIGHT_RATIO) * screenHeight;
+                setInternalVisible(true);
             }
         }, [visible, screenHeight, savedHeightRatio]);
 
-        // Stable ref for dismiss callback from gesture worklet
-        const handleCloseRef = useRef(onClose);
-        handleCloseRef.current = onClose;
+        // Animate progress when internalVisible changes
+        useEffect(() => {
+            if (internalVisible) {
+                cancelAnimation(progress);
+                progress.value = 0;
+                progress.value = withSpring(1, SPRING_CONFIG);
+            }
+        }, [internalVisible]);
 
-        const handleCloseFromGesture = () => {
-            handleCloseRef.current();
-        };
+        // Close with animation
+        const handleClose = React.useCallback(() => {
+            if (isClosingRef.current) return;
+            isClosingRef.current = true;
+            progress.value = withSpring(0, SPRING_CONFIG, (finished) => {
+                if (finished) {
+                    runOnJS(actualClose)();
+                }
+            });
+        }, [actualClose]);
 
         // Pan gesture for drag-to-resize and drag-to-dismiss
         const panGesture = useMemo(() => Gesture.Pan()
@@ -99,55 +132,87 @@ export const ToolModal = React.memo<ToolModalProps>(
             })
             .onEnd((e) => {
                 if (e.velocityY > DISMISS_VELOCITY) {
-                    // Fast fling → dismiss with velocity-driven animation
-                    translateY.value = withDecay({ velocity: e.velocityY, clamp: [0, screenHeight] });
-                    // Delay close callback to let animation complete
-                    runOnJS(() => {
-                        setTimeout(handleCloseFromGesture, 400);
-                    })();
+                    // Fast fling → collapse back to bubble
+                    progress.value = withSpring(0, SPRING_CONFIG, (finished) => {
+                        if (finished) runOnJS(actualClose)();
+                    });
                 } else {
                     // Slow drag → persist new height (no spring-back)
                     const finalRatio = modalHeight.value / screenHeight;
                     runOnJS(setToolModalHeight)(finalRatio);
                 }
-            }), [screenHeight]);
+            }), [screenHeight, actualClose]);
 
         const hasActionBar = !!(permission && permissionActions);
 
-        const animatedStyle = useAnimatedStyle(() => ({
-            transform: [{ translateY: translateY.value }],
-            height: modalHeight.value,
+        // Expand-from-bubble animated style
+        const expandStyle = useAnimatedStyle(() => {
+            const finalX = 12; // marginHorizontal
+            const finalWidth = screenWidth - 24;
+            const finalHeight = modalHeight.value;
+            const bottomMargin = hasActionBar ? ACTION_BAR_ESTIMATED_HEIGHT : insets.bottom + 8;
+            const finalY = screenHeight - finalHeight - bottomMargin;
+
+            if (!sourceRect) {
+                // Fallback: slide up from bottom
+                const fallbackY = interpolate(progress.value, [0, 1], [screenHeight, finalY]);
+                return {
+                    position: 'absolute' as const,
+                    left: finalX,
+                    top: fallbackY + translateY.value,
+                    width: finalWidth,
+                    height: finalHeight,
+                    borderRadius: 16,
+                };
+            }
+
+            const p = progress.value;
+            return {
+                position: 'absolute' as const,
+                left: interpolate(p, [0, 1], [sourceRect.x, finalX]),
+                top: interpolate(p, [0, 1], [sourceRect.y, finalY]) + translateY.value,
+                width: interpolate(p, [0, 1], [sourceRect.width, finalWidth]),
+                height: interpolate(p, [0, 1], [sourceRect.height, finalHeight]),
+                borderRadius: interpolate(p, [0, 1], [8, 16]),
+            };
+        });
+
+        // Backdrop fade animation
+        const backdropStyle = useAnimatedStyle(() => ({
+            opacity: interpolate(progress.value, [0, 1], [0, 0.4]),
+        }));
+
+        // Content fade-in (unreadable at small scale)
+        const contentOpacity = useAnimatedStyle(() => ({
+            opacity: interpolate(progress.value, [0.3, 0.7], [0, 1], Extrapolation.CLAMP),
         }));
 
         return (
             <Modal
-                visible={visible}
+                visible={internalVisible}
                 transparent={true}
                 animationType="none"
-                onRequestClose={onClose}
+                onRequestClose={handleClose}
             >
                 <GestureHandlerRootView style={{ flex: 1 }}>
-                    {/* Full-screen flex container positioned with card at bottom */}
-                    <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-                        {/* Backdrop overlay — absolutely positioned, full-screen */}
-                        <Pressable
-                            style={styles.backdrop}
-                            onPress={onClose}
-                        />
+                    {/* Backdrop overlay — animated opacity */}
+                    <Animated.View style={[styles.backdrop, backdropStyle]}>
+                        <Pressable style={{ flex: 1 }} onPress={handleClose} />
+                    </Animated.View>
 
-                        {/* Floating card — bottom-justified with margins */}
-                        <Animated.View
-                            testID="tool-modal-card"
-                            entering={SlideInDown.springify().damping(20).stiffness(200)}
-                            style={[
-                                animatedStyle,
-                                styles.card,
-                                {
-                                    backgroundColor: theme.colors.surfaceHigh,
-                                    marginBottom: hasActionBar ? 0 : insets.bottom + 8,
-                                },
-                            ]}
-                        >
+                    {/* Floating card — expands from bubble position */}
+                    <Animated.View
+                        testID="tool-modal-card"
+                        style={[
+                            expandStyle,
+                            styles.card,
+                            {
+                                backgroundColor: theme.colors.surfaceHigh,
+                            },
+                        ]}
+                    >
+                        {/* Content fades in as card expands */}
+                        <Animated.View style={[{ flex: 1 }, contentOpacity]}>
                             {/* Drag Handle wrapped in GestureDetector */}
                             <GestureDetector gesture={panGesture}>
                                 <View style={styles.dragHandleArea}>
@@ -169,7 +234,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                                         </Text>
                                     )}
                                 </View>
-                                <Pressable onPress={onClose} hitSlop={8}>
+                                <Pressable onPress={handleClose} hitSlop={8}>
                                     <Ionicons name="close" size={24} color={theme.colors.text} />
                                 </Pressable>
                             </View>
@@ -194,7 +259,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                                     return <DiffModalContent tool={tool} />;
                                 }
                                 // Pending permission: Read/Write have no result yet, so FileViewModalContent
-                                // would show "Waiting for result…" — fall through to ToolModalTabs which
+                                // would show "Waiting for result..." — fall through to ToolModalTabs which
                                 // correctly renders INPUT parameters the user needs to review before approving.
                                 if (FILE_VIEW_TOOLS.has(tool.name) && !isPending) {
                                     return <FileViewModalContent tool={tool} />;
@@ -202,20 +267,20 @@ export const ToolModal = React.memo<ToolModalProps>(
                                 return <ToolModalTabs tool={tool} hideOutput={hideOutput} />;
                             })()}
                         </Animated.View>
+                    </Animated.View>
 
-                        {/* Permission Action Bar — separate floating card below */}
-                        {hasActionBar && (
-                            <View style={{ marginBottom: insets.bottom + 8 }}>
-                                <PermissionActionBar
-                                    actions={permissionActions!}
-                                    llmSummary={permission!.llmSummary}
-                                    queueCount={queueCount ?? 0}
-                                    suggestions={permission!.permissionSuggestions}
-                                    toolName={tool.name}
-                                />
-                            </View>
-                        )}
-                    </View>
+                    {/* Permission Action Bar — separate floating card below */}
+                    {hasActionBar && (
+                        <View style={{ position: 'absolute', bottom: insets.bottom + 8, left: 0, right: 0 }}>
+                            <PermissionActionBar
+                                actions={permissionActions!}
+                                llmSummary={permission!.llmSummary}
+                                queueCount={queueCount ?? 0}
+                                suggestions={permission!.permissionSuggestions}
+                                toolName={tool.name}
+                            />
+                        </View>
+                    )}
                 </GestureHandlerRootView>
             </Modal>
         );
@@ -229,11 +294,9 @@ const styles = StyleSheet.create((theme) => ({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        backgroundColor: 'rgb(0, 0, 0)',
     },
     card: {
-        marginHorizontal: 12,
-        borderRadius: 16,
         overflow: 'hidden',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 0 },
