@@ -208,6 +208,7 @@ export const ToolModal = React.memo<ToolModalProps>(
                                     llmSummary={permission!.llmSummary}
                                     queueCount={queueCount ?? 0}
                                     suggestions={permission!.permissionSuggestions}
+                                    toolName={tool.name}
                                 />
                             </View>
                         )}

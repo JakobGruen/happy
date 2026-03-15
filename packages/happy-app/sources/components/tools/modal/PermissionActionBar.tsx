@@ -12,6 +12,7 @@ interface PermissionActionBarProps {
     llmSummary: string | null;
     queueCount: number;
     suggestions: any[] | null;
+    toolName?: string;
 }
 
 /**
@@ -24,6 +25,7 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
     llmSummary,
     queueCount,
     suggestions,
+    toolName,
 }) => {
     const { theme } = useUnistyles();
     const [showFeedback, setShowFeedback] = useState(false);
@@ -113,6 +115,37 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
                         )}
                     </TouchableOpacity>
                 ))}
+
+                {/* Legacy fallback buttons — only when no CC suggestions */}
+                {!hasSuggestions && (
+                    ['Edit', 'Write', 'MultiEdit'].includes(toolName ?? '') ? (
+                        <TouchableOpacity
+                            style={styles.suggestionButton}
+                            onPress={actions.handleApproveAllEdits}
+                            disabled={isDisabled}
+                            activeOpacity={0.7}
+                        >
+                            {actions.loadingKey === 'all-edits' ? (
+                                <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.buttonText}>{t('claude.permissions.yesAllowAllEdits')}</Text>
+                            )}
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.suggestionButton}
+                            onPress={actions.handleApproveForSession}
+                            disabled={isDisabled}
+                            activeOpacity={0.7}
+                        >
+                            {actions.loadingKey === 'for-session' ? (
+                                <ActivityIndicator size={Platform.OS === 'ios' ? 'small' : 14 as any} color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.buttonText}>{t('claude.permissions.yesForTool')}</Text>
+                            )}
+                        </TouchableOpacity>
+                    )
+                )}
 
                 {/* Deny */}
                 <TouchableOpacity
