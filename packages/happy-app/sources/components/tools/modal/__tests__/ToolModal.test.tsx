@@ -45,6 +45,10 @@ vi.mock('react-native', () => ({
     SafeAreaView,
 }));
 
+vi.mock('@/components/layout', () => ({
+    layout: { maxWidth: 375, headerMaxWidth: 375 },
+}));
+
 vi.mock('react-native-unistyles', () => ({
     StyleSheet: {
         create: (fn: any) => {
