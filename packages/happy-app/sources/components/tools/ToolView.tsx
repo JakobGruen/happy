@@ -1,27 +1,24 @@
 import * as React from 'react';
-import { Text, View, TouchableOpacity, Pressable, ActivityIndicator, Platform } from 'react-native';
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { Ionicons, Octicons } from '@expo/vector-icons';
-import { getToolViewComponent } from './views/_all';
+import { View, Text } from 'react-native';
+import { StyleSheet } from 'react-native-unistyles';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { Message, ToolCall } from '@/sync/typesMessage';
-import { CodeView } from '../CodeView';
-import { ToolSectionView } from './ToolSectionView';
-import { useElapsedTime } from '@/hooks/useElapsedTime';
-import { ToolError } from './ToolError';
-import { knownTools } from '@/components/tools/knownTools';
 import { Metadata } from '@/sync/storageTypes';
-import { useRouter } from 'expo-router';
+import { knownTools } from '@/components/tools/knownTools';
 import { PermissionFooter } from './PermissionFooter';
 import { PermissionActionBar } from './modal/PermissionActionBar';
-import { parseToolUseError } from '@/utils/toolErrorParser';
-import { formatMCPTitle } from './views/MCPToolView';
-import { t } from '@/text';
-
 import { ToolModal } from './modal/ToolModal';
-import { ContentPreview } from './modal/ContentPreview';
+import { ToolBubbleHeader } from './modal/ToolBubbleHeader';
 import { usePermissionActions } from '@/hooks/usePermissionActions';
 import { useCurrentSessionPermissions, CurrentSessionPermissionItem } from '@/hooks/useCurrentSessionPermissions';
 import { registerPermissionModalOpen, registerPermissionModalClose } from './permissionModalRegistry';
+
+interface Rect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
 
 interface ToolViewProps {
     metadata: Metadata | null;
@@ -34,15 +31,13 @@ interface ToolViewProps {
 
 export const ToolView = React.memo<ToolViewProps>((props) => {
     const { tool, onPress, sessionId, messageId } = props;
-    const router = useRouter();
-    const { theme } = useUnistyles();
 
     // Modal state for full content view
     const [isModalVisible, setIsModalVisible] = React.useState(false);
 
     // Measure bubble position for expand-from-bubble animation
-    const containerRef = React.useRef<View>(null);
-    const sourceRectRef = React.useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+    const containerRef = useAnimatedRef<Animated.View>();
+    const sourceRectRef = React.useRef<{ header: Rect; permBar: Rect | null } | null>(null);
 
     // Permission state
     const isPending = tool.permission?.status === 'pending';
@@ -58,6 +53,10 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
     // Queue count from session permissions
     const { queueCount } = useCurrentSessionPermissions(sessionId ?? '');
+
+    // Pre-measure inline heights for split animation
+    const [headerHeight, setHeaderHeight] = React.useState(0);
+    const [permissionBarHeight, setPermissionBarHeight] = React.useState(0);
 
     // Map tool.permission to CurrentSessionPermissionItem for ToolModal
     const permissionItem: CurrentSessionPermissionItem | null = React.useMemo(() => {
@@ -94,192 +93,61 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         setIsModalVisible(false);
     }, []);
 
-    // Open modal on header press — measure bubble position first
+    // Stable refs for measured heights (available synchronously in measureInWindow callback)
+    const headerHeightRef = React.useRef(headerHeight);
+    headerHeightRef.current = headerHeight;
+    const permBarHeightRef = React.useRef(permissionBarHeight);
+    permBarHeightRef.current = permissionBarHeight;
+
+    const hasInlineActionBar = isPending && sessionId &&
+        tool.name !== 'AskUserQuestion' && tool.name !== 'ExitPlanMode' && tool.name !== 'exit_plan_mode' &&
+        props.metadata?.flavor !== 'codex';
+
+    // Open modal on header press — measure bubble, then split into header + permBar rects
     const handlePress = React.useCallback(() => {
         if (containerRef.current) {
             containerRef.current.measureInWindow((x, y, width, height) => {
-                sourceRectRef.current = { x, y, width, height };
+                const hH = headerHeightRef.current;
+                const pH = permBarHeightRef.current;
+
+                const headerRect: Rect = { x, y, width, height: hH || height };
+
+                // Only provide permBar rect if we have the inline action bar with a measured height
+                const permBarRect: Rect | null = (hasInlineActionBar && pH > 0)
+                    ? { x, y: y + (hH || height), width, height: pH }
+                    : null;
+
+                sourceRectRef.current = { header: headerRect, permBar: permBarRect };
                 setIsModalVisible(true);
             });
         } else {
             setIsModalVisible(true);
         }
-    }, []);
-
-    // Always make header pressable to open modal
-    const isPressable = true;
-
-    let knownTool = knownTools[tool.name as keyof typeof knownTools] as any;
+    }, [hasInlineActionBar]);
 
     // Internal Claude Code tools (e.g. ToolSearch) are completely hidden from the UI
+    const knownTool = knownTools[tool.name as keyof typeof knownTools] as any;
     if (knownTool?.hidden) {
         return null;
-    }
-
-    let description: string | null = null;
-    let status: string | null = null;
-    let minimal = false;
-    let icon = <Ionicons name="construct-outline" size={18} color={theme.colors.textSecondary} />;
-    let noStatus = false;
-    let hideDefaultError = false;
-    
-    // For Gemini: unknown tools should be rendered as minimal (hidden)
-    // This prevents showing raw INPUT/OUTPUT for internal Gemini tools
-    // that we haven't explicitly added to knownTools
-    const isGemini = props.metadata?.flavor === 'gemini';
-    if (!knownTool && isGemini) {
-        minimal = true;
-    }
-
-    // Extract status first to potentially use as title
-    if (knownTool && typeof knownTool.extractStatus === 'function') {
-        const state = knownTool.extractStatus({ tool, metadata: props.metadata });
-        if (typeof state === 'string' && state) {
-            status = state;
-        }
-    }
-
-    // Handle optional title and function type
-    let toolTitle = tool.name;
-    
-    // Special handling for MCP tools — compact summary with key params
-    if (tool.name.startsWith('mcp__')) {
-        toolTitle = formatMCPTitle(tool.name);
-        icon = <Ionicons name="extension-puzzle-outline" size={18} color={theme.colors.text} />;
-        // Extract 1-2 key string params as inline subtitle
-        if (tool.input && typeof tool.input === 'object') {
-            const stringParams = Object.entries(tool.input)
-                .filter(([_, v]) => typeof v === 'string' && (v as string).length > 0)
-                .slice(0, 2);
-            if (stringParams.length > 0) {
-                description = stringParams
-                    .map(([k, v]) => {
-                        const val = String(v);
-                        const truncated = val.length > 30 ? val.substring(0, 30) + '…' : val;
-                        return `${k}=${truncated}`;
-                    })
-                    .join('  ');
-            }
-        }
-    } else if (knownTool?.title) {
-        if (typeof knownTool.title === 'function') {
-            toolTitle = knownTool.title({ tool, metadata: props.metadata });
-        } else {
-            toolTitle = knownTool.title;
-        }
-    }
-
-    if (knownTool && typeof knownTool.extractSubtitle === 'function') {
-        const subtitle = knownTool.extractSubtitle({ tool, metadata: props.metadata });
-        if (typeof subtitle === 'string' && subtitle) {
-            description = subtitle;
-        }
-    }
-    if (knownTool && knownTool.minimal !== undefined) {
-        if (typeof knownTool.minimal === 'function') {
-            minimal = knownTool.minimal({ tool, metadata: props.metadata, messages: props.messages });
-        } else {
-            minimal = knownTool.minimal;
-        }
-    }
-    
-    // Special handling for CodexBash to determine icon based on parsed_cmd
-    if (tool.name === 'CodexBash' && tool.input?.parsed_cmd && Array.isArray(tool.input.parsed_cmd) && tool.input.parsed_cmd.length > 0) {
-        const parsedCmd = tool.input.parsed_cmd[0];
-        if (parsedCmd.type === 'read') {
-            icon = <Octicons name="eye" size={18} color={theme.colors.text} />;
-        } else if (parsedCmd.type === 'write') {
-            icon = <Octicons name="file-diff" size={18} color={theme.colors.text} />;
-        } else {
-            icon = <Octicons name="terminal" size={18} color={theme.colors.text} />;
-        }
-    } else if (knownTool && typeof knownTool.icon === 'function') {
-        icon = knownTool.icon(18, theme.colors.text);
-    }
-    
-    if (knownTool && typeof knownTool.noStatus === 'boolean') {
-        noStatus = knownTool.noStatus;
-    }
-    if (knownTool && typeof knownTool.hideDefaultError === 'boolean') {
-        hideDefaultError = knownTool.hideDefaultError;
-    }
-
-    let statusIcon = null;
-
-    let isToolUseError = false;
-    if (tool.state === 'error' && tool.result && parseToolUseError(tool.result).isToolUseError) {
-        isToolUseError = true;
-        console.log('isToolUseError', tool.result);
-    }
-
-    // Check permission status first for denied/canceled states
-    if (tool.permission && (tool.permission.status === 'denied' || tool.permission.status === 'canceled')) {
-        statusIcon = <Ionicons name="remove-circle-outline" size={20} color={theme.colors.textSecondary} />;
-    } else if (isToolUseError) {
-        statusIcon = <Ionicons name="remove-circle-outline" size={20} color={theme.colors.textSecondary} />;
-        hideDefaultError = true;
-        minimal = true;
-    } else {
-        switch (tool.state) {
-            case 'running':
-                if (!noStatus) {
-                    statusIcon = <ActivityIndicator size="small" color={theme.colors.text} style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }} />;
-                }
-                break;
-            case 'completed':
-                // if (!noStatus) {
-                //     statusIcon = <Ionicons name="checkmark-circle" size={20} color="#34C759" />;
-                // }
-                break;
-            case 'error':
-                statusIcon = <Ionicons name="alert-circle-outline" size={20} color={theme.colors.warning} />;
-                break;
-        }
     }
 
     // Collapse post-approval/denial tools to minimal header line for Claude sessions
     // This matches CC terminal behavior where completed tools show as a single line
     const isCodex = props.metadata?.flavor === 'codex';
     const isClaude = !isCodex && props.metadata?.flavor !== 'gemini';
-    if (isClaude && tool.permission && tool.permission.status !== 'pending' && tool.state !== 'running') {
-        minimal = true;
-    }
-
-    const headerContent = (
-        <View style={styles.headerLeft}>
-            <View style={styles.iconContainer}>
-                {icon}
-            </View>
-            <View style={styles.titleContainer}>
-                <Text style={styles.toolName} numberOfLines={1}>{toolTitle}{status ? <Text style={styles.status}>{` ${status}`}</Text> : null}</Text>
-                {description && (
-                    <Text style={styles.toolDescription} numberOfLines={1}>
-                        {description}
-                    </Text>
-                )}
-            </View>
-            {tool.state === 'running' && (
-                <View style={styles.elapsedContainer}>
-                    <ElapsedView from={tool.createdAt} />
-                </View>
-            )}
-            {statusIcon}
-        </View>
-    );
+    const shouldCollapseToMinimal = isClaude && !!tool.permission && tool.permission.status !== 'pending' && tool.state !== 'running';
 
     return (
-        <View ref={containerRef} style={[styles.container, isPending && styles.pendingBorder, isModalVisible && { opacity: 0 }]}>
-            <View style={styles.header}>
-                {isPressable ? (
-                    <TouchableOpacity style={styles.headerMain} onPress={handlePress} activeOpacity={0.8}>
-                        {headerContent}
-                    </TouchableOpacity>
-                ) : (
-                    <View style={styles.headerMain}>
-                        {headerContent}
-                    </View>
-                )}
-
+        <Animated.View ref={containerRef} style={[styles.container, isPending && styles.pendingBorder, isModalVisible && { opacity: 0 }]}>
+            <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
+                <ToolBubbleHeader
+                    tool={tool}
+                    metadata={props.metadata}
+                    messages={props.messages}
+                    expanded={shouldCollapseToMinimal}
+                    onPress={handlePress}
+                    isPending={isPending}
+                />
             </View>
 
             {/* Deny feedback — shown when user denied with a reason */}
@@ -303,13 +171,6 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 </View>
             )}
 
-            {/* 2-Line Preview (static, always visible) */}
-            {!minimal && (
-                <View style={styles.previewContainer}>
-                    <ContentPreview tool={tool} />
-                </View>
-            )}
-
             {/* Modal (opens on preview tap or auto-opened for permissions) */}
             <ToolModal
                 visible={isModalVisible}
@@ -319,37 +180,36 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 onClose={handleModalClose}
                 hideOutput={isPending}
                 permission={permissionItem}
-                permissionActions={isPending && tool.name !== 'AskUserQuestion' ? permissionActions : null}
+                permissionActions={isPending && tool.name !== 'AskUserQuestion' && tool.name !== 'ExitPlanMode' && tool.name !== 'exit_plan_mode' ? permissionActions : null}
                 queueCount={queueCount}
                 sessionId={sessionId}
-                sourceRect={sourceRectRef.current}
+                sourceRects={sourceRectRef.current}
+                bubbleRef={containerRef}
+                permissionBarHeight={permissionBarHeight}
             />
 
             {/* Inline permission action bar for Claude sessions */}
-            {tool.permission?.status === 'pending' && sessionId && tool.name !== 'AskUserQuestion' && !isCodex && (
-                <PermissionActionBar
-                    inline
-                    actions={permissionActions}
-                    llmSummary={permissionItem?.llmSummary ?? null}
-                    queueCount={queueCount}
-                    suggestions={permissionItem?.permissionSuggestions ?? null}
-                    toolName={tool.name}
-                />
+            {hasInlineActionBar && (
+                <View onLayout={(e) => setPermissionBarHeight(e.nativeEvent.layout.height)}>
+                    <PermissionActionBar
+                        inline
+                        containerStyle={{ borderTopWidth: 0 }}
+                        actions={permissionActions}
+                        llmSummary={permissionItem?.llmSummary ?? null}
+                        queueCount={queueCount}
+                        suggestions={permissionItem?.permissionSuggestions ?? null}
+                        toolName={tool.name}
+                    />
+                </View>
             )}
 
             {/* Codex permission footer fallback */}
             {tool.permission?.status === 'pending' && sessionId && isCodex && (
                 <PermissionFooter permission={tool.permission} sessionId={sessionId} toolName={tool.name} toolInput={tool.input} metadata={props.metadata} />
             )}
-        </View>
+        </Animated.View>
     );
 });
-
-function ElapsedView(props: { from: number }) {
-    const { from } = props;
-    const elapsed = useElapsedTime(from);
-    return <Text style={styles.elapsedText}>{elapsed.toFixed(1)}s</Text>;
-}
 
 const styles = StyleSheet.create((theme) => ({
     container: {
@@ -357,65 +217,10 @@ const styles = StyleSheet.create((theme) => ({
         borderRadius: 8,
         marginVertical: 4,
         overflow: 'hidden',
-        borderWidth: 1.5,
-        borderColor: 'transparent',
     },
     pendingBorder: {
+        borderWidth: 1.5,
         borderColor: theme.colors.box.warning.border,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 12,
-        backgroundColor: theme.colors.surfaceHighest,
-    },
-    headerMain: {
-        flex: 1,
-    },
-
-    headerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        flex: 1,
-    },
-    iconContainer: {
-        width: 24,
-        height: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    titleContainer: {
-        flex: 1,
-    },
-    elapsedContainer: {
-        marginLeft: 8,
-    },
-    elapsedText: {
-        fontSize: 13,
-        color: theme.colors.textSecondary,
-        fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
-    },
-    toolName: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: theme.colors.text,
-    },
-    status: {
-        fontWeight: '400',
-        opacity: 0.3,
-        fontSize: 15,
-    },
-    toolDescription: {
-        fontSize: 13,
-        color: theme.colors.textSecondary,
-        marginTop: 2,
-    },
-    previewContainer: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderTopWidth: 1,
-        borderTopColor: theme.colors.surfaceRipple,
     },
     denyReasonContainer: {
         paddingHorizontal: 12,
