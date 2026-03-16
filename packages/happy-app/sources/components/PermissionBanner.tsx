@@ -173,7 +173,7 @@ const BannerModal = React.memo<{
     );
 });
 
-const styles = StyleSheet.create((theme) => ({
+const styles = StyleSheet.create((theme, runtime) => ({
     container: {
         position: 'absolute',
         top: 0,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create((theme) => ({
         right: 0,
         zIndex: 100,
         paddingHorizontal: 12,
-        paddingTop: 8,
+        paddingTop: runtime.insets.top + 8,
     },
     banner: {
         flexDirection: 'row',
