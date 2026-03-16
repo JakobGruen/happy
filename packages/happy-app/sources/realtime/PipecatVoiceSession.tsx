@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { registerGlobals } from '@livekit/react-native-webrtc';
+import { registerGlobals } from '@daily-co/react-native-webrtc';
 import { registerVoiceSession } from './RealtimeSession';
 import { realtimeClientTools } from './realtimeClientTools';
 import { SimpleMediaManager } from './PipecatMediaManager';
