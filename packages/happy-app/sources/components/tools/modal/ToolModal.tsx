@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo } from 'react';
-import { Modal, Pressable, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, useWindowDimensions, Platform, Keyboard } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import Animated, {
     useSharedValue,
@@ -106,6 +106,20 @@ export const ToolModal = React.memo<ToolModalProps>(
         // Permission card (bottom half) source position
         const permBarY = useSharedValue(0);
         const permBarH = useSharedValue(0);
+
+        // Keyboard height — shrinks card when keyboard is visible (for AskUserQuestion inputs)
+        const keyboardHeight = useSharedValue(0);
+        useEffect(() => {
+            const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+            const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+            const showSub = Keyboard.addListener(showEvent, (e) => {
+                keyboardHeight.value = e.endCoordinates.height;
+            });
+            const hideSub = Keyboard.addListener(hideEvent, () => {
+                keyboardHeight.value = 0;
+            });
+            return () => { showSub.remove(); hideSub.remove(); };
+        }, []);
 
         // Internal visibility keeps Modal mounted during close animation
         const [internalVisible, setInternalVisible] = React.useState(false);
@@ -242,7 +256,9 @@ export const ToolModal = React.memo<ToolModalProps>(
         // During animation, uses `top` with estimated height for smooth interpolation.
         const permissionCardStyle = useAnimatedStyle(() => {
             const { left: finalX, width: finalWidth } = getInputBoxAlignment(screenWidth);
-            const finalBottom = INPUT_BOX_TOTAL_HEIGHT + insets.bottom;
+            const kb = keyboardHeight.value;
+            // When keyboard is visible, position above keyboard instead of above input box
+            const finalBottom = kb > 0 ? kb + 8 : INPUT_BOX_TOTAL_HEIGHT + insets.bottom;
 
             const p = progress.value;
             const hasSource = permBarH.value > 0;
@@ -289,13 +305,20 @@ export const ToolModal = React.memo<ToolModalProps>(
         });
 
         // Detail card (top half) — expands from header-only height to full modal
+        // When keyboard is visible, card shrinks to fit above it
         const expandStyle = useAnimatedStyle(() => {
             const { left: finalX, width: finalWidth } = getInputBoxAlignment(screenWidth);
-            const finalHeight = modalHeight.value;
+            const kb = keyboardHeight.value;
             const bottomMargin = hasActionBar
                 ? (INPUT_BOX_TOTAL_HEIGHT + insets.bottom) + measuredPermHeight.value + GAP_BETWEEN_CARDS
                 : INPUT_BOX_TOTAL_HEIGHT + insets.bottom;
-            const finalY = screenHeight - finalHeight - bottomMargin;
+            // When keyboard is visible, bottom margin is keyboard height (replaces insets/input box)
+            const effectiveBottomMargin = kb > 0 ? kb + 8 : bottomMargin;
+            const maxHeight = screenHeight - effectiveBottomMargin - insets.top - 8;
+            const finalHeight = kb > 0
+                ? Math.min(modalHeight.value, maxHeight)
+                : modalHeight.value;
+            const finalY = screenHeight - finalHeight - effectiveBottomMargin;
 
             const hasTarget = headerW.value > 0;
             if (!hasTarget) {

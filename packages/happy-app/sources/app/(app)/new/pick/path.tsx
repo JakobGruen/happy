@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, Platform } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { ItemGroup } from '@/components/ItemGroup';
@@ -11,6 +11,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { layout } from '@/components/layout';
 import { t } from '@/text';
 import { MultiTextInput, MultiTextInputHandle } from '@/components/MultiTextInput';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -198,7 +199,10 @@ export default function PathPickerScreen() {
                     )
                 }}
             />
-            <View style={styles.container}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.container}
+            >
                 <ScrollView
                     style={styles.scrollContainer}
                     contentContainerStyle={styles.scrollContent}
@@ -295,7 +299,7 @@ export default function PathPickerScreen() {
                         )}
                     </View>
                 </ScrollView>
-            </View>
+            </KeyboardAvoidingView>
         </>
     );
 }
