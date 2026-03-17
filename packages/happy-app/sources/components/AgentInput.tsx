@@ -74,6 +74,8 @@ interface AgentInputProps {
     currentPath?: string | null;
     onPathClick?: () => void;
     isSendDisabled?: boolean;
+    activeView?: 'chat' | 'log';
+    onViewChange?: (view: 'chat' | 'log') => void;
     isSending?: boolean;
     minHeight?: number;
     profileId?: string | null;
@@ -903,6 +905,52 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 </Text>
                             )}
                         </View>
+                        {props.activeView && props.onViewChange && (
+                            <View style={{
+                                flexDirection: 'row',
+                                borderRadius: 8,
+                                padding: 2,
+                                gap: 1,
+                                backgroundColor: theme.colors.surfaceHighest,
+                            }}>
+                                <Pressable
+                                    style={{
+                                        paddingVertical: 3,
+                                        paddingHorizontal: 14,
+                                        borderRadius: 6,
+                                        ...(props.activeView === 'chat' ? { backgroundColor: theme.colors.surfacePressed } : {}),
+                                    }}
+                                    onPress={() => props.onViewChange?.('chat')}
+                                >
+                                    <Text style={{
+                                        fontSize: 12,
+                                        fontWeight: '500',
+                                        color: props.activeView === 'chat' ? theme.colors.text : theme.colors.textSecondary,
+                                        ...Typography.default('semiBold'),
+                                    }}>
+                                        Chat
+                                    </Text>
+                                </Pressable>
+                                <Pressable
+                                    style={{
+                                        paddingVertical: 3,
+                                        paddingHorizontal: 14,
+                                        borderRadius: 6,
+                                        ...(props.activeView === 'log' ? { backgroundColor: theme.colors.surfacePressed } : {}),
+                                    }}
+                                    onPress={() => props.onViewChange?.('log')}
+                                >
+                                    <Text style={{
+                                        fontSize: 12,
+                                        fontWeight: '500',
+                                        color: props.activeView === 'log' ? theme.colors.text : theme.colors.textSecondary,
+                                        ...Typography.default('semiBold'),
+                                    }}>
+                                        Log
+                                    </Text>
+                                </Pressable>
+                            </View>
+                        )}
                         <View style={{
                             flexDirection: 'column',
                             alignItems: 'flex-end',

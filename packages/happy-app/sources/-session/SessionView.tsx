@@ -43,7 +43,6 @@ import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnistyles } from 'react-native-unistyles';
 import type { ModelMode, PermissionMode } from '@/components/PermissionModeSelector';
-import { SessionStatusBar, type SessionViewMode } from '@/components/SessionStatusBar';
 import { LogStepList } from '@/components/LogStepList';
 
 export const SessionView = React.memo((props: { id: string }) => {
@@ -172,7 +171,7 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const [message, setMessage] = React.useState('');
-    const [activeView, setActiveView] = React.useState<SessionViewMode>('chat');
+    const [activeView, setActiveView] = React.useState<'chat' | 'log'>('chat');
     const realtimeStatus = useRealtimeStatus();
     const { messages, isLoaded } = useSessionMessages(sessionId);
     const acknowledgedCliVersions = useLocalSetting('acknowledgedCliVersions');
@@ -386,13 +385,6 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
 
     const input = (
         <>
-            <SessionStatusBar
-                isConnected={session.presence === 'online'}
-                activeView={activeView}
-                onViewChange={setActiveView}
-                modelName={modelMode?.name ?? null}
-                modeName={permissionMode?.name ?? null}
-            />
             {/* Reactivation banner — in-flow above input when session is archived */}
             {canReactivate && (
                 <View style={{
@@ -443,6 +435,8 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                 onModelModeChange={updateModelMode}
                 metadata={session.metadata}
                 isSendDisabled={!session.active}
+                activeView={activeView}
+                onViewChange={setActiveView}
                 connectionStatus={{
                     text: sessionStatus.statusText,
                     color: sessionStatus.statusColor,
