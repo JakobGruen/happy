@@ -213,6 +213,22 @@ The agent should be called whenever new user-facing text is introduced to the co
 - `sources/auth/AuthContext.tsx` - Authentication state management
 - `sources/app/_layout.tsx` - Root navigation structure
 
+### Session View — Chat/Log Toggle
+
+`SessionView` has an `activeView: 'chat' | 'log'` state (in `SessionViewLoaded`) that switches the main content area between two modes:
+
+- **Chat mode** (default): renders `ChatList` — full message feed including user bubbles
+- **Log mode**: renders `LogStepList` — timeline of `session.metadata.logSteps` entries
+
+The toggle pill lives in `AgentInput`'s status row (via `activeView`/`onViewChange` props), centered absolutely between the left status dot and right model/mode labels.
+
+Key files:
+- `sources/-session/SessionView.tsx` — `activeView` state, conditional `ChatList` vs `LogStepList`
+- `sources/components/LogStepList.tsx` — numbered timeline, stats row, auto-scroll on new entries
+- `sources/components/AgentInput.tsx` — Chat/Log pill toggle in status row
+
+Data source: `logSteps` comes from `session.metadata.logSteps` (a `Record<string, {title, summary, stats?, createdAt}>`), written by the CLI's `mcp__happy__log_step` tool via `happyMcpIpc.ts`.
+
 ### Session Initialization UI Pattern
 
 The app uses a card-based launch pad UI for session initialization (`SessionInitPanel` + `SessionInitCard` components). This pattern provides:
