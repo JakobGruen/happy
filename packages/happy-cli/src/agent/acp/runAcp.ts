@@ -17,7 +17,7 @@ import { createSessionMetadata } from '@/utils/createSessionMetadata';
 import { setupOfflineReconnection } from '@/utils/setupOfflineReconnection';
 import { notifyDaemonSessionStarted } from '@/daemon/controlClient';
 import { registerKillSessionHandler } from '@/claude/registerKillSessionHandler';
-import { startHappyServer } from '@/claude/utils/startHappyServer';
+import { startHappyMcpIpc } from '@/claude/utils/happyMcpIpc';
 import { projectPath } from '@/projectPath';
 import { BasePermissionHandler, type PermissionResult } from '@/utils/BasePermissionHandler';
 import { connectionState } from '@/utils/serverConnectionErrors';
@@ -518,11 +518,11 @@ export async function runAcp(opts: {
   let sawModes = false;
   let sawModels = false;
 
-  const happyServer = await startHappyServer(session);
+  const happyIpc = await startHappyMcpIpc(session, { value: 0 });
   const mcpServers = {
     happy: {
       command: join(projectPath(), 'bin', 'happy-mcp.mjs'),
-      args: ['--url', happyServer.url],
+      env: { HAPPY_MCP_SOCKET: happyIpc.socketPath },
     },
   };
 
@@ -942,9 +942,9 @@ export async function runAcp(opts: {
     await backend.dispose();
 
     try {
-      happyServer.stop();
+      happyIpc.stop();
     } catch (error) {
-      logger.debug(`[${opts.agentName}] Failed to stop Happy MCP server:`, error);
+      logger.debug(`[${opts.agentName}] Failed to stop Happy MCP IPC server:`, error);
     }
 
     try {

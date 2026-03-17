@@ -5,7 +5,7 @@ import { logger } from "@/ui/logger";
 import { notifyDaemonSessionActivity } from "@/daemon/controlClient";
 import type { JsRuntime } from "./runClaude";
 import type { SandboxConfig } from "@/persistence";
-import type { TurnCounterRef } from './utils/startHappyServer';
+import type { TurnCounterRef } from './utils/happyMcpIpc';
 
 export class Session {
     readonly path: string;

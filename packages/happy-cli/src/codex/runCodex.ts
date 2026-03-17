@@ -19,7 +19,7 @@ import { projectPath } from '@/projectPath';
 import { resolve, join } from 'node:path';
 import { createSessionMetadata } from '@/utils/createSessionMetadata';
 import fs from 'node:fs';
-import { startHappyServer } from '@/claude/utils/startHappyServer';
+import { startHappyMcpIpc } from '@/claude/utils/happyMcpIpc';
 import { MessageBuffer } from "@/ui/ink/messageBuffer";
 import { CodexDisplay } from "@/ui/ink/CodexDisplay";
 import { trimIdent } from "@/utils/trimIdent";
@@ -310,7 +310,7 @@ export async function runCodex(opts: {
             stopCaffeinate();
 
             // Stop Happy MCP server
-            happyServer.stop();
+            happyIpc.stop();
 
             logger.debug('[Codex] Session termination complete, exiting');
             process.exit(0);
@@ -524,13 +524,12 @@ export async function runCodex(opts: {
         }
     });
 
-    // Start Happy MCP server (HTTP) and prepare STDIO bridge config for Codex
-    const happyServer = await startHappyServer(session);
-    const bridgeCommand = join(projectPath(), 'bin', 'happy-mcp.mjs');
+    // Start Happy MCP IPC server (UDS) and prepare stdio config for Codex
+    const happyIpc = await startHappyMcpIpc(session, { value: 0 });
     const mcpServers = {
         happy: {
-            command: bridgeCommand,
-            args: ['--url', happyServer.url]
+            command: join(projectPath(), 'bin', 'happy-mcp.mjs'),
+            env: { HAPPY_MCP_SOCKET: happyIpc.socketPath },
         }
     } as const;
     let first = true;
@@ -731,8 +730,8 @@ export async function runCodex(opts: {
         await client.forceCloseSession();
         logger.debug('[codex]: client.forceCloseSession done');
         // Stop Happy MCP server
-        logger.debug('[codex]: happyServer.stop');
-        happyServer.stop();
+        logger.debug('[codex]: happyIpc.stop');
+        happyIpc.stop();
 
         // Clean up ink UI
         if (process.stdin.isTTY) {

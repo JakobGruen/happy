@@ -98,8 +98,8 @@ vi.mock('@/claude/registerKillSessionHandler', () => ({
   registerKillSessionHandler: mocks.mockKillRegister,
 }));
 
-vi.mock('@/claude/utils/startHappyServer', () => ({
-  startHappyServer: mocks.mockStartHappyServer,
+vi.mock('@/claude/utils/happyMcpIpc', () => ({
+  startHappyMcpIpc: mocks.mockStartHappyServer,
 }));
 
 vi.mock('@/projectPath', () => ({
@@ -216,7 +216,8 @@ describe('runAcp', () => {
       isOffline: false,
     }));
     mocks.mockStartHappyServer.mockResolvedValue({
-      url: 'http://127.0.0.1:9876',
+      socketPath: '/tmp/happy-mcp-test.sock',
+      toolNames: ['change_title', 'turn_summary'],
       stop: vi.fn(),
     });
   });

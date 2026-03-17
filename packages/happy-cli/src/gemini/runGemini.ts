@@ -23,7 +23,7 @@ import { MessageQueue2 } from '@/utils/MessageQueue2';
 import { extractTextFromContent, type UserContent } from '@/api/types';
 import { hashObject } from '@/utils/deterministicJson';
 import { projectPath } from '@/projectPath';
-import { startHappyServer } from '@/claude/utils/startHappyServer';
+import { startHappyMcpIpc } from '@/claude/utils/happyMcpIpc';
 import { MessageBuffer } from '@/ui/ink/messageBuffer';
 import { notifyDaemonSessionStarted } from '@/daemon/controlClient';
 import { registerKillSessionHandler } from '@/claude/registerKillSessionHandler';
@@ -388,7 +388,7 @@ export async function runGemini(opts: {
       }
 
       stopCaffeinate();
-      happyServer.stop();
+      happyIpc.stop();
 
       if (geminiBackend) {
         await geminiBackend.dispose();
@@ -494,12 +494,11 @@ export async function runGemini(opts: {
   // Start Happy MCP server and create Gemini backend
   //
 
-  const happyServer = await startHappyServer(session);
-  const bridgeCommand = join(projectPath(), 'bin', 'happy-mcp.mjs');
+  const happyIpc = await startHappyMcpIpc(session, { value: 0 });
   const mcpServers = {
     happy: {
-      command: bridgeCommand,
-      args: ['--url', happyServer.url]
+      command: join(projectPath(), 'bin', 'happy-mcp.mjs'),
+      env: { HAPPY_MCP_SOCKET: happyIpc.socketPath },
     }
   };
 
@@ -1314,7 +1313,7 @@ export async function runGemini(opts: {
       await geminiBackend.dispose();
     }
 
-    happyServer.stop();
+    happyIpc.stop();
 
     if (process.stdin.isTTY) {
       try { process.stdin.setRawMode(false); } catch { /* ignore */ }
