@@ -551,7 +551,7 @@ export const storage = create<StorageState>()((set, get) => {
                         ...state.sessions,
                         [sessionId]: {
                             ...session,
-                            ...(reducerResult.todos !== undefined && { todos: reducerResult.todos }),
+                            ...(reducerResult.todos !== undefined && { todos: Array.isArray(reducerResult.todos) ? reducerResult.todos : undefined }),
                             // Copy latestUsage from reducerState to make it immediately available
                             latestUsage: existingSession.reducerState.latestUsage ? {
                                 ...existingSession.reducerState.latestUsage

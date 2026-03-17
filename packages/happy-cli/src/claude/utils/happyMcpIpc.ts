@@ -102,7 +102,7 @@ export async function startHappyMcpIpc(
                                 ...capped,
                                 [stepKey]: {
                                     title: msg.title,
-                                    summary: msg.summary.replace(/\\n/g, '\n'),
+                                    summary: msg.summary?.replace(/\\n/g, '\n'),
                                     ...(msg.stats ? { stats: msg.stats } : {}),
                                     createdAt: Date.now(),
                                 },

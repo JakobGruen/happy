@@ -110,10 +110,10 @@ export const SwipeablePager = React.memo(function SwipeablePager({
                         animatedStyle,
                     ]}
                 >
-                    <View style={{ width: screenWidth, flex: 0 }}>
+                    <View style={{ width: screenWidth, height: '100%' }}>
                         {leftPage}
                     </View>
-                    <View style={{ width: screenWidth, flex: 0 }}>
+                    <View style={{ width: screenWidth, height: '100%' }}>
                         {rightPage}
                     </View>
                 </Animated.View>
