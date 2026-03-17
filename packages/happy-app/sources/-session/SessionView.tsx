@@ -43,6 +43,8 @@ import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnistyles } from 'react-native-unistyles';
 import type { ModelMode, PermissionMode } from '@/components/PermissionModeSelector';
+import { SessionStatusBar, type SessionViewMode } from '@/components/SessionStatusBar';
+import { LogStepList } from '@/components/LogStepList';
 
 export const SessionView = React.memo((props: { id: string }) => {
     const sessionId = props.id;
@@ -170,6 +172,7 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const [message, setMessage] = React.useState('');
+    const [activeView, setActiveView] = React.useState<SessionViewMode>('chat');
     const realtimeStatus = useRealtimeStatus();
     const { messages, isLoaded } = useSessionMessages(sessionId);
     const acknowledgedCliVersions = useLocalSetting('acknowledgedCliVersions');
@@ -360,14 +363,18 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                     </Text>
                 </View>
             )}
-            <Deferred>
-                {messages.length > 0 && (
-                    <ChatList session={session} />
-                )}
-            </Deferred>
+            {activeView === 'chat' ? (
+                <Deferred>
+                    {messages.length > 0 && (
+                        <ChatList session={session} />
+                    )}
+                </Deferred>
+            ) : (
+                <LogStepList metadata={session.metadata} />
+            )}
         </>
     );
-    const placeholder = messages.length === 0 ? (
+    const placeholder = activeView === 'chat' && messages.length === 0 ? (
         <>
             {isLoaded ? (
                 <EmptyMessages session={session} />
@@ -379,6 +386,13 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
 
     const input = (
         <>
+            <SessionStatusBar
+                isConnected={session.presence === 'online'}
+                activeView={activeView}
+                onViewChange={setActiveView}
+                modelName={modelMode?.name ?? null}
+                modeName={permissionMode?.name ?? null}
+            />
             {/* Reactivation banner — in-flow above input when session is archived */}
             {canReactivate && (
                 <View style={{
