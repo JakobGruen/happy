@@ -4,7 +4,7 @@
 
 **Goal:** Replace Haiku-powered summarization with CC-generated metadata via MCP tools, add structured per-turn summaries, and clean up `llmSummary` from the codebase.
 
-**Architecture:** The Happy MCP server (`startHappyServer.ts`) gets a new `turn_summary` tool. A mutable turn counter ref, created in `runClaude.ts`, is shared between the MCP server and the launcher. The system prompt instructs CC to call both `change_title` and `turn_summary` after every turn. All Haiku summarization code and the `llmSummary` field are removed.
+**Architecture:** The Happy MCP server (`startHappyServer.ts`) gets a new `turn_summary` tool. A mutable turn counter ref, created in `runClaude.ts`, is shared between the MCP server and the launcher via the `Session` class. The counter increments on turn start (when a user message arrives in `nextMessage`), so turn 1 → key `"1"`. The system prompt instructs CC to call both `change_title` and `turn_summary` after every turn. All Haiku summarization code and the `llmSummary` field are removed.
 
 **Tech Stack:** TypeScript, MCP SDK, Zod, Vitest
 
@@ -348,25 +348,39 @@ git commit -m "feat(cli): register turn_summary MCP tool with 50-entry growth ca
 
 ---
 
-### Task 4: Increment turn counter in `onReady`
+### Task 4: Increment turn counter on turn start (`nextMessage`)
 
 **Files:**
-- Modify: `packages/happy-cli/src/claude/claudeRemoteLauncher.ts:545`
+- Modify: `packages/happy-cli/src/claude/claudeRemoteLauncher.ts:478-510`
 
-**Timing invariant:** CC calls `turn_summary` MCP tool DURING its turn (as one of its last tool calls). The MCP handler fires synchronously during message processing, BEFORE `onReady`. So at `turn_summary` call time, the ref holds the current turn's value. `onReady` then increments it for the next turn. Example: turn counter starts at `0`, first turn's `turn_summary` reads key `"0"`, `onReady` increments to `1`, second turn reads `"1"`, etc.
+**Timing:** Increment when a new user message arrives (turn start), not on `onReady` (turn end). This way turn 1 starts → counter becomes `1` → CC calls `turn_summary` with key `"1"`. No off-by-one confusion, no "turn 0". The `nextMessage` callback has two return paths — both should increment.
 
-- [ ] **Step 1: Increment turnCounterRef in onReady**
+- [ ] **Step 1: Increment turnCounterRef in nextMessage**
 
-In `packages/happy-cli/src/claude/claudeRemoteLauncher.ts`, at line 545 (`onReady` callback), add the increment AFTER `closeClaudeSessionTurn`:
+In `packages/happy-cli/src/claude/claudeRemoteLauncher.ts`, in the `nextMessage` callback, add the increment in both return paths. The ref is accessible via `session.turnCounterRef` (added in Task 2).
+
+In the `pending` path (before `return p;` at line 485):
 
 ```typescript
-                    onReady: (stats) => {
-                        session.client.closeClaudeSessionTurn('completed', stats);
-                        // Increment for next turn — CC already called turn_summary during this turn
-                        session.turnCounterRef.value++;
+                        if (pending) {
+                            let p = pending;
+                            pending = null;
+                            permissionHandler.handleModeChange(p.mode.permissionMode);
+                            session.turnCounterRef.value++;
+                            return p;
+                        }
 ```
 
-The ref is accessible via `session.turnCounterRef` (added in Task 2, Step 3).
+In the normal `msg` path (before `return {` at line 502):
+
+```typescript
+                            permissionHandler.handleModeChange(mode.permissionMode);
+                            session.turnCounterRef.value++;
+                            return {
+                                message: msg.message,
+                                mode: msg.mode
+                            }
+```
 
 - [ ] **Step 2: Verify typecheck passes**
 
@@ -377,7 +391,7 @@ Expected: Pass
 
 ```bash
 cd /home/jakob/repos/happy-dev/happy && git add packages/happy-cli/src/claude/claudeRemoteLauncher.ts
-git commit -m "feat(cli): increment turn counter in onReady callback (after CC's turn_summary call)"
+git commit -m "feat(cli): increment turn counter on turn start (nextMessage)"
 ```
 
 ---

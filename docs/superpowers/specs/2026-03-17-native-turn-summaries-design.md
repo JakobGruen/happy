@@ -57,7 +57,7 @@ mcp.registerTool('turn_summary', {
 });
 ```
 
-**Turn numbering:** `startHappyServer` accepts a mutable ref object `{ value: number }` (e.g., `turnCounterRef`). The MCP handler reads `turnCounterRef.value` inside its closure. The counter is incremented in `claudeRemoteLauncher.ts`'s `onReady` callback (same place `closeClaudeSessionTurn` fires). `runClaude.ts` creates the ref, passes it to both `startHappyServer()` and the launcher. CC does not control the turn number — CLI is source of truth.
+**Turn numbering:** `startHappyServer` accepts a mutable ref object `{ value: number }` (e.g., `turnCounterRef`). The MCP handler reads `turnCounterRef.value` inside its closure. The counter is incremented at turn start in `claudeRemoteLauncher.ts`'s `nextMessage` callback (when a user message arrives), so turn 1 gets key `"1"`. `runClaude.ts` creates the ref, passes it to `startHappyServer()` directly, and to the launcher via `Session.turnCounterRef`. CC does not control the turn number — CLI is source of truth.
 
 **Auto-allowed:** `startHappyServer` returns `toolNames: ['change_title', 'turn_summary']`. This array is mapped to `mcp__happy__*` prefixed names in `runClaude.ts` line 539 and passed as `allowedTools`, so neither tool triggers permission prompts.
 
