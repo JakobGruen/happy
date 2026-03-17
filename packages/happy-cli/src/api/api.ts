@@ -204,22 +204,22 @@ export class ApiClient {
    * Returns null on any error — callers should fall back to fresh metadata.
    */
   async fetchSession(sessionId: string): Promise<{ id: string; metadata: string | null } | null> {
-      try {
-          const response = await axios.get<{ session: { id: string; metadata: string | null } }>(
-              `${configuration.serverUrl}/v1/sessions/${sessionId}`,
-              {
-                  headers: {
-                      'Authorization': `Bearer ${this.credential.token}`,
-                  },
-                  timeout: 10000,
-              }
-          );
-          const { id, metadata } = response.data.session;
-          return { id, metadata };
-      } catch (error) {
-          logger.warn(`[API] fetchSession failed for ${sessionId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          return null;
-      }
+    try {
+      const response = await axios.get<{ session: { id: string; metadata: string | null } }>(
+        `${configuration.serverUrl}/v1/sessions/${sessionId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.credential.token}`,
+          },
+          timeout: 10000,
+        }
+      );
+      const { id, metadata } = response.data.session;
+      return { id, metadata };
+    } catch (error) {
+      logger.warn(`[API] fetchSession failed for ${sessionId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return null;
+    }
   }
 
   /**

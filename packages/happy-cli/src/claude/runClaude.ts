@@ -30,6 +30,7 @@ import { Session } from './session';
 import { applySandboxPermissionPolicy, resolveInitialClaudePermissionMode } from './utils/permissionMode';
 import { getClaudeModels, getClaudeOperatingModes, normalizeModelCode } from '@jakobgruen/happy-wire';
 import { storeSessionKey, loadSessionKey } from '@/claude/sessionKeyStore';
+import { decrypt, decodeBase64 } from '@/api/encryption';
 
 /** JavaScript runtime to use for spawning Claude Code */
 export type JsRuntime = 'node' | 'bun'
@@ -113,6 +114,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         logger.debug(`[START] Will attempt to reactivate session ${reactivateSessionId}`);
     }
 
+    let carriedLogSteps: NonNullable<Metadata['logSteps']> | undefined = undefined;
+    let carriedTitle: string | undefined = undefined;
+
     let metadata: Metadata = {
         path: workingDirectory,
         host: os.hostname(),
@@ -160,6 +164,28 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         }
 
         if (reactivationKey) {
+            // Pre-fetch existing metadata to carry forward logSteps and title
+            const existingSession = await api.fetchSession(reactivateSessionId);
+            if (existingSession?.metadata) {
+                try {
+                    const decrypted = decrypt(reactivationKey, reactivationVariant, decodeBase64(existingSession.metadata));
+                    if (decrypted && typeof decrypted === 'object') {
+                        if (decrypted.logSteps && typeof decrypted.logSteps === 'object') {
+                            carriedLogSteps = decrypted.logSteps as NonNullable<Metadata['logSteps']>;
+                            metadata = { ...metadata, logSteps: carriedLogSteps };
+                            logger.debug(`[START] Carried over ${Object.keys(carriedLogSteps).length} logSteps from previous session`);
+                        }
+                        if (typeof decrypted.title === 'string') {
+                            carriedTitle = decrypted.title;
+                            metadata = { ...metadata, title: carriedTitle };
+                            logger.debug(`[START] Carried over title "${carriedTitle}" from previous session`);
+                        }
+                    }
+                } catch (e) {
+                    logger.warn(`[START] Failed to decrypt previous session metadata — logSteps and title will not be carried over: ${e instanceof Error ? e.message : 'Unknown error'}`);
+                }
+            }
+
             response = await api.reactivateSession({
                 sessionId: reactivateSessionId,
                 encryptionKey: reactivationKey,
@@ -266,7 +292,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     const session = api.sessionSyncClient(response);
 
     // Start Happy MCP IPC server (Unix domain socket)
-    const happyIpc = await startHappyMcpIpc(session);
+    const happyIpc = await startHappyMcpIpc(session, { initialLogSteps: carriedLogSteps });
     logger.debug(`[START] Happy MCP IPC ready at ${happyIpc.socketPath}`);
 
     // Variable to track current session instance (updated via onSessionReady callback)
