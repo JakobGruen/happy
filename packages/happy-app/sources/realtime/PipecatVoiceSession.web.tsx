@@ -113,6 +113,15 @@ async function createPipecatClient(config: VoiceSessionConfig): Promise<PipecatC
                         console.error('[Pipecat] Failed to send initial context:', err);
                     }
                 }
+
+                // Send initial session state after context
+                if (config.initialState && pcClient) {
+                    try {
+                        pcClient.sendClientMessage('happy.state', { text: config.initialState });
+                    } catch (err) {
+                        console.error('[Pipecat] Failed to send initial state:', err);
+                    }
+                }
             },
             onDisconnected: () => {
                 console.log('[Pipecat] Disconnected');

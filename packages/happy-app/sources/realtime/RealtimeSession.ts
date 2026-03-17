@@ -10,7 +10,7 @@ let voiceSession: VoiceSession | null = null;
 let voiceSessionStarted: boolean = false;
 let currentSessionId: string | null = null;
 
-export async function startRealtimeSession(sessionId: string, initialContext?: string) {
+export async function startRealtimeSession(sessionId: string, initialContext?: string, initialState?: string) {
     if (!voiceSession) {
         console.warn('No voice session registered');
         return;
@@ -55,6 +55,7 @@ export async function startRealtimeSession(sessionId: string, initialContext?: s
         await voiceSession.startSession({
             sessionId,
             initialContext,
+            initialState,
             pipecatUrl: offerUrl,
         });
     } catch (error) {

@@ -1,6 +1,7 @@
 export interface VoiceSessionConfig {
     sessionId: string;
     initialContext?: string;
+    initialState?: string;
     pipecatUrl?: string;
 }
 

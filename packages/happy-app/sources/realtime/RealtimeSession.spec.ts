@@ -74,6 +74,7 @@ function createMockVoiceSession(): VoiceSession {
         sendTextMessage: vi.fn(),
         sendContextualUpdate: vi.fn(),
         sendTrigger: vi.fn(),
+        sendState: vi.fn(),
     };
 }
 

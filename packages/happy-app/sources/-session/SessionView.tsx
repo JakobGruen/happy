@@ -18,8 +18,9 @@ import { VoiceAssistantStatusBar } from '@/components/VoiceAssistantStatusBar';
 import { useDraft } from '@/hooks/useDraft';
 import { useImageAttachment } from '@/hooks/useImageAttachment';
 import { Modal } from '@/modal';
-import { voiceHooks } from '@/realtime/hooks/voiceHooks';
+import { voiceHooks, sendSessionState } from '@/realtime/hooks/voiceHooks';
 import { startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
+import { buildSessionState } from '@/realtime/hooks/voiceState';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { sessionAbort } from '@/sync/ops';
 import { storage, useIsDataReady, useLocalSetting, useRealtimeStatus, useSessionMessages, useSessionUsage, useSetting } from '@/sync/storage';
@@ -292,7 +293,8 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         if (realtimeStatus === 'disconnected' || realtimeStatus === 'error') {
             try {
                 const initialPrompt = voiceHooks.onVoiceStarted(sessionId);
-                await startRealtimeSession(sessionId, initialPrompt);
+                const initialState = session ? JSON.stringify(buildSessionState(session)) : undefined;
+                await startRealtimeSession(sessionId, initialPrompt, initialState);
                 tracking?.capture('voice_session_started', { sessionId });
             } catch (error) {
                 console.error('Failed to start realtime session:', error);
@@ -324,6 +326,19 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         // Initialize git status sync for this session
         gitStatusSync.getSync(sessionId);
     }, [sessionId, realtimeStatus]);
+
+    // Send session state to voice agent when metadata changes
+    React.useEffect(() => {
+        if (!session?.metadata) return;
+        if (realtimeStatus !== 'connected') return;
+        sendSessionState(session);
+    }, [
+        session?.metadata?.currentModelCode,
+        session?.metadata?.currentOperatingModeCode,
+        session?.metadata?.autoApproveTools,
+        session?.autoApproveTools,
+        realtimeStatus,
+    ]);
 
     const summaryText = session.metadata?.summary?.text;
 
