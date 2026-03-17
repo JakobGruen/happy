@@ -194,7 +194,7 @@ const styles = StyleSheet.create((theme) => ({
         marginTop: 4,
     },
     statText: {
-        fontSize: 13,
+        fontSize: 12,
     },
     emptyContainer: {
         flex: 1,
