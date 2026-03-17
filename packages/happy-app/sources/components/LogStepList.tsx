@@ -30,7 +30,13 @@ function formatRelativeTime(timestamp: number): string {
     return t('logSteps.daysAgo', { count: Math.floor(diffHours / 24) });
 }
 
-const LogStepItem = React.memo(function LogStepItem({ step }: { step: LogStep }) {
+const LogStepItem = React.memo(function LogStepItem({
+    step,
+    isLast,
+}: {
+    step: LogStep;
+    isLast: boolean;
+}) {
     const { theme } = useUnistyles();
 
     const summaryLines = step.summary
@@ -40,34 +46,56 @@ const LogStepItem = React.memo(function LogStepItem({ step }: { step: LogStep })
 
     return (
         <View style={styles.turnGroup}>
-            <View style={styles.turnHeader}>
-                <View style={[styles.turnNumber, { backgroundColor: theme.colors.surfaceHighest }]}>
-                    <Text style={[styles.turnNumberText, { color: theme.colors.textSecondary }]}>
-                        {step.key}
-                    </Text>
+            <View style={styles.turnRow}>
+                {/* Timeline column: number + vertical line */}
+                <View style={styles.timelineCol}>
+                    <View style={[styles.turnNumber, { backgroundColor: theme.colors.surfaceHighest }]}>
+                        <Text style={[styles.turnNumberText, { color: theme.colors.textSecondary }]}>
+                            {step.key}
+                        </Text>
+                    </View>
+                    {!isLast && (
+                        <View
+                            style={[
+                                styles.timelineLine,
+                                { backgroundColor: theme.colors.surfaceHighest },
+                            ]}
+                        />
+                    )}
                 </View>
-                <Text style={[styles.turnTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                    {step.title}
-                </Text>
-                <Text style={[styles.turnTime, { color: theme.colors.textSecondary }]}>
-                    {formatRelativeTime(step.createdAt)}
-                </Text>
-            </View>
 
-            {summaryLines.length > 0 && (
-                <View style={styles.turnSummary}>
-                    {summaryLines.map((line, i) => (
-                        <View key={i} style={styles.bulletRow}>
-                            <View style={[styles.bulletDot, { backgroundColor: theme.colors.textSecondary }]} />
-                            <Text style={[styles.bulletText, { color: theme.colors.textSecondary }]}>
-                                {line}
-                            </Text>
+                {/* Content column */}
+                <View style={styles.contentCol}>
+                    <View style={styles.turnHeader}>
+                        <Text style={[styles.turnTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                            {step.title}
+                        </Text>
+                        <Text style={[styles.turnTime, { color: theme.colors.textSecondary }]}>
+                            {formatRelativeTime(step.createdAt)}
+                        </Text>
+                    </View>
+
+                    {summaryLines.length > 0 && (
+                        <View style={styles.turnSummary}>
+                            {summaryLines.map((line, i) => (
+                                <View key={i} style={styles.bulletRow}>
+                                    <View
+                                        style={[
+                                            styles.bulletDot,
+                                            { backgroundColor: theme.colors.textSecondary },
+                                        ]}
+                                    />
+                                    <Text style={[styles.bulletText, { color: theme.colors.textSecondary }]}>
+                                        {line}
+                                    </Text>
+                                </View>
+                            ))}
                         </View>
-                    ))}
-                </View>
-            )}
+                    )}
 
-            {step.stats && <StatsRow stats={step.stats} />}
+                    {step.stats && <StatsRow stats={step.stats} />}
+                </View>
+            </View>
         </View>
     );
 });
@@ -125,38 +153,57 @@ export const LogStepList = React.memo(function LogStepList({ metadata }: LogStep
             ref={listRef}
             data={steps}
             keyExtractor={(item) => item.key}
-            renderItem={({ item }) => <LogStepItem step={item} />}
+            renderItem={({ item, index }) => (
+                <LogStepItem step={item} isLast={index === steps.length - 1} />
+            )}
             contentContainerStyle={styles.listContent}
             keyboardShouldPersistTaps="handled"
         />
     );
 });
 
+const CIRCLE_SIZE = 32;
+
 const styles = StyleSheet.create((theme) => ({
     listContent: {
         padding: 16,
-        gap: 2,
     },
-    turnGroup: {
-        marginBottom: 8,
-    },
-    turnHeader: {
+    turnGroup: {},
+    turnRow: {
         flexDirection: 'row',
+    },
+    timelineCol: {
+        width: CIRCLE_SIZE,
         alignItems: 'center',
-        gap: 8,
-        paddingVertical: 4,
+        marginRight: 12,
     },
     turnNumber: {
-        width: 22,
-        height: 22,
-        borderRadius: 11,
+        width: CIRCLE_SIZE,
+        height: CIRCLE_SIZE,
+        borderRadius: CIRCLE_SIZE / 2,
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
     },
     turnNumberText: {
-        fontSize: 10,
-        fontWeight: '600',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    timelineLine: {
+        width: 2,
+        flex: 1,
+        marginVertical: 4,
+        borderRadius: 1,
+    },
+    contentCol: {
+        flex: 1,
+        paddingBottom: 16,
+    },
+    turnHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        minHeight: CIRCLE_SIZE,
     },
     turnTitle: {
         fontSize: 16,
@@ -167,7 +214,7 @@ const styles = StyleSheet.create((theme) => ({
         fontSize: 12,
     },
     turnSummary: {
-        paddingLeft: 30,
+        marginTop: 4,
         gap: 2,
     },
     bulletRow: {
@@ -190,7 +237,6 @@ const styles = StyleSheet.create((theme) => ({
     statsRow: {
         flexDirection: 'row',
         gap: 12,
-        paddingLeft: 30,
         marginTop: 4,
     },
     statText: {
