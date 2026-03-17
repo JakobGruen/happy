@@ -17,7 +17,7 @@ import { getEnvironmentInfo } from '@/ui/doctor';
 import { configuration } from '@/configuration';
 import { notifyDaemonSessionStarted } from '@/daemon/controlClient';
 import { initialMachineMetadata } from '@/daemon/run';
-import { startHappyMcpIpc, type TurnCounterRef } from '@/claude/utils/happyMcpIpc';
+import { startHappyMcpIpc } from '@/claude/utils/happyMcpIpc';
 import { startHookServer } from '@/claude/utils/startHookServer';
 import { generateHookSettingsFile, cleanupHookSettingsFile } from '@/claude/utils/generateHookSettings';
 import { registerKillSessionHandler } from './registerKillSessionHandler';
@@ -265,11 +265,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     // Create realtime session
     const session = api.sessionSyncClient(response);
 
-    // Mutable ref for turn counter — shared between MCP server and launcher
-    const turnCounterRef: TurnCounterRef = { value: 0 };
-
     // Start Happy MCP IPC server (Unix domain socket)
-    const happyIpc = await startHappyMcpIpc(session, turnCounterRef);
+    const happyIpc = await startHappyMcpIpc(session);
     logger.debug(`[START] Happy MCP IPC ready at ${happyIpc.socketPath}`);
 
     // Variable to track current session instance (updated via onSessionReady callback)
@@ -572,7 +569,6 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         sandboxConfig,
         hookSettingsPath,
         jsRuntime: options.jsRuntime,
-        turnCounterRef,
     });
 
     // Cleanup session resources (intervals, callbacks) - prevents memory leak
