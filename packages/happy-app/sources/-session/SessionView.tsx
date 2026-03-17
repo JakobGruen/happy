@@ -293,6 +293,7 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         if (realtimeStatus === 'disconnected' || realtimeStatus === 'error') {
             try {
                 const initialPrompt = voiceHooks.onVoiceStarted(sessionId);
+                // session intentionally omitted from deps — metadata change effect sends correct state immediately after connect
                 const initialState = session ? JSON.stringify(buildSessionState(session)) : undefined;
                 await startRealtimeSession(sessionId, initialPrompt, initialState);
                 tracking?.capture('voice_session_started', { sessionId });

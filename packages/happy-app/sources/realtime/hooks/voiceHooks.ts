@@ -93,7 +93,7 @@ function sendTrigger(trigger: { type: string; [key: string]: any }) {
 export function sendSessionState(session: Pick<Session, 'id' | 'metadata' | 'autoApproveTools'>) {
     const voice = getVoiceSession();
     if (!voice) return;
-    const state = buildSessionState(session as Session);
+    const state = buildSessionState(session);
     voice.sendState(JSON.stringify(state));
 }
 

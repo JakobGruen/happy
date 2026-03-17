@@ -7,7 +7,7 @@ export interface VoiceSessionState {
     autoApproveTools: boolean;
 }
 
-export function buildSessionState(session: Session): VoiceSessionState {
+export function buildSessionState(session: Pick<Session, 'id' | 'metadata' | 'autoApproveTools'>): VoiceSessionState {
     return {
         sessionId: session.id,
         model: session.metadata?.currentModelCode ?? 'sonnet',
