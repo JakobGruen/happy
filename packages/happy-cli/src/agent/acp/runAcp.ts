@@ -518,7 +518,7 @@ export async function runAcp(opts: {
   let sawModes = false;
   let sawModels = false;
 
-  const happyIpc = await startHappyMcpIpc(session, { value: 0 });
+  const happyIpc = await startHappyMcpIpc(session);
   const mcpServers = {
     happy: {
       command: join(projectPath(), 'bin', 'happy-mcp.mjs'),

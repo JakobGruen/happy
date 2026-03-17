@@ -525,7 +525,7 @@ export async function runCodex(opts: {
     });
 
     // Start Happy MCP IPC server (UDS) and prepare stdio config for Codex
-    const happyIpc = await startHappyMcpIpc(session, { value: 0 });
+    const happyIpc = await startHappyMcpIpc(session);
     const mcpServers = {
         happy: {
             command: join(projectPath(), 'bin', 'happy-mcp.mjs'),

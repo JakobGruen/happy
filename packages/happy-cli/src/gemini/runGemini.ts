@@ -494,7 +494,7 @@ export async function runGemini(opts: {
   // Start Happy MCP server and create Gemini backend
   //
 
-  const happyIpc = await startHappyMcpIpc(session, { value: 0 });
+  const happyIpc = await startHappyMcpIpc(session);
   const mcpServers = {
     happy: {
       command: join(projectPath(), 'bin', 'happy-mcp.mjs'),

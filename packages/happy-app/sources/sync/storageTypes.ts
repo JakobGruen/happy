@@ -32,9 +32,18 @@ export const MetadataSchema = z.object({
         text: z.string(),
         updatedAt: z.number()
     }).optional(),
-    turnSummaries: z.record(z.string(), z.object({
+    logSteps: z.record(z.string(), z.object({
         title: z.string(),
         summary: z.string(),
+        stats: z.object({
+            linesAdded: z.number().optional(),
+            linesRemoved: z.number().optional(),
+            filesChanged: z.number().optional(),
+            filesDeleted: z.number().optional(),
+            filesCreated: z.number().optional(),
+            testsPassed: z.number().optional(),
+            testsFailed: z.number().optional(),
+        }).optional(),
         createdAt: z.number(),
     })).optional(),
     machineId: z.string().optional(),

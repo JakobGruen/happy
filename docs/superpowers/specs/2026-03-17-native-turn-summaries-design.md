@@ -1,7 +1,11 @@
 # Native Turn Summaries — Replace Haiku with CC-Generated Metadata
 
+> **Note (2026-03-17):** The `turn_summary` tool was renamed to `log_step` and decoupled from turn numbering.
+> CC now calls it per logical step (not per turn), with optional structured `stats`.
+> See `docs/plans/2026-03-17-log-step-refactor.md` for the refactor plan.
+
 **Date:** 2026-03-17
-**Status:** Approved
+**Status:** Superseded
 **Scope:** happy-cli, happy-app, happy-wire (minor)
 
 ## Summary

@@ -217,7 +217,7 @@ describe('runAcp', () => {
     }));
     mocks.mockStartHappyServer.mockResolvedValue({
       socketPath: '/tmp/happy-mcp-test.sock',
-      toolNames: ['change_title', 'turn_summary'],
+      toolNames: ['change_title', 'log_step'],
       stop: vi.fn(),
     });
   });
