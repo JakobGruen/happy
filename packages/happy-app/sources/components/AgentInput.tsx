@@ -343,7 +343,7 @@ const ViewTogglePill = React.memo(function ViewTogglePill({
                 translateX: interpolate(offsetSV.value, [0, 1], [0, itemWidth + 1]),
             }],
         };
-    });
+    }, [offsetSV, pillWidth]);
 
     // Static fallback when no pageOffset (backward compat)
     const chatBgStyle = !pageOffset && activeView === 'chat'
@@ -359,14 +359,14 @@ const ViewTogglePill = React.memo(function ViewTogglePill({
             return { color: activeView === 'chat' ? activeColor : inactiveColor };
         }
         return { color: interpolateColor(offsetSV.value, [0, 1], [activeColor, inactiveColor]) };
-    });
+    }, [offsetSV, activeView, activeColor, inactiveColor]);
 
     const logTextStyle = useAnimatedStyle(() => {
         if (!offsetSV) {
             return { color: activeView === 'log' ? activeColor : inactiveColor };
         }
         return { color: interpolateColor(offsetSV.value, [0, 1], [inactiveColor, activeColor]) };
-    });
+    }, [offsetSV, activeView, activeColor, inactiveColor]);
 
     return (
         <View
