@@ -1,6 +1,13 @@
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import * as React from 'react';
-import { View, Platform, useWindowDimensions, ViewStyle, Text, ActivityIndicator, TouchableWithoutFeedback, Image as RNImage, Pressable, Switch } from 'react-native';
+import { View, Platform, useWindowDimensions, ViewStyle, Text, ActivityIndicator, TouchableWithoutFeedback, Image as RNImage, Pressable, Switch, LayoutChangeEvent } from 'react-native';
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    interpolate,
+    interpolateColor,
+    type SharedValue,
+} from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { layout } from './layout';
 import { MultiTextInput, KeyPressEvent } from './MultiTextInput';
@@ -76,6 +83,7 @@ interface AgentInputProps {
     isSendDisabled?: boolean;
     activeView?: 'chat' | 'log';
     onViewChange?: (view: 'chat' | 'log') => void;
+    pageOffset?: SharedValue<number>;
     isSending?: boolean;
     minHeight?: number;
     profileId?: string | null;
@@ -302,6 +310,114 @@ const getContextWarning = (contextSize: number, alwaysShow: boolean = false, the
     }
     return null; // No display needed
 };
+
+interface ViewTogglePillProps {
+    activeView: 'chat' | 'log';
+    onViewChange: (view: 'chat' | 'log') => void;
+    pageOffset?: SharedValue<number>;
+}
+
+const ViewTogglePill = React.memo(function ViewTogglePill({
+    activeView,
+    onViewChange,
+    pageOffset,
+}: ViewTogglePillProps) {
+    const { theme } = useUnistyles();
+    const pillWidth = useSharedValue(0);
+
+    const activeColor = theme.colors.text;
+    const inactiveColor = theme.colors.textSecondary;
+    const surfacePressedColor = theme.colors.surfacePressed;
+
+    // Capture for worklets — avoids conditional .value access inside worklet
+    const offsetSV = pageOffset;
+
+    // Sliding background indicator
+    const indicatorStyle = useAnimatedStyle(() => {
+        if (!offsetSV || pillWidth.value === 0) return { opacity: 0, width: 0 };
+        const itemWidth = (pillWidth.value - 5) / 2; // total - 2*padding(2) - 1 gap
+        return {
+            opacity: 1,
+            width: itemWidth,
+            transform: [{
+                translateX: interpolate(offsetSV.value, [0, 1], [0, itemWidth + 1]),
+            }],
+        };
+    });
+
+    // Static fallback when no pageOffset (backward compat)
+    const chatBgStyle = !pageOffset && activeView === 'chat'
+        ? { backgroundColor: theme.colors.surfacePressed }
+        : {};
+    const logBgStyle = !pageOffset && activeView === 'log'
+        ? { backgroundColor: theme.colors.surfacePressed }
+        : {};
+
+    // Animated text colors
+    const chatTextStyle = useAnimatedStyle(() => {
+        if (!offsetSV) {
+            return { color: activeView === 'chat' ? activeColor : inactiveColor };
+        }
+        return { color: interpolateColor(offsetSV.value, [0, 1], [activeColor, inactiveColor]) };
+    });
+
+    const logTextStyle = useAnimatedStyle(() => {
+        if (!offsetSV) {
+            return { color: activeView === 'log' ? activeColor : inactiveColor };
+        }
+        return { color: interpolateColor(offsetSV.value, [0, 1], [inactiveColor, activeColor]) };
+    });
+
+    return (
+        <View
+            style={{
+                flexDirection: 'row',
+                borderRadius: 8,
+                padding: 2,
+                gap: 1,
+                backgroundColor: theme.colors.surfaceHighest,
+                overflow: 'hidden',
+            }}
+            onLayout={(e: LayoutChangeEvent) => { pillWidth.value = e.nativeEvent.layout.width; }}
+        >
+            {/* Animated sliding background — only when pageOffset provided */}
+            {pageOffset && (
+                <Animated.View
+                    style={[{
+                        position: 'absolute',
+                        left: 2,
+                        top: 2,
+                        bottom: 2,
+                        borderRadius: 6,
+                        backgroundColor: surfacePressedColor,
+                    }, indicatorStyle]}
+                />
+            )}
+            <Pressable
+                style={[{ paddingVertical: 3, paddingHorizontal: 14, borderRadius: 6 }, chatBgStyle]}
+                onPress={() => onViewChange('chat')}
+            >
+                <Animated.Text style={[{
+                    fontSize: 12,
+                    ...Typography.default('semiBold'),
+                }, chatTextStyle]}>
+                    {t('agentInput.viewToggle.chat')}
+                </Animated.Text>
+            </Pressable>
+            <Pressable
+                style={[{ paddingVertical: 3, paddingHorizontal: 14, borderRadius: 6 }, logBgStyle]}
+                onPress={() => onViewChange('log')}
+            >
+                <Animated.Text style={[{
+                    fontSize: 12,
+                    ...Typography.default('semiBold'),
+                }, logTextStyle]}>
+                    {t('agentInput.viewToggle.log')}
+                </Animated.Text>
+            </Pressable>
+        </View>
+    );
+});
 
 export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, AgentInputProps>((props, ref) => {
     const styles = stylesheet;
@@ -913,50 +1029,11 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 alignItems: 'center',
                                 pointerEvents: 'box-none',
                             }}>
-                            <View style={{
-                                flexDirection: 'row',
-                                borderRadius: 8,
-                                padding: 2,
-                                gap: 1,
-                                backgroundColor: theme.colors.surfaceHighest,
-                            }}>
-                                <Pressable
-                                    style={{
-                                        paddingVertical: 3,
-                                        paddingHorizontal: 14,
-                                        borderRadius: 6,
-                                        ...(props.activeView === 'chat' ? { backgroundColor: theme.colors.surfacePressed } : {}),
-                                    }}
-                                    onPress={() => props.onViewChange?.('chat')}
-                                >
-                                    <Text style={{
-                                        fontSize: 12,
-                                        fontWeight: '500',
-                                        color: props.activeView === 'chat' ? theme.colors.text : theme.colors.textSecondary,
-                                        ...Typography.default('semiBold'),
-                                    }}>
-                                        {t('agentInput.viewToggle.chat')}
-                                    </Text>
-                                </Pressable>
-                                <Pressable
-                                    style={{
-                                        paddingVertical: 3,
-                                        paddingHorizontal: 14,
-                                        borderRadius: 6,
-                                        ...(props.activeView === 'log' ? { backgroundColor: theme.colors.surfacePressed } : {}),
-                                    }}
-                                    onPress={() => props.onViewChange?.('log')}
-                                >
-                                    <Text style={{
-                                        fontSize: 12,
-                                        fontWeight: '500',
-                                        color: props.activeView === 'log' ? theme.colors.text : theme.colors.textSecondary,
-                                        ...Typography.default('semiBold'),
-                                    }}>
-                                        {t('agentInput.viewToggle.log')}
-                                    </Text>
-                                </Pressable>
-                            </View>
+                                <ViewTogglePill
+                                    activeView={props.activeView}
+                                    onViewChange={props.onViewChange}
+                                    pageOffset={props.pageOffset}
+                                />
                             </View>
                         )}
                         <View style={{
