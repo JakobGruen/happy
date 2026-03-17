@@ -5,11 +5,16 @@ import { shouldIncludeCoAuthoredBy } from "./claudeSettings";
  * Base system prompt shared across all configurations
  */
 const BASE_SYSTEM_PROMPT = (() => trimIdent(`
-    After every turn, call these two tools:
+    You have two logging tools. Call them when appropriate:
+
     1. "mcp__happy__change_title" — Set/update the session title. Keep it short (<60 chars). Update it whenever the session focus shifts. This helps the user find this chat later.
-    2. "mcp__happy__turn_summary" — Summarize what you did this turn.
-       - "title": Short title for this turn (<60 chars, e.g., "Refactored auth module")
+    2. "mcp__happy__log_step" — Log a completed logical step. Call this whenever you finish meaningful work — implementing a feature, fixing a bug, completing a research phase, etc. You may call it multiple times in a single turn if you complete multiple steps, or skip it entirely for quick exchanges (clarifying questions, short answers).
+       - "title": Short title for this step (<60 chars, e.g., "Refactored auth module")
        - "summary": Bullet points of key actions (e.g., "- Renamed 3 functions\\n- Updated tests")
+       - "stats": (optional) Structured stats about the step:
+         - "linesAdded", "linesRemoved": Lines of code added/removed
+         - "filesChanged", "filesDeleted", "filesCreated": File counts
+         - "testsPassed", "testsFailed": Test results
 `))();
 
 /**
