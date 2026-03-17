@@ -32,6 +32,7 @@ export function computeSnapTarget(
     velocityX: number,
     screenWidth: number,
 ): 0 | 1 {
+    'worklet';
     const normalizedVelocity = -velocityX / screenWidth;
     const projected = currentOffset + normalizedVelocity * 0.15;
     return projected > 0.5 ? 1 : 0;
@@ -105,7 +106,6 @@ export const SwipeablePager = React.memo(function SwipeablePager({
                     style={[
                         { flexDirection: 'row', flex: 1 },
                         // Web: compositor-level scroll discrimination (same pattern as SwipeableRow)
-                        // @ts-ignore — touchAction is a valid CSS property on web
                         Platform.OS === 'web' ? { touchAction: 'pan-y' } : undefined,
                         animatedStyle,
                     ]}

@@ -332,15 +332,19 @@ const ViewTogglePill = React.memo(function ViewTogglePill({
     // Capture for worklets — avoids conditional .value access inside worklet
     const offsetSV = pageOffset;
 
+    // Layout constants — must match pill JSX (padding: 2, gap: 1)
+    const PILL_PADDING = 2;
+    const PILL_GAP = 1;
+
     // Sliding background indicator
     const indicatorStyle = useAnimatedStyle(() => {
         if (!offsetSV || pillWidth.value === 0) return { opacity: 0, width: 0 };
-        const itemWidth = (pillWidth.value - 5) / 2; // total - 2*padding(2) - 1 gap
+        const itemWidth = (pillWidth.value - PILL_PADDING * 2 - PILL_GAP) / 2;
         return {
             opacity: 1,
             width: itemWidth,
             transform: [{
-                translateX: interpolate(offsetSV.value, [0, 1], [0, itemWidth + 1]),
+                translateX: interpolate(offsetSV.value, [0, 1], [0, itemWidth + PILL_GAP]),
             }],
         };
     }, [offsetSV, pillWidth]);

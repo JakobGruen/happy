@@ -175,9 +175,12 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     const [message, setMessage] = React.useState('');
     const [activeView, setActiveView] = React.useState<'chat' | 'log'>('chat');
     const pageOffset = useSharedValue(0);
-    const handleViewChange = React.useCallback((view: 'chat' | 'log') => {
+    // animate=true for pill tap; false when swipe already animated on the UI thread
+    const handleViewChange = React.useCallback((view: 'chat' | 'log', animate = true) => {
         setActiveView(view);
-        pageOffset.value = withSpring(view === 'chat' ? 0 : 1, PAGER_SPRING_CONFIG);
+        if (animate) {
+            pageOffset.value = withSpring(view === 'chat' ? 0 : 1, PAGER_SPRING_CONFIG);
+        }
     }, [pageOffset]);
     const realtimeStatus = useRealtimeStatus();
     const { messages, isLoaded } = useSessionMessages(sessionId);
@@ -383,7 +386,7 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                 leftPage={chatPage}
                 rightPage={logPage}
                 pageOffset={pageOffset}
-                onPageChange={(index) => handleViewChange(index === 0 ? 'chat' : 'log')}
+                onPageChange={(index) => handleViewChange(index === 0 ? 'chat' : 'log', false)}
             />
         </View>
     );
