@@ -494,6 +494,18 @@ export const ja: TranslationStructure = {
         attachImage: '画像を添付',
         removeAttachment: '削除',
         maxAttachments: '1メッセージにつき最大4枚の画像',
+        viewToggle: {
+            chat: 'チャット',
+            log: 'ログ',
+        },
+    },
+
+    logSteps: {
+        empty: 'まだアクティビティがありません',
+        justNow: 'たった今',
+        minutesAgo: ({ count }: { count: number }) => `${count}分前`,
+        hoursAgo: ({ count }: { count: number }) => `${count}時間前`,
+        daysAgo: ({ count }: { count: number }) => `${count}日前`,
     },
 
     machineLauncher: {

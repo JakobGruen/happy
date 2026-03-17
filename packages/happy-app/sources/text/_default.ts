@@ -461,6 +461,18 @@ export const en = {
         attachImage: 'Attach image',
         removeAttachment: 'Remove',
         maxAttachments: 'Maximum 4 images per message',
+        viewToggle: {
+            chat: 'Chat',
+            log: 'Log',
+        },
+    },
+
+    logSteps: {
+        empty: 'No activity logged yet',
+        justNow: 'just now',
+        minutesAgo: ({ count }: { count: number }) => `${count}m ago`,
+        hoursAgo: ({ count }: { count: number }) => `${count}h ago`,
+        daysAgo: ({ count }: { count: number }) => `${count}d ago`,
     },
 
     machineLauncher: {

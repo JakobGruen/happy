@@ -907,6 +907,13 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         </View>
                         {props.activeView && props.onViewChange && (
                             <View style={{
+                                position: 'absolute',
+                                left: 0,
+                                right: 0,
+                                alignItems: 'center',
+                                pointerEvents: 'box-none',
+                            }}>
+                            <View style={{
                                 flexDirection: 'row',
                                 borderRadius: 8,
                                 padding: 2,
@@ -928,7 +935,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         color: props.activeView === 'chat' ? theme.colors.text : theme.colors.textSecondary,
                                         ...Typography.default('semiBold'),
                                     }}>
-                                        Chat
+                                        {t('agentInput.viewToggle.chat')}
                                     </Text>
                                 </Pressable>
                                 <Pressable
@@ -946,9 +953,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         color: props.activeView === 'log' ? theme.colors.text : theme.colors.textSecondary,
                                         ...Typography.default('semiBold'),
                                     }}>
-                                        Log
+                                        {t('agentInput.viewToggle.log')}
                                     </Text>
                                 </Pressable>
+                            </View>
                             </View>
                         )}
                         <View style={{

@@ -464,6 +464,18 @@ export const zhHans: TranslationStructure = {
         attachImage: '附加图片',
         removeAttachment: '移除',
         maxAttachments: '每条消息最多4张图片',
+        viewToggle: {
+            chat: '聊天',
+            log: '日志',
+        },
+    },
+
+    logSteps: {
+        empty: '暂无活动记录',
+        justNow: '刚刚',
+        minutesAgo: ({ count }: { count: number }) => `${count}分钟前`,
+        hoursAgo: ({ count }: { count: number }) => `${count}小时前`,
+        daysAgo: ({ count }: { count: number }) => `${count}天前`,
     },
 
     machineLauncher: {

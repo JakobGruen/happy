@@ -463,6 +463,18 @@ export const zhHant: TranslationStructure = {
         attachImage: '附加圖片',
         removeAttachment: '移除',
         maxAttachments: '每則訊息最多4張圖片',
+        viewToggle: {
+            chat: '聊天',
+            log: '日誌',
+        },
+    },
+
+    logSteps: {
+        empty: '尚無活動記錄',
+        justNow: '剛剛',
+        minutesAgo: ({ count }: { count: number }) => `${count}分鐘前`,
+        hoursAgo: ({ count }: { count: number }) => `${count}小時前`,
+        daysAgo: ({ count }: { count: number }) => `${count}天前`,
     },
 
     machineLauncher: {

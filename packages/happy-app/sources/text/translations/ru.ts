@@ -472,6 +472,18 @@ export const ru: TranslationStructure = {
         attachImage: 'Прикрепить изображение',
         removeAttachment: 'Удалить',
         maxAttachments: 'Максимум 4 изображения на сообщение',
+        viewToggle: {
+            chat: 'Чат',
+            log: 'Лог',
+        },
+    },
+
+    logSteps: {
+        empty: 'Активность пока не записана',
+        justNow: 'только что',
+        minutesAgo: ({ count }: { count: number }) => `${count} мин назад`,
+        hoursAgo: ({ count }: { count: number }) => `${count} ч назад`,
+        daysAgo: ({ count }: { count: number }) => `${count} д назад`,
     },
 
     machineLauncher: {

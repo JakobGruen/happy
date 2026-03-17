@@ -472,6 +472,18 @@ export const pl: TranslationStructure = {
         attachImage: 'Załącz obraz',
         removeAttachment: 'Usuń',
         maxAttachments: 'Maksymalnie 4 obrazy na wiadomość',
+        viewToggle: {
+            chat: 'Czat',
+            log: 'Log',
+        },
+    },
+
+    logSteps: {
+        empty: 'Brak zarejestrowanej aktywności',
+        justNow: 'przed chwilą',
+        minutesAgo: ({ count }: { count: number }) => `${count} min temu`,
+        hoursAgo: ({ count }: { count: number }) => `${count} godz. temu`,
+        daysAgo: ({ count }: { count: number }) => `${count} dn. temu`,
     },
 
     machineLauncher: {

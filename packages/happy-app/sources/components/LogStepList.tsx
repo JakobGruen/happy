@@ -3,6 +3,7 @@ import * as React from 'react';
 import { View, Text, FlatList } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Typography } from '@/constants/Typography';
+import { t } from '@/text';
 import type { Metadata } from '@/sync/storageTypes';
 
 type LogStep = NonNullable<Metadata['logSteps']>[string] & { key: string };
@@ -23,11 +24,11 @@ function parseLogSteps(metadata: Metadata | null): LogStep[] {
 function formatRelativeTime(timestamp: number): string {
     const diffMs = Date.now() - timestamp;
     const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return 'just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffMin < 1) return t('logSteps.justNow');
+    if (diffMin < 60) return t('logSteps.minutesAgo', { count: diffMin });
     const diffHours = Math.floor(diffMin / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${Math.floor(diffHours / 24)}d ago`;
+    if (diffHours < 24) return t('logSteps.hoursAgo', { count: diffHours });
+    return t('logSteps.daysAgo', { count: Math.floor(diffHours / 24) });
 }
 
 const LogStepItem = React.memo(function LogStepItem({ step }: { step: LogStep }) {
@@ -100,12 +101,21 @@ const StatsRow = React.memo(function StatsRow({ stats }: { stats: NonNullable<Lo
 export const LogStepList = React.memo(function LogStepList({ metadata }: LogStepListProps) {
     const { theme } = useUnistyles();
     const steps = React.useMemo(() => parseLogSteps(metadata), [metadata]);
+    const listRef = React.useRef<FlatList>(null);
+    const prevCount = React.useRef(steps.length);
+
+    React.useEffect(() => {
+        if (steps.length > prevCount.current) {
+            listRef.current?.scrollToEnd({ animated: true });
+        }
+        prevCount.current = steps.length;
+    }, [steps.length]);
 
     if (steps.length === 0) {
         return (
             <View style={styles.emptyContainer}>
                 <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-                    No activity logged yet
+                    {t('logSteps.empty')}
                 </Text>
             </View>
         );
@@ -113,6 +123,7 @@ export const LogStepList = React.memo(function LogStepList({ metadata }: LogStep
 
     return (
         <FlatList
+            ref={listRef}
             data={steps}
             keyExtractor={(item) => item.key}
             renderItem={({ item }) => <LogStepItem step={item} />}
