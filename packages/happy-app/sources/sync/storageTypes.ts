@@ -45,6 +45,101 @@ export const MetadataSchema = z.object({
     autoApproveTools: z.boolean().nullish(), // Auto-approve tools toggle (CC-sourced)
 });
 
+export type Metadata = z.infer<typeof MetadataSchema>;
+
+export const AgentStateSchema = z.object({
+    controlledByUser: z.boolean().nullish(),
+    requests: z.record(z.string(), z.object({
+        tool: z.string(),
+        arguments: z.any(),
+        createdAt: z.number().nullish(),
+        permissionSuggestions: z.array(z.any()).nullish(),
+        decisionReason: z.string().nullish(),
+        description: z.string().nullish(),
+        llmSummary: z.string().nullish(),
+    })).nullish(),
+    completedRequests: z.record(z.string(), z.object({
+        tool: z.string(),
+        arguments: z.any(),
+        createdAt: z.number().nullish(),
+        completedAt: z.number().nullish(),
+        status: z.enum(['canceled', 'denied', 'approved']),
+        reason: z.string().nullish(),
+        mode: z.string().nullish(),
+        allowedTools: z.array(z.string()).nullish(),
+        decision: z.enum(['approved', 'approved_for_session', 'denied', 'abort']).nullish(),
+        updatedPermissions: z.array(z.any()).nullish(),
+    })).nullish()
+});
+
+export type AgentState = z.infer<typeof AgentStateSchema>;
+
+export interface Session {
+    id: string,
+    seq: number,
+    createdAt: number,
+    updatedAt: number,
+    active: boolean,
+    activeAt: number,
+    metadata: Metadata | null,
+    metadataVersion: number,
+    agentState: AgentState | null,
+    agentStateVersion: number,
+    thinking: boolean,
+    thinkingAt: number,
+    presence: "online" | number, // "online" when active, timestamp when last seen
+    todos?: Array<{
+        content: string;
+        status: 'pending' | 'in_progress' | 'completed';
+        priority: 'high' | 'medium' | 'low';
+        id: string;
+    }>;
+    draft?: string | null; // Local draft message, not synced to server
+    permissionMode?: string | null; // Local permission mode key, not synced to server
+    modelMode?: string | null; // Local model key, not synced to server
+    autoApproveTools?: boolean; // Local auto-approve tools toggle, synced via RPC
+    // IMPORTANT: latestUsage is extracted from reducerState.latestUsage after message processing.
+    // We store it directly on Session to ensure it's available immediately on load.
+    // Do NOT store reducerState itself on Session - it's mutable and should only exist in SessionMessages.
+    latestUsage?: {
+        inputTokens: number;
+        outputTokens: number;
+        cacheCreation: number;
+        cacheRead: number;
+        contextSize: number;
+        timestamp: number;
+    } | null;
+}
+
+export interface DecryptedMessage {
+    id: string,
+    seq: number | null,
+    localId: string | null,
+    content: any,
+    createdAt: number,
+}
+
+//
+// Machine states
+//
+
+export const MachineMetadataSchema = z.object({
+    host: z.string(),
+    platform: z.string(),
+    happyCliVersion: z.string(),
+    happyHomeDir: z.string(), // Directory for Happy auth, settings, logs (usually .happy/ or .happy-dev/)
+    homeDir: z.string(), // User's home directory (matches CLI field name)
+    // Optional fields that may be added in future versions
+    username: z.string().optional(),
+    arch: z.string().optional(),
+    displayName: z.string().optional(), // Custom display name for the machine
+    // Daemon status fields
+    daemonLastKnownStatus: z.enum(['running', 'shutting-down']).optional(),
+    daemonLastKnownPid: z.number().optional(),
+    shutdownRequestedAt: z.number().optional(),
+    shutdownSource: z.enum(['happy-app', 'happy-cli', 'os-signal', 'unknown']).optional()
+});
+
 export type MachineMetadata = z.infer<typeof MachineMetadataSchema>;
 
 export interface Machine {
