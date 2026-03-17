@@ -344,6 +344,21 @@ export type Metadata = {
   flavor?: string
   sandbox?: SandboxConfig | null
   dangerouslySkipPermissions?: boolean | null
+  logSteps?: Record<string, {
+      title: string
+      summary: string
+      stats?: {
+          linesAdded?: number
+          linesRemoved?: number
+          filesChanged?: number
+          filesDeleted?: number
+          filesCreated?: number
+          testsPassed?: number
+          testsFailed?: number
+      }
+      createdAt: number
+  }>
+  title?: string
 };
 
 export type AgentState = {
