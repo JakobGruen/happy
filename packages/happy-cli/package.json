@@ -46,6 +46,16 @@
         "types": "./dist/codex/happyMcpStdioBridge.d.mts",
         "default": "./dist/codex/happyMcpStdioBridge.mjs"
       }
+    },
+    "./claude/utils/happyMcpStdio": {
+      "require": {
+        "types": "./dist/claude/utils/happyMcpStdio.d.cts",
+        "default": "./dist/claude/utils/happyMcpStdio.cjs"
+      },
+      "import": {
+        "types": "./dist/claude/utils/happyMcpStdio.d.mts",
+        "default": "./dist/claude/utils/happyMcpStdio.mjs"
+      }
     }
   },
   "files": [
