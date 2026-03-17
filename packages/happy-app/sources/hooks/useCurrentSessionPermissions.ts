@@ -10,7 +10,6 @@ export interface CurrentSessionPermissionItem {
     tool: string;
     toolInput: any;
     description: string | null;
-    llmSummary: string | null;
     permissionSuggestions: any[] | null;
     decisionReason: string | null;
     createdAt: number | null;
@@ -47,7 +46,6 @@ export function useCurrentSessionPermissions(sessionId: string): UseCurrentSessi
                 tool: req.tool,
                 toolInput: req.arguments,
                 description: req.description ?? null,
-                llmSummary: req.llmSummary ?? null,
                 permissionSuggestions: req.permissionSuggestions ?? null,
                 decisionReason: req.decisionReason ?? null,
                 createdAt: req.createdAt ?? null,

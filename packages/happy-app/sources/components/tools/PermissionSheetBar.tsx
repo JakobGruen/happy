@@ -26,10 +26,8 @@ export const PermissionSheetBar = React.memo<PermissionSheetBarProps>(({
     isExpanded,
     onToggleExpand,
 }) => {
-    // Resolve display text — prefer llmSummary, fall back to description or tool name
-    const displayText = permission.llmSummary
-        ?? permission.description
-        ?? permission.tool;
+    // Resolve display text — prefer description, fall back to tool name
+    const displayText = permission.description ?? permission.tool;
 
     const remaining = queueCount - 1;
 

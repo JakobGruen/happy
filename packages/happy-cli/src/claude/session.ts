@@ -5,6 +5,7 @@ import { logger } from "@/ui/logger";
 import { notifyDaemonSessionActivity } from "@/daemon/controlClient";
 import type { JsRuntime } from "./runClaude";
 import type { SandboxConfig } from "@/persistence";
+import type { TurnCounterRef } from './utils/startHappyServer';
 
 export class Session {
     readonly path: string;
@@ -22,6 +23,9 @@ export class Session {
     readonly hookSettingsPath: string;
     /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
     readonly jsRuntime: JsRuntime;
+
+    /** Mutable ref for turn counter — shared with MCP server for turn_summary keying */
+    readonly turnCounterRef: TurnCounterRef;
 
     /** Callback to update the running model state from RPC handlers (set by runClaude) */
     onModelSwitch?: (model: string) => void;
@@ -60,6 +64,7 @@ export class Session {
         hookSettingsPath: string,
         /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
         jsRuntime?: JsRuntime,
+        turnCounterRef: TurnCounterRef,
     }) {
         this.path = opts.path;
         this.api = opts.api;
@@ -75,6 +80,7 @@ export class Session {
         this._onModeChange = opts.onModeChange;
         this.hookSettingsPath = opts.hookSettingsPath;
         this.jsRuntime = opts.jsRuntime ?? 'node';
+        this.turnCounterRef = opts.turnCounterRef;
 
         // Start keep alive
         this.client.keepAlive(this.thinking, this.mode);

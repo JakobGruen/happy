@@ -35,7 +35,6 @@ export function buildPermissionItem(item: PendingPermissionItem): CurrentSession
         tool: item.tool,
         toolInput: item.toolInput,
         description: item.description ?? null,
-        llmSummary: item.llmSummary ?? null,
         permissionSuggestions: item.permissionSuggestions ?? null,
         decisionReason: null,
         createdAt: item.createdAt ?? null,

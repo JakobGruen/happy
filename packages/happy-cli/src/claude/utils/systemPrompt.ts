@@ -5,7 +5,11 @@ import { shouldIncludeCoAuthoredBy } from "./claudeSettings";
  * Base system prompt shared across all configurations
  */
 const BASE_SYSTEM_PROMPT = (() => trimIdent(`
-    ALWAYS when you start a new chat - you must call a tool "mcp__happy__change_title" to set a chat title. When you think chat title is not relevant anymore - call the tool again to change it. When chat name is too generic and you have a change to make it more specific - call the tool again to change it. This title is needed to easily find the chat in the future. Help human.
+    After every turn, call these two tools:
+    1. "mcp__happy__change_title" — Set/update the session title. Keep it short (<60 chars). Update it whenever the session focus shifts. This helps the user find this chat later.
+    2. "mcp__happy__turn_summary" — Summarize what you did this turn.
+       - "title": Short title for this turn (<60 chars, e.g., "Refactored auth module")
+       - "summary": Bullet points of key actions (e.g., "- Renamed 3 functions\\n- Updated tests")
 `))();
 
 /**

@@ -7,7 +7,6 @@ export interface PendingPermissionItem {
     tool: string;
     toolInput?: any;
     description?: string | null;
-    llmSummary?: string | null;
     createdAt?: number | null;
     permissionSuggestions?: any[] | null;
 }
@@ -35,7 +34,6 @@ export function buildPermissionQueue(
                 tool: req.tool,
                 toolInput: req.arguments,
                 description: req.description,
-                llmSummary: req.llmSummary,
                 createdAt: req.createdAt,
                 permissionSuggestions: req.permissionSuggestions,
             });

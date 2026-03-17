@@ -32,6 +32,11 @@ export const MetadataSchema = z.object({
         text: z.string(),
         updatedAt: z.number()
     }).optional(),
+    turnSummaries: z.record(z.string(), z.object({
+        title: z.string(),
+        summary: z.string(),
+        createdAt: z.number(),
+    })).optional(),
     machineId: z.string().optional(),
     claudeSessionId: z.string().optional(), // Claude Code session ID
     tools: z.array(z.string()).optional(),
@@ -56,7 +61,6 @@ export const AgentStateSchema = z.object({
         permissionSuggestions: z.array(z.any()).nullish(),
         decisionReason: z.string().nullish(),
         description: z.string().nullish(),
-        llmSummary: z.string().nullish(),
     })).nullish(),
     completedRequests: z.record(z.string(), z.object({
         tool: z.string(),

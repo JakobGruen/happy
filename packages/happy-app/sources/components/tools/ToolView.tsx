@@ -66,7 +66,6 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
             tool: tool.name,
             toolInput: tool.input,
             description: tool.permission.description ?? tool.description,
-            llmSummary: tool.permission.decisionReason ?? null,
             permissionSuggestions: tool.permission.permissionSuggestions ?? null,
             decisionReason: tool.permission.decisionReason ?? null,
             createdAt: tool.createdAt ?? null,
@@ -195,7 +194,6 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                         inline
                         containerStyle={{ borderTopWidth: 0 }}
                         actions={permissionActions}
-                        llmSummary={permissionItem?.llmSummary ?? null}
                         queueCount={queueCount}
                         suggestions={permissionItem?.permissionSuggestions ?? null}
                         toolName={tool.name}

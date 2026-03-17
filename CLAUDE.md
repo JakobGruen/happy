@@ -180,7 +180,7 @@ State updates (session metadata, agent state, machine daemon state) use `expecte
 Server can run with embedded WASM PostgreSQL (PGlite) instead of external Postgres. Azure deployment uses `tsx sources/standalone.ts migrate && tsx sources/standalone.ts serve`.
 
 ### Voice Architecture
-Self-hosted Pipecat voice agent via WebRTC. The app implements the `VoiceSession` interface (`startSession`, `endSession`, `sendTextMessage`, `sendContextualUpdate`, `sendTrigger`).
+Self-hosted Pipecat voice agent via WebRTC. The app implements the `VoiceSession` interface (`startSession`, `endSession`, `sendTextMessage`, `sendContextualUpdate`, `sendTrigger`, `sendState`).
 
 ```
 User speaks → Pipecat WebRTC (self-hosted)
@@ -196,6 +196,7 @@ User speaks → Pipecat WebRTC (self-hosted)
 - `PipecatVoiceSession.tsx` / `.web.tsx` — WebRTC client implementation
 - `types.ts` — `VoiceSession` interface contract
 - `hooks/voiceHooks.ts` — bridges app events (messages, permissions, focus) to voice session
+- `hooks/voiceState.ts` — `buildSessionState()` + `VoiceSessionState` for `happy.state` channel
 - `voiceQuestionBridge.ts` — state machine for `AskUserQuestion` RPC flows
 
 ## Critical Gotchas

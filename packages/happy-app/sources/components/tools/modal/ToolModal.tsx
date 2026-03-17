@@ -410,7 +410,6 @@ export const ToolModal = React.memo<ToolModalProps>(
                                     inline={true}
                                     containerStyle={{ borderTopWidth: 0 }}
                                     actions={permissionActions!}
-                                    llmSummary={permission!.llmSummary}
                                     queueCount={queueCount ?? 0}
                                     suggestions={permission!.permissionSuggestions}
                                     toolName={tool.name}

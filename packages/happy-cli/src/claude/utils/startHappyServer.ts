@@ -12,7 +12,11 @@ import { logger } from "@/ui/logger";
 import { ApiSessionClient } from "@/api/apiSession";
 import { randomUUID } from "node:crypto";
 
-export async function startHappyServer(client: ApiSessionClient) {
+export interface TurnCounterRef {
+    value: number;
+}
+
+export async function startHappyServer(client: ApiSessionClient, turnCounterRef: TurnCounterRef = { value: 0 }) {
     logger.debug(`[happyMCP] server:start sessionId=${client.sessionId}`);
 
     // Handler that sends title updates via the client
@@ -74,6 +78,50 @@ export async function startHappyServer(client: ApiSessionClient) {
         }
     });
 
+    mcp.registerTool('turn_summary', {
+        description: 'Record a summary of what was accomplished in this turn',
+        title: 'Record Turn Summary',
+        inputSchema: {
+            title: z.string().describe('Short title for this turn (<60 chars)'),
+            summary: z.string().describe('Bullet-point summary of actions taken'),
+        },
+    }, async (args) => {
+        const turnKey = String(turnCounterRef.value);
+        logger.debug(`[happyMCP] Recording turn summary for turn ${turnKey}`);
+        try {
+            client.updateMetadata((m: any) => {
+                const existing = m.turnSummaries ?? {};
+                // Enforce 50-entry growth cap — drop lowest numeric key if at limit
+                const capped = { ...existing };
+                const keys = Object.keys(capped);
+                if (keys.length >= 50) {
+                    const oldest = keys.sort((a, b) => Number(a) - Number(b))[0];
+                    delete capped[oldest];
+                }
+                return {
+                    ...m,
+                    turnSummaries: {
+                        ...capped,
+                        [turnKey]: {
+                            title: args.title,
+                            summary: args.summary,
+                            createdAt: Date.now(),
+                        },
+                    },
+                };
+            });
+            return {
+                content: [{ type: 'text' as const, text: `Turn ${turnKey} summary recorded.` }],
+                isError: false,
+            };
+        } catch (error) {
+            return {
+                content: [{ type: 'text' as const, text: `Failed to record turn summary: ${String(error)}` }],
+                isError: true,
+            };
+        }
+    });
+
     const transport = new StreamableHTTPServerTransport({
         // NOTE: Returning session id here will result in claude
         // sdk spawn to fail with `Invalid Request: Server already initialized`
@@ -107,7 +155,7 @@ export async function startHappyServer(client: ApiSessionClient) {
 
     return {
         url: baseUrl.toString(),
-        toolNames: ['change_title'],
+        toolNames: ['change_title', 'turn_summary'],
         stop: () => {
             logger.debug(`[happyMCP] server:stop sessionId=${client.sessionId}`);
             mcp.close();

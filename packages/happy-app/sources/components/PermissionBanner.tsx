@@ -63,7 +63,7 @@ export const PermissionBanner = React.memo(() => {
     if (!current || !syntheticTool || !permissionItem) return null;
 
     const sessionName = getSessionName(current.session);
-    const toolDescription = current.description ?? current.llmSummary ?? current.tool;
+    const toolDescription = current.description ?? current.tool;
     const inputPreview = getInputPreview(current.toolInput);
     const remaining = queue.length - 1;
     const isAskUserQuestion = current.tool === 'AskUserQuestion';

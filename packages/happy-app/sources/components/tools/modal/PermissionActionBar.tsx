@@ -9,7 +9,6 @@ import { t } from '@/text';
 
 interface PermissionActionBarProps {
     actions: UsePermissionActionsResult;
-    llmSummary: string | null;
     queueCount: number;
     suggestions: any[] | null;
     toolName?: string;
@@ -19,12 +18,11 @@ interface PermissionActionBarProps {
 
 /**
  * Floating action bar for permission decisions.
- * Renders Allow / Suggestion / Deny buttons with optional LLM summary and queue badge.
+ * Renders Allow / Suggestion / Deny buttons with queue badge.
  * Purely presentational — all logic lives in the usePermissionActions hook.
  */
 export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
     actions,
-    llmSummary,
     queueCount,
     suggestions,
     toolName,
@@ -89,13 +87,6 @@ export const PermissionActionBar = React.memo<PermissionActionBarProps>(({
                     />
                 </View>
             )}
-
-            {/* LLM summary */}
-            {llmSummary ? (
-                <Text style={styles.summary} numberOfLines={3}>
-                    {llmSummary}
-                </Text>
-            ) : null}
 
             {/* Action buttons row */}
             <View style={styles.buttonRow}>
@@ -208,12 +199,6 @@ const styles = StyleSheet.create((theme) => ({
         shadowRadius: 8,
         shadowOpacity: 0.15,
         elevation: 16,
-    },
-    summary: {
-        fontSize: 13,
-        color: theme.colors.textSecondary,
-        fontStyle: 'italic',
-        marginBottom: 10,
     },
     buttonRow: {
         flexDirection: 'row',
