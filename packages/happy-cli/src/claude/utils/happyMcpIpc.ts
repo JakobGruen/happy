@@ -6,7 +6,7 @@
  *
  * Protocol: newline-delimited JSON over UDS
  * Request:  { type: "change_title", title: string }
- *        or { type: "turn_summary", title: string, summary: string }
+ *        or { type: "log_step", title: string, summary: string, stats?: Record<string, number> }
  * Response: { success: true } or { success: false, error: string }
  */
 
@@ -18,10 +18,6 @@ import { randomUUID } from 'node:crypto';
 import { logger } from '@/ui/logger';
 import { ApiSessionClient } from '@/api/apiSession';
 
-export interface TurnCounterRef {
-    value: number;
-}
-
 export interface HappyMcpIpcServer {
     socketPath: string;
     toolNames: string[];
@@ -30,10 +26,10 @@ export interface HappyMcpIpcServer {
 
 export async function startHappyMcpIpc(
     client: ApiSessionClient,
-    turnCounterRef: TurnCounterRef,
 ): Promise<HappyMcpIpcServer> {
     const socketPath = join(tmpdir(), `happy-mcp-${randomUUID().slice(0, 8)}.sock`);
-    const toolNames = ['change_title', 'turn_summary'];
+    const toolNames = ['change_title', 'log_step'];
+    let stepCounter = 0;
 
     logger.debug(`[happyMcpIpc] Starting UDS server at ${socketPath}`);
 
@@ -55,7 +51,7 @@ export async function startHappyMcpIpc(
                 let response: { success: boolean; error?: string };
                 try {
                     const msg = JSON.parse(line);
-                    response = handleMessage(msg, client, turnCounterRef);
+                    response = handleMessage(msg);
                 } catch (error) {
                     response = { success: false, error: String(error) };
                 }
@@ -67,6 +63,53 @@ export async function startHappyMcpIpc(
                 logger.debug('[happyMcpIpc] Connection error:', err);
             });
         });
+
+        function handleMessage(
+            msg: { type: string; title?: string; summary?: string; stats?: Record<string, number> },
+        ): { success: boolean; error?: string } {
+            switch (msg.type) {
+                case 'change_title': {
+                    logger.debug('[happyMcpIpc] change_title:', msg.title);
+                    client.sendClaudeSessionMessage({
+                        type: 'summary',
+                        summary: msg.title!,
+                        leafUuid: randomUUID(),
+                    });
+                    return { success: true };
+                }
+
+                case 'log_step': {
+                    stepCounter++;
+                    const stepKey = String(stepCounter);
+                    logger.debug(`[happyMcpIpc] log_step #${stepKey}`);
+                    client.updateMetadata((m: any) => {
+                        const existing = m.logSteps ?? {};
+                        const capped = { ...existing };
+                        const keys = Object.keys(capped);
+                        if (keys.length >= 50) {
+                            const oldest = keys.sort((a, b) => Number(a) - Number(b))[0];
+                            delete capped[oldest];
+                        }
+                        return {
+                            ...m,
+                            logSteps: {
+                                ...capped,
+                                [stepKey]: {
+                                    title: msg.title,
+                                    summary: msg.summary,
+                                    ...(msg.stats ? { stats: msg.stats } : {}),
+                                    createdAt: Date.now(),
+                                },
+                            },
+                        };
+                    });
+                    return { success: true };
+                }
+
+                default:
+                    return { success: false, error: `Unknown message type: ${msg.type}` };
+            }
+        }
 
         server.listen(socketPath, () => {
             logger.debug(`[happyMcpIpc] Ready at ${socketPath}`);
@@ -86,51 +129,4 @@ export async function startHappyMcpIpc(
             reject(err);
         });
     });
-}
-
-function handleMessage(
-    msg: { type: string; title?: string; summary?: string },
-    client: ApiSessionClient,
-    turnCounterRef: TurnCounterRef,
-): { success: boolean; error?: string } {
-    switch (msg.type) {
-        case 'change_title': {
-            logger.debug('[happyMcpIpc] change_title:', msg.title);
-            client.sendClaudeSessionMessage({
-                type: 'summary',
-                summary: msg.title!,
-                leafUuid: randomUUID(),
-            });
-            return { success: true };
-        }
-
-        case 'turn_summary': {
-            const turnKey = String(turnCounterRef.value);
-            logger.debug(`[happyMcpIpc] turn_summary for turn ${turnKey}`);
-            client.updateMetadata((m: any) => {
-                const existing = m.turnSummaries ?? {};
-                const capped = { ...existing };
-                const keys = Object.keys(capped);
-                if (keys.length >= 50) {
-                    const oldest = keys.sort((a, b) => Number(a) - Number(b))[0];
-                    delete capped[oldest];
-                }
-                return {
-                    ...m,
-                    turnSummaries: {
-                        ...capped,
-                        [turnKey]: {
-                            title: msg.title,
-                            summary: msg.summary,
-                            createdAt: Date.now(),
-                        },
-                    },
-                };
-            });
-            return { success: true };
-        }
-
-        default:
-            return { success: false, error: `Unknown message type: ${msg.type}` };
-    }
 }

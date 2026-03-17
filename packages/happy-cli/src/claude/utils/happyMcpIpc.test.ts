@@ -39,15 +39,15 @@ describe('happyMcpIpc', () => {
 
     it('should create a UDS socket and return its path', async () => {
         const client = createMockClient();
-        server = await startHappyMcpIpc(client as any, { value: 0 });
+        server = await startHappyMcpIpc(client as any);
 
         expect(server.socketPath).toMatch(/\.sock$/);
-        expect(server.toolNames).toEqual(['change_title', 'turn_summary']);
+        expect(server.toolNames).toEqual(['change_title', 'log_step']);
     });
 
     it('should handle change_title messages', async () => {
         const client = createMockClient();
-        server = await startHappyMcpIpc(client as any, { value: 0 });
+        server = await startHappyMcpIpc(client as any);
 
         const response = await sendIpcMessage(server.socketPath, {
             type: 'change_title',
@@ -60,55 +60,83 @@ describe('happyMcpIpc', () => {
         );
     });
 
-    it('should handle turn_summary messages at current turn', async () => {
+    it('should handle log_step with auto-increment key', async () => {
         const client = createMockClient();
-        const turnRef = { value: 3 };
-        server = await startHappyMcpIpc(client as any, turnRef);
+        server = await startHappyMcpIpc(client as any);
 
-        const response = await sendIpcMessage(server.socketPath, {
-            type: 'turn_summary',
-            title: 'Did stuff',
-            summary: '- thing 1\n- thing 2',
+        await sendIpcMessage(server.socketPath, {
+            type: 'log_step',
+            title: 'First step',
+            summary: '- thing 1',
         });
 
-        expect(response).toEqual({ success: true });
-        expect(client.updateMetadata).toHaveBeenCalled();
+        const meta1 = client.getMetadata();
+        expect(meta1.logSteps['1']).toMatchObject({
+            title: 'First step',
+            summary: '- thing 1',
+        });
+
+        await sendIpcMessage(server.socketPath, {
+            type: 'log_step',
+            title: 'Second step',
+            summary: '- thing 2',
+        });
+
+        const meta2 = client.getMetadata();
+        expect(meta2.logSteps['2']).toMatchObject({
+            title: 'Second step',
+            summary: '- thing 2',
+        });
+    });
+
+    it('should store optional stats alongside title and summary', async () => {
+        const client = createMockClient();
+        server = await startHappyMcpIpc(client as any);
+
+        await sendIpcMessage(server.socketPath, {
+            type: 'log_step',
+            title: 'Step with stats',
+            summary: '- did stuff',
+            stats: { tokensUsed: 1234, durationMs: 500 },
+        });
+
         const meta = client.getMetadata();
-        expect(meta.turnSummaries['3']).toMatchObject({
-            title: 'Did stuff',
-            summary: '- thing 1\n- thing 2',
+        expect(meta.logSteps['1']).toMatchObject({
+            title: 'Step with stats',
+            summary: '- did stuff',
+            stats: { tokensUsed: 1234, durationMs: 500 },
         });
     });
 
     it('should enforce 50-entry growth cap', async () => {
         const client = createMockClient();
         const existing: Record<string, any> = {};
-        for (let i = 0; i < 50; i++) {
-            existing[String(i)] = { title: `Turn ${i}`, summary: 'x', createdAt: i };
+        // Pre-seed with keys "100"-"149" to avoid collision with auto-increment counter
+        for (let i = 100; i < 150; i++) {
+            existing[String(i)] = { title: `Step ${i}`, summary: 'x', createdAt: i };
         }
         (client as any).updateMetadata.mockImplementation((handler: (m: any) => any) => {
-            const base = { turnSummaries: { ...existing } };
+            const base = { logSteps: { ...existing } };
             const result = handler(base);
             for (const key of Object.keys(existing)) delete existing[key];
-            Object.assign(existing, result.turnSummaries);
+            Object.assign(existing, result.logSteps);
         });
 
-        const turnRef = { value: 99 };
-        server = await startHappyMcpIpc(client as any, turnRef);
+        server = await startHappyMcpIpc(client as any);
 
         await sendIpcMessage(server.socketPath, {
-            type: 'turn_summary',
-            title: 'New turn',
+            type: 'log_step',
+            title: 'New step',
             summary: '- new',
         });
 
-        expect(existing['99']).toBeDefined();
-        expect(existing['0']).toBeUndefined(); // oldest dropped
+        expect(existing['1']).toBeDefined();
+        expect(existing['100']).toBeUndefined(); // oldest dropped
     });
 
     it('should reject unknown message types', async () => {
         const client = createMockClient();
-        server = await startHappyMcpIpc(client as any, { value: 0 });
+        server = await startHappyMcpIpc(client as any);
 
         const response = await sendIpcMessage(server.socketPath, {
             type: 'unknown_action',
