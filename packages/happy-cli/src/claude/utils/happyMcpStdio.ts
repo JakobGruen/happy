@@ -76,19 +76,33 @@ async function main() {
         }
     });
 
-    server.registerTool('turn_summary', {
-        description: 'Record a summary of what was accomplished in this turn',
-        title: 'Record Turn Summary',
+    server.registerTool('log_step', {
+        description: 'Record a summary of a completed logical step',
+        title: 'Log Step',
         inputSchema: {
-            title: z.string().describe('Short title for this turn (<60 chars)'),
+            title: z.string().describe('Short title for this step (<60 chars)'),
             summary: z.string().describe('Bullet-point summary of actions taken'),
+            stats: z.object({
+                linesAdded: z.number().optional().describe('Lines of code added'),
+                linesRemoved: z.number().optional().describe('Lines of code removed'),
+                filesChanged: z.number().optional().describe('Number of files modified'),
+                filesDeleted: z.number().optional().describe('Number of files deleted'),
+                filesCreated: z.number().optional().describe('Number of files created'),
+                testsPassed: z.number().optional().describe('Number of tests passing'),
+                testsFailed: z.number().optional().describe('Number of tests failing'),
+            }).optional().describe('Optional structured stats about the step'),
         },
     }, async (args) => {
         try {
-            const resp = await sendToParent({ type: 'turn_summary', title: args.title, summary: args.summary });
+            const resp = await sendToParent({
+                type: 'log_step',
+                title: args.title,
+                summary: args.summary,
+                ...(args.stats ? { stats: args.stats } : {}),
+            });
             if (resp.success) {
                 return {
-                    content: [{ type: 'text' as const, text: 'Turn summary recorded.' }],
+                    content: [{ type: 'text' as const, text: 'Step logged.' }],
                     isError: false,
                 };
             }

@@ -102,7 +102,7 @@ describe('happyMcpStdio', () => {
         });
         const toolNames = listResp.result.tools.map((t: any) => t.name);
         expect(toolNames).toContain('change_title');
-        expect(toolNames).toContain('turn_summary');
+        expect(toolNames).toContain('log_step');
     });
 
     it('should forward change_title to UDS', async () => {
@@ -119,17 +119,29 @@ describe('happyMcpStdio', () => {
         expect(receivedMessages[0]).toEqual({ type: 'change_title', title: 'My Session' });
     });
 
-    it('should forward turn_summary to UDS', async () => {
+    it('should forward log_step to UDS', async () => {
         await spawnAndInitialize();
 
         const result = await sendMcpMessage(child!, {
             jsonrpc: '2.0', id: 4,
             method: 'tools/call',
-            params: { name: 'turn_summary', arguments: { title: 'Did things', summary: '- item 1' } },
+            params: {
+                name: 'log_step',
+                arguments: {
+                    title: 'Did things',
+                    summary: '- item 1',
+                    stats: { linesAdded: 42, filesChanged: 3 },
+                },
+            },
         });
 
         expect(result.result.isError).toBe(false);
         expect(receivedMessages).toHaveLength(1);
-        expect(receivedMessages[0]).toEqual({ type: 'turn_summary', title: 'Did things', summary: '- item 1' });
+        expect(receivedMessages[0]).toEqual({
+            type: 'log_step',
+            title: 'Did things',
+            summary: '- item 1',
+            stats: { linesAdded: 42, filesChanged: 3 },
+        });
     });
 });
