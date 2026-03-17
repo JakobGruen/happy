@@ -115,7 +115,6 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     }
 
     let carriedLogSteps: NonNullable<Metadata['logSteps']> | undefined = undefined;
-    let carriedTitle: string | undefined = undefined;
 
     let metadata: Metadata = {
         path: workingDirectory,
@@ -175,10 +174,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
                             metadata = { ...metadata, logSteps: carriedLogSteps };
                             logger.debug(`[START] Carried over ${Object.keys(carriedLogSteps).length} logSteps from previous session`);
                         }
-                        if (typeof decrypted.title === 'string') {
-                            carriedTitle = decrypted.title;
-                            metadata = { ...metadata, title: carriedTitle };
-                            logger.debug(`[START] Carried over title "${carriedTitle}" from previous session`);
+                        if (decrypted.summary && typeof decrypted.summary === 'object' && typeof (decrypted.summary as any).text === 'string') {
+                            metadata = { ...metadata, summary: decrypted.summary as Metadata['summary'] };
+                            logger.debug(`[START] Carried over summary "${(decrypted.summary as any).text}" from previous session`);
                         }
                     }
                 } catch (e) {

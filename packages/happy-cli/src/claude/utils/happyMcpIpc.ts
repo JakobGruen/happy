@@ -75,12 +75,12 @@ export async function startHappyMcpIpc(
             switch (msg.type) {
                 case 'change_title': {
                     logger.debug('[happyMcpIpc] change_title:', msg.title);
+                    // sendClaudeSessionMessage already writes metadata.summary via apiSession.ts
                     client.sendClaudeSessionMessage({
                         type: 'summary',
                         summary: msg.title!,
                         leafUuid: randomUUID(),
                     });
-                    client.updateMetadata((m: any) => ({ ...m, title: msg.title }));
                     return { success: true };
                 }
 
@@ -102,7 +102,7 @@ export async function startHappyMcpIpc(
                                 ...capped,
                                 [stepKey]: {
                                     title: msg.title,
-                                    summary: msg.summary,
+                                    summary: msg.summary.replace(/\\n/g, '\n'),
                                     ...(msg.stats ? { stats: msg.stats } : {}),
                                     createdAt: Date.now(),
                                 },

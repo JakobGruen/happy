@@ -60,7 +60,7 @@ describe('happyMcpIpc', () => {
         );
     });
 
-    it('should also write title to metadata when change_title is called', async () => {
+    it('should rely on sendClaudeSessionMessage to update metadata.summary (not write metadata.title)', async () => {
         const client = createMockClient();
         server = await startHappyMcpIpc(client as any);
 
@@ -69,8 +69,9 @@ describe('happyMcpIpc', () => {
             title: 'My Session Title',
         });
 
-        expect(client.updateMetadata).toHaveBeenCalled();
-        expect(client.getMetadata()).toMatchObject({ title: 'My Session Title' });
+        // change_title should NOT call updateMetadata directly — sendClaudeSessionMessage handles it
+        expect(client.updateMetadata).not.toHaveBeenCalled();
+        expect(client.sendClaudeSessionMessage).toHaveBeenCalled();
     });
 
     it('should handle log_step with auto-increment key', async () => {
