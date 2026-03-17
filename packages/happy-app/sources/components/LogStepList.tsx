@@ -2,7 +2,6 @@
 import * as React from 'react';
 import { View, Text, FlatList } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import type { Metadata } from '@/sync/storageTypes';
 
@@ -158,17 +157,14 @@ const styles = StyleSheet.create((theme) => ({
     turnNumberText: {
         fontSize: 10,
         fontWeight: '600',
-        ...Typography.default('semiBold'),
     },
     turnTitle: {
-        fontSize: 13,
+        fontSize: 16,
         fontWeight: '600',
         flex: 1,
-        ...Typography.default('semiBold'),
     },
     turnTime: {
-        fontSize: 11,
-        ...Typography.default(),
+        fontSize: 12,
     },
     turnSummary: {
         paddingLeft: 30,
@@ -187,10 +183,9 @@ const styles = StyleSheet.create((theme) => ({
         flexShrink: 0,
     },
     bulletText: {
-        fontSize: 12,
-        lineHeight: 18,
+        fontSize: 14,
+        lineHeight: 20,
         flex: 1,
-        ...Typography.default(),
     },
     statsRow: {
         flexDirection: 'row',
@@ -199,8 +194,7 @@ const styles = StyleSheet.create((theme) => ({
         marginTop: 4,
     },
     statText: {
-        fontSize: 11,
-        ...Typography.default(),
+        fontSize: 13,
     },
     emptyContainer: {
         flex: 1,
@@ -210,6 +204,5 @@ const styles = StyleSheet.create((theme) => ({
     },
     emptyText: {
         fontSize: 14,
-        ...Typography.default(),
     },
 }));
