@@ -9,6 +9,6 @@ for (const m of methods) {
 }
 
 export const Gesture = {
-    Pan: () => ({ ...builder }),
+    Pan: () => builder,
 };
 export const GestureDetector = 'GestureDetector';

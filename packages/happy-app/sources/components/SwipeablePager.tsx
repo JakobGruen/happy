@@ -66,31 +66,33 @@ export const SwipeablePager = React.memo(function SwipeablePager({
     }, []);
 
     // Pan gesture — horizontal pager
-    const panGesture = Gesture.Pan()
-        .activeOffsetX([-15, 15]);
-
     // Native only: failOffsetY to yield vertical scroll to ChatList's FlatList.
     // Web: touchAction: pan-y on the Animated.View handles this at compositor level.
-    if (Platform.OS !== 'web') {
-        panGesture.failOffsetY([-10, 10]);
-    }
+    const panGesture = React.useMemo(() => {
+        const gesture = Gesture.Pan()
+            .activeOffsetX([-15, 15]);
 
-    panGesture
-        .onBegin(() => {
-            'worklet';
-            startPage.value = Math.round(pageOffset.value);
-        })
-        .onChange((e) => {
-            'worklet';
-            const next = startPage.value - e.translationX / screenWidth;
-            pageOffset.value = Math.max(0, Math.min(1, next));
-        })
-        .onEnd((e) => {
-            'worklet';
-            const target = computeSnapTarget(pageOffset.value, e.velocityX, screenWidth);
-            pageOffset.value = withSpring(target, PAGER_SPRING_CONFIG);
-            runOnJS(triggerPageChange)(target);
-        });
+        if (Platform.OS !== 'web') {
+            gesture.failOffsetY([-10, 10]);
+        }
+
+        return gesture
+            .onBegin(() => {
+                'worklet';
+                startPage.value = Math.round(pageOffset.value);
+            })
+            .onChange((e) => {
+                'worklet';
+                const next = startPage.value - e.translationX / screenWidth;
+                pageOffset.value = Math.max(0, Math.min(1, next));
+            })
+            .onEnd((e) => {
+                'worklet';
+                const target = computeSnapTarget(pageOffset.value, e.velocityX, screenWidth);
+                pageOffset.value = withSpring(target, PAGER_SPRING_CONFIG);
+                runOnJS(triggerPageChange)(target);
+            });
+    }, [screenWidth, pageOffset, triggerPageChange, startPage]);
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ translateX: -pageOffset.value * screenWidth }],
