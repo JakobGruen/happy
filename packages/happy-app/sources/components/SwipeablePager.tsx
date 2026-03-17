@@ -38,7 +38,7 @@ export function computeSnapTarget(
 }
 
 // ---------------------------------------------------------------------------
-// Component — to be filled in Task 2
+// Component
 // ---------------------------------------------------------------------------
 
 export interface SwipeablePagerProps {
