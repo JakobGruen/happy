@@ -38,13 +38,16 @@ const ChatListInternal = React.memo((props: {
     sessionId: string,
     messages: Message[],
 }) => {
+    const displayMessages = React.useMemo(() => {
+        return props.messages.filter((m) => m.kind !== 'user-text');
+    }, [props.messages]);
     const keyExtractor = useCallback((item: any) => item.id, []);
     const renderItem = useCallback(({ item }: { item: any }) => (
         <MessageView message={item} metadata={props.metadata} sessionId={props.sessionId} />
     ), [props.metadata, props.sessionId]);
     return (
         <FlatList
-            data={props.messages}
+            data={displayMessages}
             inverted={true}
             keyExtractor={keyExtractor}
             maintainVisibleContentPosition={{
