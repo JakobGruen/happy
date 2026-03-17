@@ -260,6 +260,10 @@ class PipecatVoiceSessionImpl implements VoiceSession {
     sendTrigger(trigger: string): void {
         sendClientMessage('happy.trigger', trigger);
     }
+
+    sendState(state: string): void {
+        sendClientMessage('happy.state', state);
+    }
 }
 
 export const PipecatVoiceSession: React.FC = () => {

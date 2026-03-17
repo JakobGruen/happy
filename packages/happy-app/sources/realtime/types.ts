@@ -10,6 +10,7 @@ export interface VoiceSession {
     sendTextMessage(message: string): void;
     sendContextualUpdate(update: string): void;
     sendTrigger(trigger: string): void;
+    sendState(state: string): void;
 }
 
 export type ConversationStatus = 'disconnected' | 'connecting' | 'connected';

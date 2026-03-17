@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => {
             sendTextMessage: vi.fn(),
             sendContextualUpdate: vi.fn(),
             sendTrigger: vi.fn(),
+            sendState: vi.fn(),
         },
     };
 });
