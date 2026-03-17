@@ -17,12 +17,12 @@ import { getEnvironmentInfo } from '@/ui/doctor';
 import { configuration } from '@/configuration';
 import { notifyDaemonSessionStarted } from '@/daemon/controlClient';
 import { initialMachineMetadata } from '@/daemon/run';
-import { startHappyServer, type TurnCounterRef } from '@/claude/utils/startHappyServer';
+import { startHappyMcpIpc, type TurnCounterRef } from '@/claude/utils/happyMcpIpc';
 import { startHookServer } from '@/claude/utils/startHookServer';
 import { generateHookSettingsFile, cleanupHookSettingsFile } from '@/claude/utils/generateHookSettings';
 import { registerKillSessionHandler } from './registerKillSessionHandler';
 import { projectPath } from '../projectPath';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
 import { startOfflineReconnection, connectionState } from '@/utils/serverConnectionErrors';
 import { claudeLocal } from '@/claude/claudeLocal';
 import { createSessionScanner } from '@/claude/utils/sessionScanner';
@@ -268,9 +268,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     // Mutable ref for turn counter — shared between MCP server and launcher
     const turnCounterRef: TurnCounterRef = { value: 0 };
 
-    // Start Happy MCP server
-    const happyServer = await startHappyServer(session, turnCounterRef);
-    logger.debug(`[START] Happy MCP server started at ${happyServer.url}`);
+    // Start Happy MCP IPC server (Unix domain socket)
+    const happyIpc = await startHappyMcpIpc(session, turnCounterRef);
+    logger.debug(`[START] Happy MCP IPC ready at ${happyIpc.socketPath}`);
 
     // Variable to track current session instance (updated via onSessionReady callback)
     // Used by hook server to notify Session when Claude changes session ID
@@ -499,8 +499,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             // Stop caffeinate
             stopCaffeinate();
 
-            // Stop Happy MCP server
-            happyServer.stop();
+            // Stop Happy MCP IPC server
+            happyIpc.stop();
 
             // Stop Hook server and cleanup settings file
             hookServer.stop();
@@ -539,7 +539,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         startingMode: options.startingMode,
         messageQueue,
         api,
-        allowedTools: happyServer.toolNames.map(toolName => `mcp__happy__${toolName}`),
+        allowedTools: happyIpc.toolNames.map(toolName => `mcp__happy__${toolName}`),
         onModeChange: (newMode) => {
             session.sendSessionEvent({ type: 'switch', mode: newMode });
             session.updateAgentState((currentState) => ({
@@ -562,8 +562,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         },
         mcpServers: {
             'happy': {
-                type: 'http' as const,
-                url: happyServer.url,
+                command: join(projectPath(), 'bin', 'happy-mcp.mjs'),
+                env: { HAPPY_MCP_SOCKET: happyIpc.socketPath },
             }
         },
         session,
@@ -594,9 +594,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     stopCaffeinate();
     logger.debug('Stopped sleep prevention');
 
-    // Stop Happy MCP server
-    happyServer.stop();
-    logger.debug('Stopped Happy MCP server');
+    // Stop Happy MCP IPC server
+    happyIpc.stop();
+    logger.debug('Stopped Happy MCP IPC server');
 
     // Stop Hook server and cleanup settings file
     hookServer.stop();
