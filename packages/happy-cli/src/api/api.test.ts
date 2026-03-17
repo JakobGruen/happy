@@ -4,14 +4,16 @@ import axios from 'axios';
 import { connectionState } from '@/utils/serverConnectionErrors';
 
 // Use vi.hoisted to ensure mock functions are available when vi.mock factory runs
-const { mockPost, mockIsAxiosError } = vi.hoisted(() => ({
+const { mockPost, mockGet, mockIsAxiosError } = vi.hoisted(() => ({
     mockPost: vi.fn(),
+    mockGet: vi.fn(),
     mockIsAxiosError: vi.fn(() => true)
 }));
 
 vi.mock('axios', () => ({
     default: {
         post: mockPost,
+        get: mockGet,
         isAxiosError: mockIsAxiosError
     },
     isAxiosError: mockIsAxiosError
@@ -19,7 +21,8 @@ vi.mock('axios', () => ({
 
 vi.mock('@/ui/logger', () => ({
     logger: {
-        debug: vi.fn()
+        debug: vi.fn(),
+        warn: vi.fn()
     }
 }));
 
@@ -234,6 +237,68 @@ describe('Api server error handling', () => {
                 expect.stringContaining('⚠️  Happy server unreachable')
             );
             consoleSpy.mockRestore();
+        });
+    });
+
+    describe('fetchSession', () => {
+        it('should return id and raw metadata blob on success', async () => {
+            mockGet.mockResolvedValueOnce({
+                data: {
+                    session: {
+                        id: 'test-session-id',
+                        seq: 5,
+                        metadata: 'encrypted-blob-base64',
+                        metadataVersion: 2,
+                    }
+                }
+            });
+
+            const result = await api.fetchSession('test-session-id');
+
+            expect(mockGet).toHaveBeenCalledWith(
+                expect.stringContaining('/v1/sessions/test-session-id'),
+                expect.objectContaining({
+                    headers: expect.objectContaining({ Authorization: expect.stringContaining('Bearer') })
+                })
+            );
+            expect(result).toEqual({
+                id: 'test-session-id',
+                metadata: 'encrypted-blob-base64',
+            });
+        });
+
+        it('should return null when session metadata is null', async () => {
+            mockGet.mockResolvedValueOnce({
+                data: {
+                    session: {
+                        id: 'test-session-id',
+                        seq: 1,
+                        metadata: null,
+                    }
+                }
+            });
+
+            const result = await api.fetchSession('test-session-id');
+
+            expect(result).toEqual({ id: 'test-session-id', metadata: null });
+        });
+
+        it('should return null on network error', async () => {
+            mockGet.mockRejectedValueOnce(new Error('Network error'));
+
+            const result = await api.fetchSession('test-session-id');
+
+            expect(result).toBeNull();
+        });
+
+        it('should return null on 404', async () => {
+            const err = { response: { status: 404 } };
+            mockIsAxiosError.mockReturnValueOnce(true);
+            mockGet.mockRejectedValueOnce(err);
+
+            const result = await api.fetchSession('test-session-id');
+
+            expect(result).toBeNull();
         });
     });
 
