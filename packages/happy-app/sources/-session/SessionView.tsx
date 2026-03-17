@@ -44,6 +44,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnistyles } from 'react-native-unistyles';
 import type { ModelMode, PermissionMode } from '@/components/PermissionModeSelector';
 import { LogStepList } from '@/components/LogStepList';
+import { SwipeablePager, PAGER_SPRING_CONFIG } from '@/components/SwipeablePager';
+import { useSharedValue, withSpring } from 'react-native-reanimated';
 
 export const SessionView = React.memo((props: { id: string }) => {
     const sessionId = props.id;
@@ -172,6 +174,11 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     const deviceType = useDeviceType();
     const [message, setMessage] = React.useState('');
     const [activeView, setActiveView] = React.useState<'chat' | 'log'>('chat');
+    const pageOffset = useSharedValue(0);
+    const handleViewChange = React.useCallback((view: 'chat' | 'log') => {
+        setActiveView(view);
+        pageOffset.value = withSpring(view === 'chat' ? 0 : 1, PAGER_SPRING_CONFIG);
+    }, [pageOffset]);
     const realtimeStatus = useRealtimeStatus();
     const { messages, isLoaded } = useSessionMessages(sessionId);
     const acknowledgedCliVersions = useLocalSetting('acknowledgedCliVersions');
@@ -345,8 +352,18 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
 
     const summaryText = session.metadata?.summary?.text;
 
+    const chatPage = (
+        <Deferred>
+            {messages.length > 0 && (
+                <ChatList session={session} />
+            )}
+        </Deferred>
+    );
+
+    const logPage = <LogStepList metadata={session.metadata} />;
+
     let content = (
-        <>
+        <View style={{ flex: 1 }}>
             {summaryText && (
                 <View style={{
                     paddingHorizontal: 16,
@@ -362,16 +379,13 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                     </Text>
                 </View>
             )}
-            {activeView === 'chat' ? (
-                <Deferred>
-                    {messages.length > 0 && (
-                        <ChatList session={session} />
-                    )}
-                </Deferred>
-            ) : (
-                <LogStepList metadata={session.metadata} />
-            )}
-        </>
+            <SwipeablePager
+                leftPage={chatPage}
+                rightPage={logPage}
+                pageOffset={pageOffset}
+                onPageChange={(index) => handleViewChange(index === 0 ? 'chat' : 'log')}
+            />
+        </View>
     );
     const placeholder = activeView === 'chat' && messages.length === 0 ? (
         <>
@@ -436,7 +450,8 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                 metadata={session.metadata}
                 isSendDisabled={!session.active}
                 activeView={activeView}
-                onViewChange={setActiveView}
+                onViewChange={handleViewChange}
+                pageOffset={pageOffset}
                 connectionStatus={{
                     text: sessionStatus.statusText,
                     color: sessionStatus.statusColor,
