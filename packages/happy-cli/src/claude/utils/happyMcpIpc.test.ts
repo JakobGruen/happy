@@ -60,6 +60,19 @@ describe('happyMcpIpc', () => {
         );
     });
 
+    it('should also write title to metadata when change_title is called', async () => {
+        const client = createMockClient();
+        server = await startHappyMcpIpc(client as any);
+
+        await sendIpcMessage(server.socketPath, {
+            type: 'change_title',
+            title: 'My Session Title',
+        });
+
+        expect(client.updateMetadata).toHaveBeenCalled();
+        expect(client.getMetadata()).toMatchObject({ title: 'My Session Title' });
+    });
+
     it('should handle log_step with auto-increment key', async () => {
         const client = createMockClient();
         server = await startHappyMcpIpc(client as any);
@@ -132,6 +145,57 @@ describe('happyMcpIpc', () => {
 
         expect(existing['1']).toBeDefined();
         expect(existing['100']).toBeUndefined(); // oldest dropped
+    });
+
+    it('should start stepCounter after max key from initialLogSteps', async () => {
+        const client = createMockClient();
+        const initialLogSteps = {
+            '3': { title: 'Step 3', summary: '- done', createdAt: 1000 },
+            '7': { title: 'Step 7', summary: '- done', createdAt: 2000 },
+        };
+        server = await startHappyMcpIpc(client as any, { initialLogSteps });
+
+        await sendIpcMessage(server.socketPath, {
+            type: 'log_step',
+            title: 'New step',
+            summary: '- new thing',
+        });
+
+        const meta = client.getMetadata();
+        expect(meta.logSteps?.['8']).toMatchObject({ title: 'New step' });
+        expect(meta.logSteps?.['1']).toBeUndefined();
+    });
+
+    it('should default stepCounter to produce key "1" when initialLogSteps is empty', async () => {
+        const client = createMockClient();
+        server = await startHappyMcpIpc(client as any, { initialLogSteps: {} });
+
+        await sendIpcMessage(server.socketPath, {
+            type: 'log_step',
+            title: 'First step',
+            summary: '- first',
+        });
+
+        const meta = client.getMetadata();
+        expect(meta.logSteps?.['1']).toMatchObject({ title: 'First step' });
+    });
+
+    it('should ignore non-numeric keys in initialLogSteps for stepCounter derivation', async () => {
+        const client = createMockClient();
+        const initialLogSteps = {
+            'abc': { title: 'Bad key', summary: '- done', createdAt: 1000 },
+            '5': { title: 'Good key', summary: '- done', createdAt: 2000 },
+        };
+        server = await startHappyMcpIpc(client as any, { initialLogSteps });
+
+        await sendIpcMessage(server.socketPath, {
+            type: 'log_step',
+            title: 'New step',
+            summary: '- new',
+        });
+
+        const meta = client.getMetadata();
+        expect(meta.logSteps?.['6']).toMatchObject({ title: 'New step' });
     });
 
     it('should reject unknown message types', async () => {

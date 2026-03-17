@@ -17,6 +17,7 @@ import { unlinkSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { logger } from '@/ui/logger';
 import { ApiSessionClient } from '@/api/apiSession';
+import type { Metadata } from '@/api/types';
 
 export interface HappyMcpIpcServer {
     socketPath: string;
@@ -26,10 +27,14 @@ export interface HappyMcpIpcServer {
 
 export async function startHappyMcpIpc(
     client: ApiSessionClient,
+    { initialLogSteps }: { initialLogSteps?: NonNullable<Metadata['logSteps']> } = {}
 ): Promise<HappyMcpIpcServer> {
     const socketPath = join(tmpdir(), `happy-mcp-${randomUUID().slice(0, 8)}.sock`);
     const toolNames = ['change_title', 'log_step'];
-    let stepCounter = 0;
+    const numericKeys = Object.keys(initialLogSteps ?? {})
+        .map(k => parseInt(k, 10))
+        .filter(Number.isFinite);
+    let stepCounter = numericKeys.length > 0 ? Math.max(...numericKeys) : 0;
 
     logger.debug(`[happyMcpIpc] Starting UDS server at ${socketPath}`);
 
@@ -75,6 +80,7 @@ export async function startHappyMcpIpc(
                         summary: msg.title!,
                         leafUuid: randomUUID(),
                     });
+                    client.updateMetadata((m: any) => ({ ...m, title: msg.title }));
                     return { success: true };
                 }
 
