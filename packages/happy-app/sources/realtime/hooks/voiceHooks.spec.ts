@@ -337,6 +337,50 @@ describe('voiceHooks session isolation', () => {
     });
 
     // =======================================================================
+    // sendSessionState
+    // =======================================================================
+    describe('sendSessionState', () => {
+        it('sends state via sendState when session has metadata', async () => {
+            vi.resetModules();
+            const mod = await freshModule();
+            setupActiveVoiceSession();
+
+            mod.sendSessionState({
+                id: 'test-session',
+                metadata: {
+                    currentModelCode: 'opus',
+                    currentOperatingModeCode: 'plan',
+                    autoApproveTools: true,
+                    path: '/test',
+                    host: 'test-host',
+                },
+            });
+
+            expect(mocks.mockVoiceSession.sendState).toHaveBeenCalledTimes(1);
+            const sent = JSON.parse(mocks.mockVoiceSession.sendState.mock.calls[0][0]);
+            expect(sent).toEqual({
+                sessionId: 'test-session',
+                model: 'opus',
+                permissionMode: 'plan',
+                autoApproveTools: true,
+            });
+        });
+
+        it('does not crash when no voice session is active', async () => {
+            vi.resetModules();
+            const mod = await freshModule();
+            mocks.getVoiceSession.mockReturnValue(null);
+
+            mod.sendSessionState({
+                id: 'test-session',
+                metadata: { path: '/test', host: 'test-host' },
+            });
+
+            expect(mocks.mockVoiceSession.sendState).not.toHaveBeenCalled();
+        });
+    });
+
+    // =======================================================================
     // Integration: multi-session scenario
     // =======================================================================
     describe('multi-session isolation scenario', () => {

@@ -14,6 +14,8 @@ import { storage } from '@/sync/storage';
 import { getAllCommands } from '@/sync/suggestionCommands';
 import { Message } from '@/sync/typesMessage';
 import { VOICE_CONFIG } from '../voiceConfig';
+import type { Session } from '@/sync/storageTypes';
+import { buildSessionState } from './voiceState';
 
 /**
  * Centralized voice assistant hooks for multi-session context updates.
@@ -86,6 +88,13 @@ function sendTrigger(trigger: { type: string; [key: string]: any }) {
         console.log('🎤 Voice: Sending trigger:', trigger.type);
     }
     voice.sendTrigger(JSON.stringify(trigger));
+}
+
+export function sendSessionState(session: Pick<Session, 'id' | 'metadata' | 'autoApproveTools'>) {
+    const voice = getVoiceSession();
+    if (!voice) return;
+    const state = buildSessionState(session as Session);
+    voice.sendState(JSON.stringify(state));
 }
 
 function checkAndSendProgressUpdate(sessionId: string) {
