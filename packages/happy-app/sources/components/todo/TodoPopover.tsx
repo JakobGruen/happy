@@ -18,13 +18,23 @@ interface TodoPopoverProps {
 }
 
 export const TodoPopover = React.memo<TodoPopoverProps>(({ todos, visible, onDismiss }) => {
-    const { height: screenHeight } = useWindowDimensions();
+    const { height: screenHeight, width: screenWidth } = useWindowDimensions();
 
     if (!visible || todos.length === 0) return null;
 
     const completed = todos.filter(item => item.status === 'completed').length;
     const total = todos.length;
     const maxHeight = screenHeight * 0.5;
+
+    // Popover is rendered inside the pill's absolute container (left: 28% of status bar).
+    // We want the popover left-aligned to screen edge (with 16px padding).
+    // The pill is ~28% from left edge of the status bar (which has 16px paddingHorizontal).
+    // So offset the popover left by: -(28% of statusBarWidth + 16px padding) + 16px screen padding
+    const pillOffsetFromScreenLeft = screenWidth * 0.28 + 16; // pill position from screen left
+    const popoverLeft = -(pillOffsetFromScreenLeft - 16); // align to 16px from screen left
+    const popoverWidth = screenWidth - 32; // full width minus 16px padding each side
+    // Arrow should point at center of pill (~20px wide, so ~10px from popover's pill offset)
+    const arrowLeft = pillOffsetFromScreenLeft - 16 + 10; // center of pill relative to popover left
 
     return (
         <>
@@ -48,8 +58,8 @@ export const TodoPopover = React.memo<TodoPopoverProps>(({ todos, visible, onDis
                 style={{
                     position: 'absolute',
                     bottom: '100%',
-                    left: -4,
-                    width: 300,
+                    left: popoverLeft,
+                    width: popoverWidth,
                     marginBottom: 6,
                     backgroundColor: '#2a2a2c',
                     borderWidth: 1,
@@ -64,11 +74,11 @@ export const TodoPopover = React.memo<TodoPopoverProps>(({ todos, visible, onDis
                     zIndex: 100,
                 }}
             >
-                {/* Arrow */}
+                {/* Arrow — centered under the pill */}
                 <View style={{
                     position: 'absolute',
                     bottom: -6,
-                    left: 60,
+                    left: arrowLeft,
                     width: 12,
                     height: 12,
                     backgroundColor: '#2a2a2c',

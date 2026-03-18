@@ -497,22 +497,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const todoPillState = useTodoPillState(props.todos);
     const [todoPopoverVisible, setTodoPopoverVisible] = React.useState(false);
 
-    // Auto-close popover when all todos complete
-    React.useEffect(() => {
-        if (todoPillState.phase === 'allComplete' && todoPopoverVisible) {
-            const timer = setTimeout(() => {
-                setTodoPopoverVisible(false);
-            }, 2000);
-            return () => clearTimeout(timer);
-        }
-    }, [todoPillState.phase, todoPopoverVisible]);
 
-    // Close popover when pill hides
-    React.useEffect(() => {
-        if (todoPillState.phase === 'hidden') {
-            setTodoPopoverVisible(false);
-        }
-    }, [todoPillState.phase]);
 
     // Profile data
     const profiles = useSetting('profiles');
@@ -1162,18 +1147,32 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     {props.connectionStatus ? '• ' : ''}{contextWarning.text}
                                 </Text>
                             )}
+                        </View>
+                        <View style={{
+                            position: 'absolute',
+                            left: '28%',
+                            zIndex: 3,
+                            overflow: 'visible' as const,
+                        }}>
                             <TodoPill
                                 completed={todoPillState.completed}
                                 total={todoPillState.total}
                                 phase={todoPillState.phase}
                                 onPress={() => setTodoPopoverVisible(v => !v)}
                             />
+                            {props.todos && (
+                                <TodoPopover
+                                    todos={props.todos}
+                                    visible={todoPopoverVisible}
+                                    onDismiss={() => setTodoPopoverVisible(false)}
+                                />
+                            )}
                         </View>
                         {props.activeView && props.onViewChange && (
                             <View style={{
                                 position: 'absolute',
-                                left: 40,
-                                right: 0,
+                                left: '38%',
+                                right: '20%',
                                 alignItems: 'center',
                                 pointerEvents: 'box-none',
                             }}>
@@ -1216,13 +1215,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 </Text>
                             )}
                         </View>
-                        {props.todos && (
-                            <TodoPopover
-                                todos={props.todos}
-                                visible={todoPopoverVisible}
-                                onDismiss={() => setTodoPopoverVisible(false)}
-                            />
-                        )}
                     </View>
                 )}
 

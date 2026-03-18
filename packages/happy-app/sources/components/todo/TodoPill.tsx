@@ -1,12 +1,6 @@
 import * as React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
-    withDelay,
-} from 'react-native-reanimated';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import type { PillPhase } from './useTodoPillState';
@@ -19,66 +13,34 @@ interface TodoPillProps {
 }
 
 export const TodoPill = React.memo<TodoPillProps>(({ completed, total, phase, onPress }) => {
-    const opacity = useSharedValue(0);
-    const prevPhaseRef = React.useRef<PillPhase>('hidden');
-
-    React.useEffect(() => {
-        const prev = prevPhaseRef.current;
-        prevPhaseRef.current = phase;
-
-        switch (phase) {
-            case 'hidden':
-                opacity.value = withTiming(0, { duration: 200 });
-                break;
-            case 'active':
-                if (prev === 'hidden') {
-                    opacity.value = withTiming(1, { duration: 200 });
-                } else {
-                    opacity.value = 1;
-                }
-                break;
-            case 'allComplete':
-                opacity.value = 1;
-                // Hold for 3s, then fade out over 500ms
-                opacity.value = withDelay(3000, withTiming(0, { duration: 500 }));
-                break;
-            case 'fadingOut':
-                // Quick completion — fade out directly
-                opacity.value = withTiming(0, { duration: 500 });
-                break;
-        }
-    }, [phase, opacity]);
-
-    const animatedStyle = useAnimatedStyle(() => ({
-        opacity: opacity.value,
-    }));
-
     const isHidden = phase === 'hidden';
     const isComplete = phase === 'allComplete';
-    const pillColor = isComplete ? 'rgba(76, 217, 100, 0.12)' : 'rgba(0, 122, 255, 0.12)';
-    const textColor = isComplete ? '#4cd964' : '#007AFF';
+    const pillColor = isHidden ? 'rgba(255, 255, 255, 0.06)'
+        : isComplete ? 'rgba(76, 217, 100, 0.12)'
+        : 'rgba(0, 122, 255, 0.12)';
+    const textColor = isHidden ? 'rgba(255, 255, 255, 0.25)'
+        : isComplete ? '#4cd964'
+        : '#007AFF';
 
     return (
-        <Animated.View style={[animatedStyle, { pointerEvents: isHidden ? 'none' : 'auto' }]}>
-            <Pressable
-                onPress={onPress}
-                accessibilityLabel={t('session.todoPill.accessibility', { completed, total })}
-                accessibilityRole="button"
-                style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 3,
-                    backgroundColor: pillColor,
-                    paddingHorizontal: 7,
-                    paddingVertical: 2,
-                    borderRadius: 6,
-                }}
-            >
-                <Ionicons name="bulb-outline" size={10} color={textColor} />
-                <Text style={{ fontSize: 10, color: textColor, ...Typography.default() }}>
-                    {completed}/{total}{isComplete ? ' ✓' : ''}
-                </Text>
-            </Pressable>
-        </Animated.View>
+        <Pressable
+            onPress={isHidden ? undefined : onPress}
+            accessibilityLabel={t('session.todoPill.accessibility', { completed, total })}
+            accessibilityRole="button"
+            style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 3,
+                backgroundColor: pillColor,
+                paddingHorizontal: 7,
+                paddingVertical: 2,
+                borderRadius: 6,
+            }}
+        >
+            <Ionicons name="bulb-outline" size={10} color={textColor} />
+            <Text style={{ fontSize: 10, color: textColor, ...Typography.default() }}>
+                {isHidden ? '–' : `${completed}/${total}${isComplete ? ' ✓' : ''}`}
+            </Text>
+        </Pressable>
     );
 });
