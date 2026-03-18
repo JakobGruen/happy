@@ -26,9 +26,10 @@ export function generateHookSettingsFile(port: number): string {
     const filename = `session-hook-${process.pid}.json`;
     const filepath = join(hooksDir, filename);
 
-    // Path to the hook forwarder script
-    const forwarderScript = resolve(projectPath(), 'scripts', 'session_hook_forwarder.cjs');
-    const hookCommand = `node "${forwarderScript}" ${port}`;
+    // Paths to bundled hook scripts (no external dependencies — just Node.js)
+    const scriptsDir = resolve(projectPath(), 'scripts');
+    const forwarderScript = join(scriptsDir, 'session_hook_forwarder.cjs');
+    const enforceLogStepScript = join(scriptsDir, 'enforce_log_step.cjs');
 
     const settings = {
         hooks: {
@@ -38,7 +39,7 @@ export function generateHookSettingsFile(port: number): string {
                     hooks: [
                         {
                             type: "command",
-                            command: hookCommand
+                            command: `node "${forwarderScript}" ${port}`
                         }
                     ]
                 }
@@ -48,7 +49,7 @@ export function generateHookSettingsFile(port: number): string {
                     hooks: [
                         {
                             type: "command",
-                            command: "uv run --script ~/.claude/hooks/enforce-log-step.py",
+                            command: `node "${enforceLogStepScript}"`,
                             timeout: 10000
                         }
                     ]
