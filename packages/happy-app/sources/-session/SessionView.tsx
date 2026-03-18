@@ -25,7 +25,7 @@ import { voiceHooks, sendSessionState } from '@/realtime/hooks/voiceHooks';
 import { startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { buildSessionState } from '@/realtime/hooks/voiceState';
 import { buildVoiceMessageContext } from '@/realtime/voiceMessageContext';
-import { sendVoiceMessage } from '@/sync/apiVoiceMessage';
+import { sendVoiceMessage, processVoiceMessageActions } from '@/sync/apiVoiceMessage';
 import type { VoiceMessageResponse } from '@jakobgruen/happy-wire';
 import { VoiceMessageBubble } from '@/components/voice/VoiceMessageBubble';
 import { gitStatusSync } from '@/sync/gitStatusSync';
@@ -372,6 +372,10 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
             const context = buildVoiceMessageContext(session);
             const result = await sendVoiceMessage(audioUri, context);
             setVoiceMessageResult(result);
+            // Process deferred actions (message_claude_code, permissions, etc.)
+            processVoiceMessageActions(sessionId, result.actions).catch(err => {
+                console.error('[VoiceMessage] Failed to process deferred actions:', err);
+            });
             tracking?.capture('voice_message_sent', {
                 sessionId,
                 toolCount: result.actions.length,

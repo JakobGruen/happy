@@ -85,3 +85,46 @@ async function sendToVoiceAgent(
 
     return await response.json();
 }
+
+/**
+ * Process deferred actions from a voice message result.
+ *
+ * Some tools (message_claude_code, process_permission_request) are handled
+ * app-side rather than via callback — the voice agent returns them as
+ * "deferred" actions and we dispatch them here.
+ */
+export async function processVoiceMessageActions(
+    sessionId: string,
+    actions: VoiceMessageResponse['actions'],
+): Promise<void> {
+    for (const action of actions) {
+        const result = action.result;
+        const isDeferred = result === 'deferred'
+            || (typeof result === 'object' && result !== null && 'result' in result && (result as Record<string, unknown>).result === 'deferred');
+        if (isDeferred) {
+            switch (action.tool) {
+                case 'message_claude_code': {
+                    const message = action.args?.message;
+                    if (typeof message === 'string' && message.length > 0) {
+                        const { sync } = await import('./sync');
+                        await sync.sendMessage(sessionId, message);
+                    }
+                    break;
+                }
+                case 'process_permission_request': {
+                    const { sessionAllow, sessionDeny } = await import('./ops');
+                    const decision = action.args?.decision as string | undefined;
+                    const requestId = action.args?.request_id as string | undefined;
+                    if (requestId && decision === 'allow') {
+                        await sessionAllow(sessionId, requestId, undefined, undefined, 'approved');
+                    } else if (requestId && decision === 'deny') {
+                        await sessionDeny(sessionId, requestId, undefined, undefined, 'denied');
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+}
