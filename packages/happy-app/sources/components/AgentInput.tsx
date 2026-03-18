@@ -1172,7 +1172,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         {props.activeView && props.onViewChange && (
                             <View style={{
                                 position: 'absolute',
-                                left: 0,
+                                left: 40,
                                 right: 0,
                                 alignItems: 'center',
                                 pointerEvents: 'box-none',

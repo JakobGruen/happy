@@ -48,8 +48,8 @@ export const TodoPopover = React.memo<TodoPopoverProps>(({ todos, visible, onDis
                 style={{
                     position: 'absolute',
                     bottom: '100%',
-                    left: 12,
-                    width: 240,
+                    left: -4,
+                    width: 300,
                     marginBottom: 6,
                     backgroundColor: '#2a2a2c',
                     borderWidth: 1,
