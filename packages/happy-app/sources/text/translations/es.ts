@@ -611,7 +611,13 @@ export const es: TranslationStructure = {
             title: 'Idiomas',
             footer: ({ count }: { count: number }) => `${count} ${plural({ count, singular: 'idioma', plural: 'idiomas' })} disponibles`,
             autoDetect: 'Detectar automáticamente',
-        }
+        },
+        progressUpdatesTitle: 'Actualizaciones de progreso',
+        progressUpdatesDescription: 'Cuando está activado, el asistente de voz resumirá periódicamente lo que el agente está haciendo mientras trabaja.',
+        progressUpdatesEnabled: 'Actualizaciones automáticas',
+        progressUpdatesEnabledSubtitle: 'Actualizaciones de voz durante sesiones activas',
+        progressInterval: 'Intervalo de actualización',
+        progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
     settingsAccount: {

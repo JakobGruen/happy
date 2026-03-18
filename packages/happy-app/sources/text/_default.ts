@@ -610,7 +610,13 @@ export const en = {
             title: 'Languages',
             footer: ({ count }: { count: number }) => `${count} ${plural({ count, singular: 'language', plural: 'languages' })} available`,
             autoDetect: 'Auto-detect',
-        }
+        },
+        progressUpdatesTitle: 'Progress Updates',
+        progressUpdatesDescription: 'When enabled, the voice assistant will periodically summarize what the agent is doing while it works.',
+        progressUpdatesEnabled: 'Automated Updates',
+        progressUpdatesEnabledSubtitle: 'Voice updates during active sessions',
+        progressInterval: 'Update Interval',
+        progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
     settingsAccount: {

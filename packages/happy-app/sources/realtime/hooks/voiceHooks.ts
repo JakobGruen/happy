@@ -101,8 +101,16 @@ function getMessageSummary(message: Message): string | null {
     return null;
 }
 
+/** Read the user's progress update interval setting (0 = disabled) */
+function getProgressIntervalMs(): number {
+    const seconds = storage.getState().settings.voiceProgressUpdateInterval;
+    return seconds * 1000;
+}
+
 function sendTrigger(trigger: { type: string; [key: string]: any }) {
     if (!VOICE_CONFIG.ENABLE_PROACTIVE_SPEECH) return;
+    // Respect user setting: 0 = disabled
+    if (getProgressIntervalMs() === 0) return;
     const voice = getVoiceSession();
     if (!voice || !isVoiceSessionStarted()) return;
     if (VOICE_CONFIG.ENABLE_DEBUG_LOGGING) {
@@ -111,7 +119,7 @@ function sendTrigger(trigger: { type: string; [key: string]: any }) {
     voice.sendTrigger(JSON.stringify(trigger));
 }
 
-export function sendSessionState(session: Pick<Session, 'id' | 'metadata' | 'autoApproveTools'>) {
+export function sendSessionState(session: Pick<Session, 'id' | 'metadata' | 'autoApproveTools' | 'thinking'>) {
     const voice = getVoiceSession();
     if (!voice) return;
     const state = buildSessionState(session);
@@ -273,6 +281,8 @@ export const voiceHooks = {
         // --- Progress tracking ---
         if (!VOICE_CONFIG.ENABLE_PROACTIVE_SPEECH) return;
         if (!isVoiceSessionStarted()) return;
+        const intervalMs = getProgressIntervalMs();
+        if (intervalMs === 0) return; // User disabled progress updates
 
         // Enter working state on first messages
         if (!progressIsWorking) {
@@ -281,10 +291,10 @@ export const voiceHooks = {
             progressNewMessageCount = 0;
             progressRecentSummaries = [];
 
-            // Start periodic progress check
+            // Start periodic progress check using user-configured interval
             progressTimer = setInterval(() => {
                 checkAndSendProgressUpdate(sessionId);
-            }, VOICE_CONFIG.PROGRESS_UPDATE_INTERVAL_MS);
+            }, intervalMs);
         }
 
         // Accumulate message summaries
@@ -406,6 +416,17 @@ export const voiceHooks = {
         lastKnownLogStepKeys = currentKeys;
 
         reportContextualUpdate(formatNewLogSteps(sessionId, newSteps));
+    },
+
+    /**
+     * Called when session thinking state changes (CC starts/stops working)
+     */
+    onThinkingChanged(sessionId: string, thinking: boolean) {
+        if (!isVoiceSession(sessionId)) return;
+
+        const session = storage.getState().sessions[sessionId];
+        if (!session) return;
+        sendSessionState(session);
     },
 
     /**
