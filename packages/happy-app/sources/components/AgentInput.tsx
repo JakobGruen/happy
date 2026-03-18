@@ -507,6 +507,13 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         }
     }, [todoPillState.phase, todoPopoverVisible]);
 
+    // Close popover when pill hides
+    React.useEffect(() => {
+        if (todoPillState.phase === 'hidden') {
+            setTodoPopoverVisible(false);
+        }
+    }, [todoPillState.phase]);
+
     // Profile data
     const profiles = useSetting('profiles');
     const currentProfile = React.useMemo(() => {
