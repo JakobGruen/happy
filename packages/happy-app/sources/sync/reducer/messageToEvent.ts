@@ -50,7 +50,18 @@ export function parseMessageAsEvent(msg: NormalizedMessage): AgentEvent | null {
                 if (typeof title === 'string') {
                     return {
                         type: 'message',
-                        message: `Title changed to "${title}"`,
+                        message: `✏️ Title changed: "${title}"`,
+                    } as AgentEvent;
+                }
+            }
+
+            // Check for mcp__happy__log_step tool calls
+            if (content.type === 'tool-call' && content.name === 'mcp__happy__log_step') {
+                const title = content.input?.title;
+                if (typeof title === 'string') {
+                    return {
+                        type: 'message',
+                        message: `📋 Step logged: "${title}"`,
                     } as AgentEvent;
                 }
             }
