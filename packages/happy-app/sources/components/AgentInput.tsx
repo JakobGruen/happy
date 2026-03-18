@@ -31,6 +31,7 @@ import { t } from '@/text';
 import { Metadata } from '@/sync/storageTypes';
 import { AIBackendProfile, getProfileEnvironmentVariables, validateProfileForAgent } from '@/sync/settings';
 import { getBuiltInProfile } from '@/sync/profileUtils';
+import { VoiceAgentButton } from './voice/VoiceAgentButton';
 
 interface AgentInputProps {
     value: string;
@@ -39,8 +40,14 @@ interface AgentInputProps {
     sessionId?: string;
     onSend: () => void;
     sendIcon?: React.ReactNode;
-    onMicPress?: () => void;
-    isMicActive?: boolean;
+    // Voice agent (interactive Pipecat session)
+    onVoiceAgentPress?: () => void;
+    isVoiceAgentActive?: boolean;
+    isVoiceAgentConnecting?: boolean;
+    // Voice message recording (fire-and-forget)
+    onVoiceMessageSend?: (audioUri: string) => void;
+    isVoiceMessageSending?: boolean;
+    isVoiceMessageEnabled?: boolean;
     permissionMode?: PermissionMode | null;
     availableModes?: PermissionMode[];
     onPermissionModeChange?: (mode: PermissionMode) => void;
@@ -1458,11 +1465,20 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
                                 </View>
 
-                                {/* Send/Voice button - aligned with first row */}
+                                {/* Voice Agent button — left of send button */}
+                                {props.onVoiceAgentPress && (
+                                    <VoiceAgentButton
+                                        onPress={props.onVoiceAgentPress}
+                                        isActive={props.isVoiceAgentActive ?? false}
+                                        isConnecting={props.isVoiceAgentConnecting ?? false}
+                                    />
+                                )}
+
+                                {/* Send / Voice Message button */}
                                 <View
                                     style={[
                                         styles.sendButton,
-                                        (hasContent || props.isSending || (props.onMicPress && !props.isMicActive))
+                                        (hasContent || props.isSending || props.isVoiceMessageEnabled)
                                             ? styles.sendButtonActive
                                             : styles.sendButtonInactive
                                     ]}
@@ -1478,15 +1494,11 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
                                         onPress={() => {
                                             hapticsLight();
-                                            if (hasContent) {
-                                                props.onSend();
-                                            } else {
-                                                props.onMicPress?.();
-                                            }
+                                            props.onSend();
                                         }}
-                                        disabled={props.isSendDisabled || props.isSending || (!hasContent && !props.onMicPress)}
+                                        disabled={props.isSendDisabled || props.isSending || !hasContent}
                                     >
-                                        {props.isSending ? (
+                                        {props.isSending || props.isVoiceMessageSending ? (
                                             <ActivityIndicator
                                                 size="small"
                                                 color={theme.colors.button.primary.tint}
@@ -1501,14 +1513,11 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                     { marginTop: Platform.OS === 'web' ? 2 : 0 }
                                                 ]}
                                             />
-                                        ) : props.onMicPress && !props.isMicActive ? (
-                                            <Image
-                                                source={require('@/assets/images/icon-voice-white.png')}
-                                                style={{
-                                                    width: 24,
-                                                    height: 24,
-                                                }}
-                                                tintColor={theme.colors.button.primary.tint}
+                                        ) : props.isVoiceMessageEnabled ? (
+                                            <Octicons
+                                                name="unmute"
+                                                size={16}
+                                                color={theme.colors.button.primary.tint}
                                             />
                                         ) : (
                                             <Octicons

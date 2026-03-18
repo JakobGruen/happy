@@ -349,11 +349,19 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         }
     }, [realtimeStatus, sessionId]);
 
-    // Memoize mic button state to prevent flashing during chat transitions
-    const micButtonState = useMemo(() => ({
-        onMicPress: handleMicrophonePress,
-        isMicActive: realtimeStatus === 'connected' || realtimeStatus === 'connecting'
+    // Voice agent props (interactive Pipecat session — replaces old micButtonState)
+    const voiceAgentProps = useMemo(() => ({
+        onVoiceAgentPress: handleMicrophonePress,
+        isVoiceAgentActive: realtimeStatus === 'connected' || realtimeStatus === 'connecting',
+        isVoiceAgentConnecting: realtimeStatus === 'connecting',
     }), [handleMicrophonePress, realtimeStatus]);
+
+    // Voice message props (fire-and-forget — wired in Chunk 3)
+    const voiceMessageProps = useMemo(() => ({
+        onVoiceMessageSend: undefined as ((audioUri: string) => void) | undefined,
+        isVoiceMessageSending: false,
+        isVoiceMessageEnabled: true,
+    }), []);
 
     // Trigger session visibility and initialize git status sync
     React.useLayoutEffect(() => {
@@ -506,8 +514,12 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                         trackMessageSent();
                     }
                 }}
-                onMicPress={micButtonState.onMicPress}
-                isMicActive={micButtonState.isMicActive}
+                onVoiceAgentPress={voiceAgentProps.onVoiceAgentPress}
+                isVoiceAgentActive={voiceAgentProps.isVoiceAgentActive}
+                isVoiceAgentConnecting={voiceAgentProps.isVoiceAgentConnecting}
+                onVoiceMessageSend={voiceMessageProps.onVoiceMessageSend}
+                isVoiceMessageSending={voiceMessageProps.isVoiceMessageSending}
+                isVoiceMessageEnabled={voiceMessageProps.isVoiceMessageEnabled}
                 onAbort={() => sessionAbort(sessionId)}
                 showAbortButton={sessionStatus.state === 'thinking' || sessionStatus.state === 'waiting'}
                 onFileViewerPress={experiments ? () => router.push(`/session/${sessionId}/files`) : undefined}
