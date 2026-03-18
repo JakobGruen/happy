@@ -249,13 +249,15 @@ class PipecatVoiceSessionImpl implements VoiceSession {
 
     async endSession(): Promise<void> {
         isDisconnecting = true;
-        if (pcClient) {
+        const client = pcClient;
+        pcClient = null; // Prevent double-disconnect
+        if (client) {
             try {
-                await pcClient.disconnect();
+                await client.disconnect();
             } catch (err) {
-                console.error('[Pipecat] Disconnect error:', err);
+                // WebRTC throws InvalidStateError if peer connection already closed
+                console.warn('[Pipecat] Disconnect error (non-fatal):', err);
             }
-            pcClient = null;
         }
         try {
             cleanupBotAudio();

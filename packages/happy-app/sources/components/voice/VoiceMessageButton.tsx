@@ -9,7 +9,7 @@
  * 32px when typing (more room for text). Animates with spring.
  */
 import * as React from 'react';
-import { ActivityIndicator, Platform } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, withSpring, useAnimatedReaction, runOnJS, type SharedValue } from 'react-native-reanimated';
 import { Ionicons, Octicons } from '@expo/vector-icons';
@@ -122,9 +122,15 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
         const isActive = props.hasContent || voiceEnabled;
         const iconSize = props.hasContent ? ICON_SMALL : ICON_LARGE;
 
+        // On web, prevent browser context menu on long-press which breaks gestures
+        const webProps = Platform.OS === 'web' ? {
+            onContextMenu: (e: { preventDefault: () => void }) => e.preventDefault(),
+        } : {};
+
         return (
             <GestureDetector gesture={gestures.gesture}>
                 <Animated.View
+                    {...webProps}
                     style={[
                         styles.sendButton,
                         isActive ? styles.sendButtonActive : styles.sendButtonInactive,
@@ -169,6 +175,13 @@ const styles = StyleSheet.create((theme) => ({
         alignItems: 'center',
         flexShrink: 0,
         marginLeft: 8,
+        // Mobile web: prevent browser from hijacking long-press for context menu,
+        // text selection, iOS link preview, or scroll/zoom gestures
+        ...(Platform.OS === 'web' ? {
+            userSelect: 'none' as const,
+            WebkitTouchCallout: 'none',
+            touchAction: 'none',
+        } : {}),
     },
     sendButtonActive: {
         backgroundColor: theme.colors.button.primary.background,

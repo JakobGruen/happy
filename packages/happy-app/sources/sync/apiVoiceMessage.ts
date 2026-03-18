@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { getServerUrl } from './serverConfig';
 import { storage } from './storage';
 import type { VoiceMessageContext, VoiceMessageResponse } from '@jakobgruen/happy-wire';
@@ -49,13 +50,19 @@ async function sendToVoiceAgent(
 ): Promise<VoiceMessageResponse> {
     const formData = new FormData();
 
-    // Append audio file (React Native FormData accepts { uri, type, name })
-    const audioFile = {
-        uri: audioUri,
-        type: 'audio/m4a',
-        name: 'voice-message.m4a',
-    } as unknown as Blob;
-    formData.append('audio', audioFile);
+    if (Platform.OS === 'web') {
+        // On web, audioUri is a blob URL — fetch it and append as File
+        const audioBlob = await fetch(audioUri).then(r => r.blob());
+        formData.append('audio', new File([audioBlob], 'voice-message.m4a', { type: 'audio/m4a' }));
+    } else {
+        // On native, React Native FormData accepts { uri, type, name }
+        const audioFile = {
+            uri: audioUri,
+            type: 'audio/m4a',
+            name: 'voice-message.m4a',
+        } as unknown as Blob;
+        formData.append('audio', audioFile);
+    }
 
     // Append context and callback URL
     formData.append('context', JSON.stringify(context));

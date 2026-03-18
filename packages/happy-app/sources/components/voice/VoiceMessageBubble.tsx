@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import { Octicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
@@ -17,7 +17,7 @@ export const VoiceMessageBubble = React.memo(function VoiceMessageBubble(props: 
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <Octicons name="unmute" size={14} style={styles.headerIcon} />
+                <Ionicons name="mic-outline" size={14} style={styles.headerIcon} />
                 <Text style={styles.headerText}>
                     {t('voiceMessage.voiceMessage')}
                 </Text>
