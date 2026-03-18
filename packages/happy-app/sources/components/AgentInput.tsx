@@ -268,6 +268,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 0,
+        minHeight: 52,
     },
     actionButtonsLeft: {
         flexDirection: 'row',
