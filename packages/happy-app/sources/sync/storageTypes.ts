@@ -120,6 +120,7 @@ export interface Session {
     modelMode?: string | null; // Local model key, not synced to server
     effortMode?: string | null; // Local effort level key, not synced to server
     autoApproveTools?: boolean; // Local auto-approve tools toggle, synced via RPC
+    voiceMessages?: VoiceMessageEntry[]; // Local-only, not synced to server
     // IMPORTANT: latestUsage is extracted from reducerState.latestUsage after message processing.
     // We store it directly on Session to ensure it's available immediately on load.
     // Do NOT store reducerState itself on Session - it's mutable and should only exist in SessionMessages.
@@ -131,6 +132,14 @@ export interface Session {
         contextSize: number;
         timestamp: number;
     } | null;
+}
+
+export interface VoiceMessageEntry {
+    id: string;
+    createdAt: number;
+    transcript: string;
+    summary: string;
+    actions: Array<{ tool: string; args: Record<string, unknown>; result?: unknown }>;
 }
 
 export interface DecryptedMessage {

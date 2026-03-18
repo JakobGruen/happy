@@ -5,7 +5,8 @@ import { StyleSheet } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
 import { MarkdownView } from "./markdown/MarkdownView";
 import { t } from '@/text';
-import { Message, UserTextMessage, AgentTextMessage, ToolCallMessage } from "@/sync/typesMessage";
+import { Message, UserTextMessage, AgentTextMessage, ToolCallMessage, VoiceMessageMessage } from "@/sync/typesMessage";
+import { VoiceMessageBubble } from './voice/VoiceMessageBubble';
 import { Metadata } from "@/sync/storageTypes";
 import { layout } from "./layout";
 import { ToolView } from "./tools/ToolView";
@@ -79,6 +80,8 @@ function RenderBlock(props: {
     case 'agent-event':
       return <AgentEventBlock event={props.message.event} metadata={props.metadata} />;
 
+    case 'voice-message':
+      return <VoiceMessageBlock message={props.message} />;
 
     default:
       // Exhaustive check - TypeScript will error if we miss a case
@@ -264,6 +267,19 @@ function ToolCallBlock(props: {
   );
 }
 
+function VoiceMessageBlock(props: { message: VoiceMessageMessage }) {
+  return (
+    <View style={styles.voiceMessageContainer}>
+      <VoiceMessageBubble
+        isProcessing={false}
+        transcript={props.message.transcript}
+        summary={props.message.summary}
+        actions={props.message.actions}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create((theme) => ({
   messageContainer: {
     flexDirection: 'row',
@@ -314,6 +330,11 @@ const styles = StyleSheet.create((theme) => ({
   },
   toolContainer: {
     marginHorizontal: 8,
+  },
+  voiceMessageContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    alignItems: 'flex-start' as const,
   },
   debugText: {
     color: theme.colors.agentEventText,

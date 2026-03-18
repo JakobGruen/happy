@@ -72,4 +72,13 @@ export type ToolCallMessage = {
     meta?: MessageMeta;
 }
 
-export type Message = UserTextMessage | AgentTextMessage | ToolCallMessage | ModeSwitchMessage;
+export type VoiceMessageMessage = {
+    kind: 'voice-message';
+    id: string;
+    createdAt: number;
+    transcript: string;
+    summary: string;
+    actions: Array<{ tool: string; args: Record<string, unknown>; result?: unknown }>;
+}
+
+export type Message = UserTextMessage | AgentTextMessage | ToolCallMessage | ModeSwitchMessage | VoiceMessageMessage;

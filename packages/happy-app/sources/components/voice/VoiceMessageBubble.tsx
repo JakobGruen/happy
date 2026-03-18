@@ -63,6 +63,9 @@ const styles = StyleSheet.create((theme) => ({
         gap: 8,
         maxWidth: '85%',
         backgroundColor: theme.colors.input.background,
+        borderLeftWidth: 3,
+        borderLeftColor: theme.colors.textLink,
+        opacity: 0.85,
     },
     header: {
         flexDirection: 'row',
