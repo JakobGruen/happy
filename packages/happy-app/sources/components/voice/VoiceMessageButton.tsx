@@ -12,7 +12,7 @@ import * as React from 'react';
 import { ActivityIndicator, Platform } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, withSpring, useAnimatedReaction, runOnJS, type SharedValue } from 'react-native-reanimated';
-import { Octicons } from '@expo/vector-icons';
+import { Ionicons, Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useVoiceRecording } from './useVoiceRecording';
 import { useRecordingGestures, type RecordingState } from './useRecordingGestures';
@@ -144,9 +144,9 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
                             style={{ marginTop: Platform.OS === 'web' ? 2 : 0 }}
                         />
                     ) : voiceEnabled ? (
-                        <Octicons
-                            name="unmute"
-                            size={iconSize}
+                        <Ionicons
+                            name="mic-outline"
+                            size={iconSize + 2}
                             color={theme.colors.button.primary.tint}
                         />
                     ) : (
