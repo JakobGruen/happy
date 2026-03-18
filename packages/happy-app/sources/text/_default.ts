@@ -619,6 +619,16 @@ export const en = {
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
+    voiceMessage: {
+        slideToCancel: 'Slide to cancel',
+        recording: 'Recording',
+        sending: 'Sending voice message...',
+        sent: 'Voice message sent',
+        failed: 'Voice message failed',
+        tapToRecord: 'Hold for voice message',
+        voiceMessage: 'Voice message',
+    },
+
     settingsAccount: {
         // Account settings screen
         accountInformation: 'Account Information',

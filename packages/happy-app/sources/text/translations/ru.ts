@@ -630,6 +630,16 @@ export const ru: TranslationStructure = {
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
+    voiceMessage: {
+        slideToCancel: 'Сдвиньте для отмены',
+        recording: 'Запись',
+        sending: 'Отправка голосового сообщения...',
+        sent: 'Голосовое сообщение отправлено',
+        failed: 'Не удалось отправить голосовое сообщение',
+        tapToRecord: 'Удерживайте для голосового сообщения',
+        voiceMessage: 'Голосовое сообщение',
+    },
+
     settingsAccount: {
         // Account settings screen
         accountInformation: 'Информация об аккаунте',

@@ -620,6 +620,16 @@ export const es: TranslationStructure = {
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
+    voiceMessage: {
+        slideToCancel: 'Desliza para cancelar',
+        recording: 'Grabando',
+        sending: 'Enviando mensaje de voz...',
+        sent: 'Mensaje de voz enviado',
+        failed: 'Error al enviar mensaje de voz',
+        tapToRecord: 'Mantén pulsado para mensaje de voz',
+        voiceMessage: 'Mensaje de voz',
+    },
+
     settingsAccount: {
         // Account settings screen
         accountInformation: 'Información de la cuenta',

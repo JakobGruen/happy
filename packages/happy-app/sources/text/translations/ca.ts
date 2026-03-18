@@ -620,6 +620,16 @@ export const ca: TranslationStructure = {
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
+    voiceMessage: {
+        slideToCancel: 'Llisca per cancel·lar',
+        recording: 'Gravant',
+        sending: 'Enviant missatge de veu...',
+        sent: 'Missatge de veu enviat',
+        failed: 'El missatge de veu ha fallat',
+        tapToRecord: 'Mantén premut per a missatge de veu',
+        voiceMessage: 'Missatge de veu',
+    },
+
     settingsAccount: {
         // Account settings screen
         accountInformation: 'Informació del compte',

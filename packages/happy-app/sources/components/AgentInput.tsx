@@ -32,6 +32,9 @@ import { Metadata } from '@/sync/storageTypes';
 import { AIBackendProfile, getProfileEnvironmentVariables, validateProfileForAgent } from '@/sync/settings';
 import { getBuiltInProfile } from '@/sync/profileUtils';
 import { VoiceAgentButton } from './voice/VoiceAgentButton';
+import { VoiceMessageButton, type VoiceMessageButtonHandle } from './voice/VoiceMessageButton';
+import { VoiceRecordingOverlay, LockedRecordingControls } from './voice/VoiceRecordingOverlay';
+import type { RecordingState } from './voice/useRecordingGestures';
 
 interface AgentInputProps {
     value: string;
@@ -497,6 +500,11 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
     const agentInputEnterToSend = useSetting('agentInputEnterToSend');
 
+
+    // Voice message recording state
+    const voiceMessageRef = React.useRef<VoiceMessageButtonHandle>(null);
+    const [recordingState, setRecordingState] = React.useState<RecordingState>('idle');
+    const isRecording = recordingState === 'recording_held' || recordingState === 'recording_locked' || recordingState === 'stopped_locked';
 
     // Abort button state
     const [isAborting, setIsAborting] = React.useState(false);
@@ -1250,20 +1258,38 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
                 {/* Box 2: Action Area (Input + Send) */}
                 <View style={styles.unifiedPanel}>
-                    {/* Input field */}
-                    <View style={[styles.inputContainer, props.minHeight ? { minHeight: props.minHeight } : undefined]}>
-                        <MultiTextInput
-                            ref={inputRef}
-                            value={props.value}
-                            paddingTop={Platform.OS === 'web' ? 10 : 8}
-                            paddingBottom={Platform.OS === 'web' ? 10 : 8}
-                            onChangeText={props.onChangeText}
-                            placeholder={props.placeholder}
-                            onKeyPress={handleKeyPress}
-                            onStateChange={handleInputStateChange}
-                            maxHeight={120}
-                        />
-                    </View>
+                    {/* Input field OR recording overlay */}
+                    {isRecording ? (
+                        recordingState === 'recording_locked' || recordingState === 'stopped_locked' ? (
+                            <LockedRecordingControls
+                                onSend={voiceMessageRef.current?.gestures.sendLocked ?? (() => {})}
+                                onCancel={voiceMessageRef.current?.gestures.cancelLocked ?? (() => {})}
+                                onStop={voiceMessageRef.current?.gestures.stopLocked ?? (() => {})}
+                                isStopped={recordingState === 'stopped_locked'}
+                                durationMs={voiceMessageRef.current?.recording.durationMs ?? 0}
+                            />
+                        ) : (
+                            <VoiceRecordingOverlay
+                                durationMs={voiceMessageRef.current?.recording.durationMs ?? 0}
+                                metering={voiceMessageRef.current?.recording.metering ?? -160}
+                                translateX={voiceMessageRef.current?.gestures.translateX!}
+                            />
+                        )
+                    ) : (
+                        <View style={[styles.inputContainer, props.minHeight ? { minHeight: props.minHeight } : undefined]}>
+                            <MultiTextInput
+                                ref={inputRef}
+                                value={props.value}
+                                paddingTop={Platform.OS === 'web' ? 10 : 8}
+                                paddingBottom={Platform.OS === 'web' ? 10 : 8}
+                                onChangeText={props.onChangeText}
+                                placeholder={props.placeholder}
+                                onKeyPress={handleKeyPress}
+                                onStateChange={handleInputStateChange}
+                                maxHeight={120}
+                            />
+                        </View>
+                    )}
 
                     {/* Attachment thumbnails */}
                     {hasAttachments && (
@@ -1475,63 +1501,21 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 )}
 
                                 {/* Send / Voice Message button */}
-                                <View
-                                    style={[
-                                        styles.sendButton,
-                                        (hasContent || props.isSending || props.isVoiceMessageEnabled)
-                                            ? styles.sendButtonActive
-                                            : styles.sendButtonInactive
-                                    ]}
-                                >
-                                    <Pressable
-                                        style={(p) => ({
-                                            width: '100%',
-                                            height: '100%',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            opacity: p.pressed ? 0.7 : 1,
-                                        })}
-                                        hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
-                                        onPress={() => {
-                                            hapticsLight();
-                                            props.onSend();
-                                        }}
-                                        disabled={props.isSendDisabled || props.isSending || !hasContent}
-                                    >
-                                        {props.isSending || props.isVoiceMessageSending ? (
-                                            <ActivityIndicator
-                                                size="small"
-                                                color={theme.colors.button.primary.tint}
-                                            />
-                                        ) : hasContent ? (
-                                            <Octicons
-                                                name="arrow-up"
-                                                size={16}
-                                                color={theme.colors.button.primary.tint}
-                                                style={[
-                                                    styles.sendButtonIcon,
-                                                    { marginTop: Platform.OS === 'web' ? 2 : 0 }
-                                                ]}
-                                            />
-                                        ) : props.isVoiceMessageEnabled ? (
-                                            <Octicons
-                                                name="unmute"
-                                                size={16}
-                                                color={theme.colors.button.primary.tint}
-                                            />
-                                        ) : (
-                                            <Octicons
-                                                name="arrow-up"
-                                                size={16}
-                                                color={theme.colors.button.primary.tint}
-                                                style={[
-                                                    styles.sendButtonIcon,
-                                                    { marginTop: Platform.OS === 'web' ? 2 : 0 }
-                                                ]}
-                                            />
-                                        )}
-                                    </Pressable>
-                                </View>
+                                <VoiceMessageButton
+                                    ref={voiceMessageRef}
+                                    hasContent={hasContent}
+                                    isSending={props.isSending}
+                                    isVoiceMessageSending={props.isVoiceMessageSending}
+                                    isVoiceMessageEnabled={props.isVoiceMessageEnabled}
+                                    isVoiceAgentActive={props.isVoiceAgentActive}
+                                    onSend={() => {
+                                        hapticsLight();
+                                        props.onSend();
+                                    }}
+                                    onVoiceMessageSend={props.onVoiceMessageSend}
+                                    isSendDisabled={props.isSendDisabled}
+                                    onRecordingStateChange={setRecordingState}
+                                />
                             </View>
                         </View>
                     </View>

@@ -621,6 +621,16 @@ export const zhHant: TranslationStructure = {
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
+    voiceMessage: {
+        slideToCancel: '滑動取消',
+        recording: '錄音中',
+        sending: '正在傳送語音訊息...',
+        sent: '語音訊息已傳送',
+        failed: '語音訊息傳送失敗',
+        tapToRecord: '長按傳送語音訊息',
+        voiceMessage: '語音訊息',
+    },
+
     settingsAccount: {
         // Account settings screen
         accountInformation: '帳戶資訊',

@@ -652,6 +652,16 @@ export const ja: TranslationStructure = {
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
+    voiceMessage: {
+        slideToCancel: 'スライドでキャンセル',
+        recording: '録音中',
+        sending: 'ボイスメッセージを送信中...',
+        sent: 'ボイスメッセージを送信しました',
+        failed: 'ボイスメッセージの送信に失敗しました',
+        tapToRecord: '長押しでボイスメッセージ',
+        voiceMessage: 'ボイスメッセージ',
+    },
+
     settingsAccount: {
         // Account settings screen
         accountInformation: 'アカウント情報',
