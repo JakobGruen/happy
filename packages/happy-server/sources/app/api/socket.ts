@@ -13,6 +13,9 @@ import { machineUpdateHandler } from "./socket/machineUpdateHandler";
 import { artifactUpdateHandler } from "./socket/artifactUpdateHandler";
 import { accessKeyHandler } from "./socket/accessKeyHandler";
 
+// Exported for HTTP→RPC bridging (voice tool callbacks)
+export let rpcListenersMap: Map<string, Map<string, Socket>> | null = null;
+
 export function startSocket(app: Fastify) {
     const io = new Server(app.server, {
         cors: {
@@ -32,6 +35,7 @@ export function startSocket(app: Fastify) {
     });
 
     let rpcListeners = new Map<string, Map<string, Socket>>();
+    rpcListenersMap = rpcListeners;
     io.on("connection", async (socket) => {
         log({ module: 'websocket' }, `New connection attempt from socket: ${socket.id}`);
         const token = socket.handshake.auth.token as string;

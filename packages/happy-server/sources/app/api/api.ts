@@ -13,6 +13,7 @@ import { machinesRoutes } from "./routes/machinesRoutes";
 import { devRoutes } from "./routes/devRoutes";
 import { versionRoutes } from "./routes/versionRoutes";
 import { voiceRoutes } from "./routes/voiceRoutes";
+import { voiceToolCallbackRoutes } from "./routes/voiceToolCallbackRoutes";
 import { artifactsRoutes } from "./routes/artifactsRoutes";
 import { accessKeysRoutes } from "./routes/accessKeysRoutes";
 import { enableMonitoring } from "./utils/enableMonitoring";
@@ -86,6 +87,7 @@ export async function startApi() {
     devRoutes(typed);
     versionRoutes(typed);
     voiceRoutes(typed);
+    voiceToolCallbackRoutes(typed);
     userRoutes(typed);
     feedRoutes(typed);
     kvRoutes(typed);
