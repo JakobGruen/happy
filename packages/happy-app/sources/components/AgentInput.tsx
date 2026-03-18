@@ -46,6 +46,8 @@ interface AgentInputProps {
     onVoiceAgentPress?: () => void;
     isVoiceAgentActive?: boolean;
     isVoiceAgentConnecting?: boolean;
+    isMicMuted?: boolean;
+    onMutePress?: () => void;
     // Voice message recording (fire-and-forget)
     onVoiceMessageSend?: (audioUri: string) => void;
     isVoiceMessageSending?: boolean;
@@ -306,14 +308,6 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     sendButtonIcon: {
         color: theme.colors.button.primary.tint,
     },
-    recordingCancelButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        alignItems: 'center' as const,
-        justifyContent: 'center' as const,
-        marginLeft: 4,
-    },
 }));
 
 const getContextWarning = (contextSize: number, alwaysShow: boolean = false, theme: Theme) => {
@@ -450,7 +444,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
     const hasText = props.value.trim().length > 0;
     const hasAttachments = (props.attachments?.length ?? 0) > 0;
-    const hasContent = hasText || hasAttachments;
+    const [isInputFocused, setIsInputFocused] = React.useState(false);
+    const hasContent = hasText || hasAttachments || isInputFocused;
 
     // Check if this is a Codex or Gemini session
     // Use metadata.flavor for existing sessions, agentType prop for new sessions
@@ -1285,6 +1280,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 placeholder={props.placeholder}
                                 onKeyPress={handleKeyPress}
                                 onStateChange={handleInputStateChange}
+                                onFocus={() => setIsInputFocused(true)}
+                                onBlur={() => setIsInputFocused(false)}
                                 maxHeight={120}
                             />
                         </View>
@@ -1490,21 +1487,15 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
                                 </View>
 
-                                {/* Voice Agent button — or trash button during recording */}
-                                {isRecording ? (
-                                    <Pressable
-                                        onPress={() => { hapticsLight(); voiceMessageRef.current?.cancelRecording(); }}
-                                        style={styles.recordingCancelButton}
-                                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                                    >
-                                        <Octicons name="trash" size={16} color="#FF3B30" />
-                                    </Pressable>
-                                ) : props.onVoiceAgentPress ? (
+                                {/* Voice Agent button — hidden during voice message recording */}
+                                {!isRecording && props.onVoiceAgentPress ? (
                                     <VoiceAgentButton
                                         onPress={props.onVoiceAgentPress}
                                         isActive={props.isVoiceAgentActive ?? false}
                                         isConnecting={props.isVoiceAgentConnecting ?? false}
                                         compact={hasContent}
+                                        isMuted={props.isMicMuted}
+                                        onMutePress={props.onMutePress}
                                     />
                                 ) : null}
 

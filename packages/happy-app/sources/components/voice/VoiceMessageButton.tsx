@@ -6,21 +6,23 @@
  *   - Tap send → stops recording + sends
  *   - Tap with text → sends text message
  *
- * Size: 44px when input is empty, 32px when typing. Animates with spring.
+ * Size: 52px when input is empty, 32px when typing. Animates with spring.
  */
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable } from 'react-native';
-import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
+import Animated, { useAnimatedStyle, withSpring, FadeIn, FadeOut } from 'react-native-reanimated';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useVoiceRecording } from './useVoiceRecording';
 import { hapticsLight } from '@/components/haptics';
 import * as Haptics from 'expo-haptics';
 
-const SIZE_LARGE = 44;
+const SIZE_LARGE = 52;
 const SIZE_SMALL = 32;
-const ICON_LARGE = 20;
+const ICON_LARGE = 22;
 const ICON_SMALL = 16;
+const MINI_SIZE = 28;
+const MINI_GAP = 8;
 const SPRING_CONFIG = { damping: 25, stiffness: 200, overshootClamping: true };
 
 export type RecordingState = 'idle' | 'recording' | 'paused' | 'sending';
@@ -131,7 +133,7 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
             recordingState,
         }), [recording.isRecording, recording.isPaused, recording.durationMs, recording.metering, cancelRecording, pauseRecording, resumeRecording, recordingState]);
 
-        // Animated size: 44px when empty → 32px when typing
+        // Animated size: 52px when empty → 32px when typing
         const isActiveRecording = recordingState === 'recording' || recordingState === 'paused';
         const buttonAnimatedStyle = useAnimatedStyle(() => {
             const size = props.hasContent ? SIZE_SMALL : SIZE_LARGE;
@@ -140,7 +142,7 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
                 height: withSpring(size, SPRING_CONFIG),
                 borderRadius: withSpring(size / 2, SPRING_CONFIG),
                 transform: [{
-                    scale: isActiveRecording ? withSpring(1.15, SPRING_CONFIG) : withSpring(1, SPRING_CONFIG),
+                    scale: isActiveRecording ? withSpring(1.05, SPRING_CONFIG) : withSpring(1, SPRING_CONFIG),
                 }],
             };
         });
@@ -153,48 +155,127 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
         const showSendArrow = props.hasContent || isActiveRecording;
         const showMic = !showSpinner && !showSendArrow && voiceEnabled;
 
+        const handlePauseToggle = React.useCallback(() => {
+            if (recordingState === 'recording') {
+                pauseRecording();
+            } else if (recordingState === 'paused') {
+                resumeRecording();
+            }
+        }, [recordingState, pauseRecording, resumeRecording]);
+
+        const wrapperSize = props.hasContent ? SIZE_SMALL : SIZE_LARGE;
+
         return (
-            <Pressable
-                onPress={handlePress}
-                disabled={showSpinner || props.isSendDisabled}
-                hitSlop={{ top: 5, bottom: 10, left: 5, right: 5 }}
-            >
-                <Animated.View
-                    style={[
-                        styles.sendButton,
-                        isActive ? styles.sendButtonActive : styles.sendButtonInactive,
-                        isActiveRecording && styles.sendButtonRecording,
-                        buttonAnimatedStyle,
-                    ]}
+            <View style={{ position: 'relative', marginLeft: 14, width: wrapperSize, alignItems: 'center' }}>
+                {/* Pause button — centered above main button */}
+                {isActiveRecording && !props.hasContent && (
+                    <Animated.View
+                        entering={FadeIn.duration(150)}
+                        exiting={FadeOut.duration(150)}
+                        style={{
+                            position: 'absolute',
+                            top: -(MINI_SIZE + MINI_GAP),
+                            left: (SIZE_LARGE - MINI_SIZE) / 2,
+                            zIndex: 1,
+                        }}
+                    >
+                        <Pressable
+                            onPress={handlePauseToggle}
+                            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                            style={{
+                                width: MINI_SIZE,
+                                height: MINI_SIZE,
+                                borderRadius: MINI_SIZE / 2,
+                                backgroundColor: recordingState === 'paused' ? '#FF3B30' : 'rgba(255,255,255,0.15)',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                borderWidth: 1,
+                                borderColor: recordingState === 'paused' ? '#FF3B30' : 'rgba(255,255,255,0.3)',
+                            }}
+                        >
+                            <Ionicons
+                                name={recordingState === 'paused' ? 'play' : 'pause'}
+                                size={15}
+                                color="#FFFFFF"
+                            />
+                        </Pressable>
+                    </Animated.View>
+                )}
+
+                {/* Trash button — far left, roughly where the voice agent button sits */}
+                {isActiveRecording && !props.hasContent && (
+                    <Animated.View
+                        entering={FadeIn.duration(150)}
+                        exiting={FadeOut.duration(150)}
+                        style={{
+                            position: 'absolute',
+                            top: -(MINI_SIZE + MINI_GAP),
+                            right: SIZE_LARGE + 6,
+                            zIndex: 1,
+                        }}
+                    >
+                        <Pressable
+                            onPress={cancelRecording}
+                            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                            style={{
+                                width: MINI_SIZE,
+                                height: MINI_SIZE,
+                                borderRadius: MINI_SIZE / 2,
+                                backgroundColor: 'rgba(255,255,255,0.15)',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                borderWidth: 1,
+                                borderColor: 'rgba(255,255,255,0.3)',
+                            }}
+                        >
+                            <Octicons name="trash" size={14} color="#FF3B30" />
+                        </Pressable>
+                    </Animated.View>
+                )}
+
+                {/* Main button */}
+                <Pressable
+                    onPress={handlePress}
+                    disabled={showSpinner || props.isSendDisabled}
+                    hitSlop={{ top: 5, bottom: 10, left: 5, right: 5 }}
                 >
-                    {showSpinner ? (
-                        <ActivityIndicator
-                            size="small"
-                            color={theme.colors.button.primary.tint}
-                        />
-                    ) : showSendArrow ? (
-                        <Octicons
-                            name="arrow-up"
-                            size={iconSize}
-                            color={theme.colors.button.primary.tint}
-                            style={Platform.OS === 'web' ? { marginTop: 2 } : undefined}
-                        />
-                    ) : showMic ? (
-                        <Ionicons
-                            name="mic-outline"
-                            size={iconSize + 2}
-                            color={theme.colors.button.primary.tint}
-                        />
-                    ) : (
-                        <Octicons
-                            name="arrow-up"
-                            size={iconSize}
-                            color={theme.colors.button.primary.tint}
-                            style={Platform.OS === 'web' ? { marginTop: 2 } : undefined}
-                        />
-                    )}
-                </Animated.View>
-            </Pressable>
+                    <Animated.View
+                        style={[
+                            styles.sendButton,
+                            isActive ? styles.sendButtonActive : styles.sendButtonInactive,
+                            isActiveRecording && styles.sendButtonRecording,
+                            buttonAnimatedStyle,
+                        ]}
+                    >
+                        {showSpinner ? (
+                            <ActivityIndicator
+                                size="small"
+                                color={theme.colors.button.primary.tint}
+                            />
+                        ) : showSendArrow ? (
+                            <Octicons
+                                name="arrow-up"
+                                size={iconSize}
+                                color={theme.colors.button.primary.tint}
+                                style={Platform.OS === 'web' ? { marginTop: 2 } : undefined}
+                            />
+                        ) : showMic ? (
+                            <Ionicons
+                                name="mic-outline"
+                                size={iconSize + 2}
+                                color={theme.colors.button.primary.tint}
+                            />
+                        ) : (
+                            <Octicons
+                                name="arrow-up"
+                                size={iconSize}
+                                color={theme.colors.button.primary.tint}
+                                style={Platform.OS === 'web' ? { marginTop: 2 } : undefined}
+                            />
+                        )}
+                    </Animated.View>
+                </Pressable>
+            </View>
         );
     }
 ));
@@ -204,7 +285,6 @@ const styles = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         alignItems: 'center',
         flexShrink: 0,
-        marginLeft: 8,
     },
     sendButtonActive: {
         backgroundColor: theme.colors.button.primary.background,

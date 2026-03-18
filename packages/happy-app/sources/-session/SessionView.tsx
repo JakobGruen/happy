@@ -22,7 +22,7 @@ import { useDraft } from '@/hooks/useDraft';
 import { useImageAttachment } from '@/hooks/useImageAttachment';
 import { Modal } from '@/modal';
 import { voiceHooks, sendSessionState } from '@/realtime/hooks/voiceHooks';
-import { startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
+import { startRealtimeSession, stopRealtimeSession, setVoiceMicEnabled } from '@/realtime/RealtimeSession';
 import { buildSessionState } from '@/realtime/hooks/voiceState';
 import { buildVoiceMessageContext } from '@/realtime/voiceMessageContext';
 import { sendVoiceMessage, processVoiceMessageActions } from '@/sync/apiVoiceMessage';
@@ -30,7 +30,7 @@ import { randomUUID } from 'expo-crypto';
 import { VoiceMessageBubble } from '@/components/voice/VoiceMessageBubble';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { sessionAbort } from '@/sync/ops';
-import { storage, useIsDataReady, useLocalSetting, useRealtimeStatus, useSessionMessages, useSessionUsage, useSetting } from '@/sync/storage';
+import { storage, useIsDataReady, useLocalSetting, useRealtimeStatus, useRealtimeMicMuted, useSessionMessages, useSessionUsage, useSetting } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
 import { Session } from '@/sync/storageTypes';
 import { apiSocket } from '@/sync/apiSocket';
@@ -354,11 +354,17 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     }, [realtimeStatus, sessionId]);
 
     // Voice agent props (interactive Pipecat session — replaces old micButtonState)
+    const micMuted = useRealtimeMicMuted();
+    const handleMuteToggle = React.useCallback(() => {
+        setVoiceMicEnabled(micMuted); // toggle: if muted, enable; if not muted, disable
+    }, [micMuted]);
     const voiceAgentProps = useMemo(() => ({
         onVoiceAgentPress: handleMicrophonePress,
         isVoiceAgentActive: realtimeStatus === 'connected' || realtimeStatus === 'connecting',
         isVoiceAgentConnecting: realtimeStatus === 'connecting',
-    }), [handleMicrophonePress, realtimeStatus]);
+        isMicMuted: micMuted,
+        onMutePress: handleMuteToggle,
+    }), [handleMicrophonePress, realtimeStatus, micMuted, handleMuteToggle]);
 
     // Voice message props (fire-and-forget)
     const [isVoiceMessageSending, setIsVoiceMessageSending] = React.useState(false);
@@ -560,6 +566,8 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                 onVoiceAgentPress={voiceAgentProps.onVoiceAgentPress}
                 isVoiceAgentActive={voiceAgentProps.isVoiceAgentActive}
                 isVoiceAgentConnecting={voiceAgentProps.isVoiceAgentConnecting}
+                isMicMuted={voiceAgentProps.isMicMuted}
+                onMutePress={voiceAgentProps.onMutePress}
                 onVoiceMessageSend={voiceMessageProps.onVoiceMessageSend}
                 isVoiceMessageSending={voiceMessageProps.isVoiceMessageSending}
                 isVoiceMessageEnabled={voiceMessageProps.isVoiceMessageEnabled}

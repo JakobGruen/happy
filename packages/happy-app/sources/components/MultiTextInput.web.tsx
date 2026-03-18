@@ -39,6 +39,8 @@ interface MultiTextInputProps {
     onKeyPress?: OnKeyPressCallback;
     onSelectionChange?: (selection: { start: number; end: number }) => void;
     onStateChange?: (state: TextInputState) => void;
+    onFocus?: () => void;
+    onBlur?: () => void;
 }
 
 export const MultiTextInput = React.forwardRef<MultiTextInputHandle, MultiTextInputProps>((props, ref) => {
@@ -200,6 +202,8 @@ export const MultiTextInput = React.forwardRef<MultiTextInputHandle, MultiTextIn
                 autoCapitalize="sentences"
                 autoCorrect="on"
                 autoComplete="off"
+                onFocus={props.onFocus}
+                onBlur={props.onBlur}
             />
         </View>
     );

@@ -213,6 +213,16 @@ class PipecatVoiceSessionImpl implements VoiceSession {
     sendState(state: string): void {
         sendClientMessage('happy.state', state);
     }
+
+    setMicEnabled(enabled: boolean): void {
+        if (pcClient) {
+            try {
+                pcClient.enableMic(enabled);
+            } catch (err) {
+                console.warn('[Pipecat] Failed to set mic enabled:', err);
+            }
+        }
+    }
 }
 
 export const PipecatVoiceSession: React.FC = () => {

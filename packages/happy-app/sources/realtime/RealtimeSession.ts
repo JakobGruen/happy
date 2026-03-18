@@ -77,6 +77,7 @@ export async function stopRealtimeSession() {
         currentSessionId = null;
         voiceSessionStarted = false;
         storage.getState().setRealtimeSessionId(null);
+        storage.getState().setRealtimeMicMuted(false);
     } catch (error) {
         console.error('Failed to stop realtime session:', error);
     }
@@ -99,4 +100,11 @@ export function getVoiceSession(): VoiceSession | null {
 
 export function getCurrentRealtimeSessionId(): string | null {
     return currentSessionId;
+}
+
+export function setVoiceMicEnabled(enabled: boolean): void {
+    if (voiceSession) {
+        voiceSession.setMicEnabled(enabled);
+    }
+    storage.getState().setRealtimeMicMuted(!enabled);
 }

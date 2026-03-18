@@ -12,6 +12,7 @@ export interface VoiceSession {
     sendContextualUpdate(update: string): void;
     sendTrigger(trigger: string): void;
     sendState(state: string): void;
+    setMicEnabled(enabled: boolean): void;
 }
 
 export type ConversationStatus = 'disconnected' | 'connecting' | 'connected';

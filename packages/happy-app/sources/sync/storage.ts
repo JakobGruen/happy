@@ -98,6 +98,7 @@ interface StorageState {
     realtimeStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
     realtimeSessionId: string | null;
     realtimeMode: 'idle' | 'speaking';
+    realtimeMicMuted: boolean;
     socketStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
     socketLastConnectedAt: number | null;
     socketLastDisconnectedAt: number | null;
@@ -121,6 +122,7 @@ interface StorageState {
     setRealtimeStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void;
     setRealtimeSessionId: (id: string | null) => void;
     setRealtimeMode: (mode: 'idle' | 'speaking', immediate?: boolean) => void;
+    setRealtimeMicMuted: (muted: boolean) => void;
     clearRealtimeModeDebounce: () => void;
     setSocketStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void;
     getActiveSessions: () => Session[];
@@ -289,6 +291,7 @@ export const storage = create<StorageState>()((set, get) => {
         realtimeStatus: 'disconnected',
         realtimeSessionId: null,
         realtimeMode: 'idle',
+        realtimeMicMuted: false,
         socketStatus: 'disconnected',
         socketLastConnectedAt: null,
         socketLastDisconnectedAt: null,
@@ -767,6 +770,10 @@ export const storage = create<StorageState>()((set, get) => {
                 }, REALTIME_MODE_DEBOUNCE_MS);
             }
         },
+        setRealtimeMicMuted: (muted: boolean) => set((state) => ({
+            ...state,
+            realtimeMicMuted: muted,
+        })),
         clearRealtimeModeDebounce: () => {
             if (realtimeModeDebounceTimer) {
                 clearTimeout(realtimeModeDebounceTimer);
@@ -1383,6 +1390,10 @@ export function useRealtimeSessionId(): string | null {
 
 export function useRealtimeMode(): 'idle' | 'speaking' {
     return storage(useShallow((state) => state.realtimeMode));
+}
+
+export function useRealtimeMicMuted(): boolean {
+    return storage(useShallow((state) => state.realtimeMicMuted));
 }
 
 export function useSocketStatus() {
