@@ -24,6 +24,10 @@ import { Modal } from '@/modal';
 import { voiceHooks, sendSessionState } from '@/realtime/hooks/voiceHooks';
 import { startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { buildSessionState } from '@/realtime/hooks/voiceState';
+import { buildVoiceMessageContext } from '@/realtime/voiceMessageContext';
+import { sendVoiceMessage } from '@/sync/apiVoiceMessage';
+import type { VoiceMessageResponse } from '@jakobgruen/happy-wire';
+import { VoiceMessageBubble } from '@/components/voice/VoiceMessageBubble';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { sessionAbort } from '@/sync/ops';
 import { storage, useIsDataReady, useLocalSetting, useRealtimeStatus, useSessionMessages, useSessionUsage, useSetting } from '@/sync/storage';
@@ -356,12 +360,37 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
         isVoiceAgentConnecting: realtimeStatus === 'connecting',
     }), [handleMicrophonePress, realtimeStatus]);
 
-    // Voice message props (fire-and-forget — wired in Chunk 3)
+    // Voice message props (fire-and-forget)
+    const [isVoiceMessageSending, setIsVoiceMessageSending] = React.useState(false);
+    const [voiceMessageResult, setVoiceMessageResult] = React.useState<VoiceMessageResponse | null>(null);
+
+    const handleVoiceMessageSend = React.useCallback(async (audioUri: string) => {
+        if (!session) return;
+        setIsVoiceMessageSending(true);
+        setVoiceMessageResult(null);
+        try {
+            const context = buildVoiceMessageContext(session);
+            const result = await sendVoiceMessage(audioUri, context);
+            setVoiceMessageResult(result);
+            tracking?.capture('voice_message_sent', {
+                sessionId,
+                toolCount: result.actions.length,
+            });
+            // Auto-dismiss after 8 seconds
+            setTimeout(() => setVoiceMessageResult(prev => prev === result ? null : prev), 8000);
+        } catch (error) {
+            console.error('[VoiceMessage] Failed:', error);
+            Modal.alert(t('common.error'), t('voiceMessage.failed'));
+        } finally {
+            setIsVoiceMessageSending(false);
+        }
+    }, [session, sessionId]);
+
     const voiceMessageProps = useMemo(() => ({
-        onVoiceMessageSend: undefined as ((audioUri: string) => void) | undefined,
-        isVoiceMessageSending: false,
+        onVoiceMessageSend: handleVoiceMessageSend,
+        isVoiceMessageSending,
         isVoiceMessageEnabled: true,
-    }), []);
+    }), [handleVoiceMessageSend, isVoiceMessageSending]);
 
     // Trigger session visibility and initialize git status sync
     React.useLayoutEffect(() => {
@@ -469,6 +498,17 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                             {reactivating ? t('session.reactivating') : t('session.reactivateSession')}
                         </Text>
                     </Pressable>
+                </View>
+            )}
+            {/* Voice message processing/result bubble */}
+            {(isVoiceMessageSending || voiceMessageResult) && (
+                <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+                    <VoiceMessageBubble
+                        isProcessing={isVoiceMessageSending}
+                        transcript={voiceMessageResult?.transcript}
+                        summary={voiceMessageResult?.summary}
+                        actions={voiceMessageResult?.actions}
+                    />
                 </View>
             )}
             <AgentInput
