@@ -8,7 +8,7 @@ import { Pressable } from 'react-native';
 
 const SIZE_LARGE = 44;
 const SIZE_SMALL = 32;
-const SPRING_CONFIG = { damping: 15, stiffness: 200 };
+const SPRING_CONFIG = { damping: 25, stiffness: 200, overshootClamping: true };
 
 interface VoiceAgentButtonProps {
     onPress: () => void;

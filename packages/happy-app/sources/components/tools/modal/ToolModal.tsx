@@ -36,7 +36,8 @@ const AGENT_TOOLS = new Set(['Task', 'Agent']);
 const MODAL_HEIGHT_RATIO = 0.75;
 const DIFF_HEIGHT_RATIO = 0.85;
 const DISMISS_VELOCITY = 1200;
-const SPRING_CONFIG = { damping: 20, stiffness: 200, mass: 0.8 };
+const SPRING_CONFIG = { damping: 26, stiffness: 200, mass: 0.8 };
+const CLOSE_SPRING_CONFIG = { damping: 30, stiffness: 200, mass: 0.8, overshootClamping: true };
 
 const INPUT_BOX_TOTAL_HEIGHT = 44;
 const PERMISSION_CARD_HEIGHT_DEFAULT = 110; // Fallback when no pre-measurement available
@@ -211,7 +212,7 @@ export const ToolModal = React.memo<ToolModalProps>(
 
             const doClose = () => {
                 'worklet';
-                progress.value = withSpring(0, SPRING_CONFIG, (finished) => {
+                progress.value = withSpring(0, CLOSE_SPRING_CONFIG, (finished) => {
                     if (finished) runOnJS(actualClose)();
                 });
             };

@@ -21,7 +21,7 @@ const SIZE_LARGE = 44;
 const SIZE_SMALL = 32;
 const ICON_LARGE = 20;
 const ICON_SMALL = 16;
-const SPRING_CONFIG = { damping: 15, stiffness: 200 };
+const SPRING_CONFIG = { damping: 25, stiffness: 200, overshootClamping: true };
 
 export type RecordingState = 'idle' | 'recording' | 'paused' | 'sending';
 
