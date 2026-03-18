@@ -1,14 +1,66 @@
-# === Packages not needed for app build ===
-packages/happy-cli/
-packages/happy-server/
-packages/happy-agent/
-packages/happy-voice-agent/
+# .easignore replaces .gitignore for EAS builds — must include everything from .gitignore
 
-# === Dev/build artifacts ===
+# === Dependencies ===
+node_modules/
+
+# === Expo/Native (EAS generates these via prebuild) ===
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+/ios
+/android
+/packages/happy-app/ios
+/packages/happy-app/android
+
+# === Native build artifacts ===
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# === Metro ===
+.metro-health-check*
+
+# === Debug logs ===
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# === OS / editor ===
+.DS_Store
+*.pem
+
+# === Env files (secrets) ===
+.env*.local
+.env
+
+# === TypeScript build info ===
+*.tsbuildinfo
+
+# === Python ===
+__pycache__/
+*.pyc
+
+# === Dev tooling (not needed for app build) ===
 .claude/
 .serena/
 .mypy_cache/
 .pytest_cache/
+.plan
+CLAUDE.local.md
+progress*.txt
+
+# === Non-workspace packages ===
+packages/happy-voice-agent/
+
+# === Heavy directories (saves ~600MB) ===
+.git/
+packages/happy-cli/tools/
+packages/happy-server/sources/
 docs/
 notes/
 .github/
@@ -17,12 +69,3 @@ notes/
 packages/happy-app/src-tauri/
 packages/happy-app/**/*.test.ts
 packages/happy-app/**/*.test.tsx
-
-# === Already in .gitignore but be explicit ===
-node_modules/
-ios/
-android/
-.expo/
-dist/
-web-build/
-*.tsbuildinfo

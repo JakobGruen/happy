@@ -6,6 +6,7 @@
       "name": "monorepo",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.27.1",
+        "expo-updates": "~29.0.16",
       },
       "devDependencies": {
         "babel-preset-expo": "~54.0.0",
