@@ -15,8 +15,12 @@ export async function findAllHappyProcesses(): Promise<Array<{ pid: number, comm
   try {
     const processes = await psList();
     const allProcesses: Array<{ pid: number, command: string, type: string }> = [];
-    
+    const currentUid = process.getuid?.();
+
     for (const proc of processes) {
+      // Only show processes owned by the current user
+      if (currentUid !== undefined && proc.uid !== undefined && proc.uid !== currentUid) continue;
+
       const cmd = proc.cmd || '';
       const name = proc.name || '';
       
