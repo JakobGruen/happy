@@ -1497,6 +1497,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         onPress={props.onVoiceAgentPress}
                                         isActive={props.isVoiceAgentActive ?? false}
                                         isConnecting={props.isVoiceAgentConnecting ?? false}
+                                        compact={hasContent}
                                     />
                                 )}
 

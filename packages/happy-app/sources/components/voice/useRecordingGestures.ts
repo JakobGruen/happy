@@ -12,6 +12,12 @@
  *         STOPPED_LOCKED → [tap send] → SENDING
  *         STOPPED_LOCKED → [tap delete] → CANCELLED → IDLE
  *   IDLE → [tap] → onTap() (text message send)
+ *
+ * Implementation: Uses a single Pan gesture with activateAfterLongPress(200)
+ * instead of Simultaneous(LongPress, Pan). LongPress is a discrete gesture
+ * that "completes" after firing, which can kill the Pan in a Simultaneous
+ * composition. Pan.activateAfterLongPress gives us both the long-press
+ * trigger (onStart) and continuous tracking (onUpdate/onEnd) in one gesture.
  */
 import { useCallback, useRef } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
@@ -69,10 +75,11 @@ export function useRecordingGestures(options: UseRecordingGesturesOptions) {
         state.value = 'idle';
     }, [options.onRecordStop, options.onSend]);
 
-    // Compose long-press + pan
-    const longPress = Gesture.LongPress()
-        .minDuration(200)
+    // Single Pan gesture with activateAfterLongPress — replaces Simultaneous(LongPress, Pan).
+    // onStart fires at 200ms (the long-press trigger), onUpdate tracks movement, onEnd handles release.
+    const holdAndPan = Gesture.Pan()
         .enabled(options.enabled && !options.hasContent)
+        .activateAfterLongPress(200)
         .onStart(() => {
             'worklet';
             state.value = 'recording_held';
@@ -80,18 +87,14 @@ export function useRecordingGestures(options: UseRecordingGesturesOptions) {
             translateY.value = 0;
             isLocked.value = false;
             runOnJS(handleRecordStart)();
-        });
-
-    const pan = Gesture.Pan()
-        .enabled(options.enabled && !options.hasContent)
-        .activateAfterLongPress(200)
+        })
         .onUpdate((e) => {
             'worklet';
             if (state.value !== 'recording_held') return;
             translateX.value = Math.min(0, e.translationX);
             translateY.value = Math.min(0, e.translationY);
 
-            // Check lock threshold
+            // Check lock threshold (swipe up)
             if (e.translationY < LOCK_THRESHOLD && !isLocked.value) {
                 isLocked.value = true;
                 state.value = 'recording_locked';
@@ -124,11 +127,8 @@ export function useRecordingGestures(options: UseRecordingGesturesOptions) {
             runOnJS(options.onTap)();
         });
 
-    // Compose: tap takes priority when hasContent, otherwise long-press+pan
-    const composed = Gesture.Exclusive(
-        tap,
-        Gesture.Simultaneous(longPress, pan)
-    );
+    // Compose: tap takes priority when hasContent, otherwise hold-and-pan
+    const composed = Gesture.Exclusive(tap, holdAndPan);
 
     // Actions for locked state (called from UI buttons)
     const sendLocked = useCallback(async () => {

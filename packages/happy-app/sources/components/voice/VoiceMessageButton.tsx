@@ -4,6 +4,9 @@
  * Tap with text content → sends text (onSend).
  * Long-press without text → starts voice recording.
  * Exposes recording state for parent to show VoiceRecordingOverlay.
+ *
+ * Size: 44px when input is empty (bigger touch target for hold-to-record),
+ * 32px when typing (more room for text). Animates with spring.
  */
 import * as React from 'react';
 import { ActivityIndicator, Platform } from 'react-native';
@@ -14,6 +17,12 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useVoiceRecording } from './useVoiceRecording';
 import { useRecordingGestures, type RecordingState } from './useRecordingGestures';
 import { hapticsLight } from '@/components/haptics';
+
+const SIZE_LARGE = 44;
+const SIZE_SMALL = 32;
+const ICON_LARGE = 20;
+const ICON_SMALL = 16;
+const SPRING_CONFIG = { damping: 15, stiffness: 200 };
 
 interface VoiceMessageButtonProps {
     hasContent: boolean;
@@ -96,14 +105,22 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
             recordingState,
         }), [recording.isRecording, recording.durationMs, recording.metering, recordingState, gestures]);
 
-        // Button scale animation during recording
-        const buttonScale = useAnimatedStyle(() => ({
-            transform: [{
-                scale: gestures.state.value === 'recording_held' ? withSpring(1.4) : withSpring(1),
-            }],
-        }));
+        // Animated size: 44px when empty → 32px when typing, plus scale-up during recording
+        const buttonAnimatedStyle = useAnimatedStyle(() => {
+            const isRecordingHeld = gestures.state.value === 'recording_held';
+            const size = props.hasContent ? SIZE_SMALL : SIZE_LARGE;
+            return {
+                width: withSpring(size, SPRING_CONFIG),
+                height: withSpring(size, SPRING_CONFIG),
+                borderRadius: withSpring(size / 2, SPRING_CONFIG),
+                transform: [{
+                    scale: isRecordingHeld ? withSpring(1.3, SPRING_CONFIG) : withSpring(1, SPRING_CONFIG),
+                }],
+            };
+        });
 
         const isActive = props.hasContent || voiceEnabled;
+        const iconSize = props.hasContent ? ICON_SMALL : ICON_LARGE;
 
         return (
             <GestureDetector gesture={gestures.gesture}>
@@ -111,7 +128,7 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
                     style={[
                         styles.sendButton,
                         isActive ? styles.sendButtonActive : styles.sendButtonInactive,
-                        buttonScale,
+                        buttonAnimatedStyle,
                     ]}
                 >
                     {props.isSending || props.isVoiceMessageSending ? (
@@ -122,20 +139,20 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
                     ) : props.hasContent ? (
                         <Octicons
                             name="arrow-up"
-                            size={16}
+                            size={iconSize}
                             color={theme.colors.button.primary.tint}
                             style={{ marginTop: Platform.OS === 'web' ? 2 : 0 }}
                         />
                     ) : voiceEnabled ? (
                         <Octicons
                             name="unmute"
-                            size={16}
+                            size={iconSize}
                             color={theme.colors.button.primary.tint}
                         />
                     ) : (
                         <Octicons
                             name="arrow-up"
-                            size={16}
+                            size={iconSize}
                             color={theme.colors.button.primary.tint}
                             style={{ marginTop: Platform.OS === 'web' ? 2 : 0 }}
                         />
@@ -148,9 +165,6 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
 
 const styles = StyleSheet.create((theme) => ({
     sendButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
         flexShrink: 0,
