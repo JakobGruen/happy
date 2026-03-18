@@ -1065,7 +1065,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         zIndex: todoPopoverVisible ? 100 : undefined,
                         overflow: 'visible' as const,
                     }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 11 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 11, zIndex: 2 }}>
                             {props.connectionStatus && (
                                 <>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -1077,7 +1077,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         <Text style={{
                                             fontSize: 11,
                                             color: props.connectionStatus.color,
-                                            ...(todoPillState.phase !== 'hidden' && { maxWidth: 80 }),
+                                            maxWidth: 80,
                                             ...Typography.default()
                                         }} numberOfLines={1}>
                                             {props.connectionStatus.text}
@@ -1162,14 +1162,12 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     {props.connectionStatus ? '• ' : ''}{contextWarning.text}
                                 </Text>
                             )}
-                            {todoPillState.phase !== 'hidden' && (
-                                <TodoPill
-                                    completed={todoPillState.completed}
-                                    total={todoPillState.total}
-                                    phase={todoPillState.phase}
-                                    onPress={() => setTodoPopoverVisible(v => !v)}
-                                />
-                            )}
+                            <TodoPill
+                                completed={todoPillState.completed}
+                                total={todoPillState.total}
+                                phase={todoPillState.phase}
+                                onPress={() => setTodoPopoverVisible(v => !v)}
+                            />
                         </View>
                         {props.activeView && props.onViewChange && (
                             <View style={{

@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { Pressable, Text } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
@@ -52,12 +53,13 @@ export const TodoPill = React.memo<TodoPillProps>(({ completed, total, phase, on
         opacity: opacity.value,
     }));
 
+    const isHidden = phase === 'hidden';
     const isComplete = phase === 'allComplete';
     const pillColor = isComplete ? 'rgba(76, 217, 100, 0.12)' : 'rgba(0, 122, 255, 0.12)';
     const textColor = isComplete ? '#4cd964' : '#007AFF';
 
     return (
-        <Animated.View style={animatedStyle}>
+        <Animated.View style={[animatedStyle, { pointerEvents: isHidden ? 'none' : 'auto' }]}>
             <Pressable
                 onPress={onPress}
                 accessibilityLabel={t('session.todoPill.accessibility', { completed, total })}
@@ -72,8 +74,9 @@ export const TodoPill = React.memo<TodoPillProps>(({ completed, total, phase, on
                     borderRadius: 6,
                 }}
             >
+                <Ionicons name="bulb-outline" size={10} color={textColor} />
                 <Text style={{ fontSize: 10, color: textColor, ...Typography.default() }}>
-                    ☑ {completed}/{total}{isComplete ? ' ✓' : ''}
+                    {completed}/{total}{isComplete ? ' ✓' : ''}
                 </Text>
             </Pressable>
         </Animated.View>
