@@ -166,6 +166,13 @@ export const ToolModal = React.memo<ToolModalProps>(
             }
         }, [permBarHeightProp]);
 
+        // Close when visible prop becomes false (e.g., permission resolved externally)
+        useEffect(() => {
+            if (!visible && internalVisible) {
+                startCloseAnimation();
+            }
+        }, [visible]);
+
         // Open: set internal visible immediately, animate in
         useEffect(() => {
             if (visible) {
