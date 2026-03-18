@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { useShallow } from 'zustand/react/shallow'
 import { Session, Machine, GitStatus } from "./storageTypes";
 import { createReducer, reducer, ReducerState } from "./reducer/reducer";
-import { Message } from "./typesMessage";
+import { Message, VoiceMessageMessage } from "./typesMessage";
 import { NormalizedMessage } from "./typesRaw";
 import { isMachineOnline } from '@/utils/machineUtils';
 import { applySettings, Settings } from "./settings";
@@ -1206,13 +1206,34 @@ export function useSession(id: string): Session | null {
 const emptyArray: unknown[] = [];
 
 export function useSessionMessages(sessionId: string): { messages: Message[], isLoaded: boolean } {
-    return storage(useShallow((state) => {
-        const session = state.sessionMessages[sessionId];
+    const raw = storage(useShallow((state) => {
+        const sessionMsgs = state.sessionMessages[sessionId];
+        const session = state.sessions[sessionId];
         return {
-            messages: session?.messages ?? emptyArray,
-            isLoaded: session?.isLoaded ?? false
+            messages: sessionMsgs?.messages ?? emptyArray,
+            voiceMessages: session?.voiceMessages,
+            isLoaded: sessionMsgs?.isLoaded ?? false,
         };
     }));
+
+    const merged = React.useMemo(() => {
+        if (!raw.voiceMessages || raw.voiceMessages.length === 0) {
+            return raw.messages;
+        }
+        const voiceAsMessages: VoiceMessageMessage[] = raw.voiceMessages.map(vm => ({
+            kind: 'voice-message' as const,
+            id: vm.id,
+            createdAt: vm.createdAt,
+            transcript: vm.transcript,
+            summary: vm.summary,
+            actions: vm.actions,
+        }));
+        return [...raw.messages, ...voiceAsMessages].sort(
+            (a, b) => b.createdAt - a.createdAt
+        );
+    }, [raw.messages, raw.voiceMessages]);
+
+    return { messages: merged, isLoaded: raw.isLoaded };
 }
 
 export function useMessage(sessionId: string, messageId: string): Message | null {

@@ -26,7 +26,7 @@ import { startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSe
 import { buildSessionState } from '@/realtime/hooks/voiceState';
 import { buildVoiceMessageContext } from '@/realtime/voiceMessageContext';
 import { sendVoiceMessage, processVoiceMessageActions } from '@/sync/apiVoiceMessage';
-import type { VoiceMessageResponse } from '@jakobgruen/happy-wire';
+import { randomUUID } from 'expo-crypto';
 import { VoiceMessageBubble } from '@/components/voice/VoiceMessageBubble';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { sessionAbort } from '@/sync/ops';
@@ -362,16 +362,21 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
 
     // Voice message props (fire-and-forget)
     const [isVoiceMessageSending, setIsVoiceMessageSending] = React.useState(false);
-    const [voiceMessageResult, setVoiceMessageResult] = React.useState<VoiceMessageResponse | null>(null);
 
     const handleVoiceMessageSend = React.useCallback(async (audioUri: string) => {
         if (!session) return;
         setIsVoiceMessageSending(true);
-        setVoiceMessageResult(null);
         try {
             const context = buildVoiceMessageContext(session);
             const result = await sendVoiceMessage(audioUri, context);
-            setVoiceMessageResult(result);
+            // Save to persistent storage (appears in ChatList)
+            sync.saveVoiceMessage(sessionId, {
+                id: randomUUID(),
+                createdAt: Date.now(),
+                transcript: result.transcript,
+                summary: result.summary,
+                actions: result.actions,
+            });
             // Process deferred actions (message_claude_code, permissions, etc.)
             processVoiceMessageActions(sessionId, result.actions).catch(err => {
                 console.error('[VoiceMessage] Failed to process deferred actions:', err);
@@ -380,8 +385,6 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                 sessionId,
                 toolCount: result.actions.length,
             });
-            // Auto-dismiss after 8 seconds
-            setTimeout(() => setVoiceMessageResult(prev => prev === result ? null : prev), 8000);
         } catch (error) {
             console.error('[VoiceMessage] Failed:', error);
             const detail = error instanceof Error ? error.message : String(error);
@@ -505,15 +508,10 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                     </Pressable>
                 </View>
             )}
-            {/* Voice message processing/result bubble */}
-            {(isVoiceMessageSending || voiceMessageResult) && (
+            {/* Voice message processing indicator (results persist in ChatList) */}
+            {isVoiceMessageSending && (
                 <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
-                    <VoiceMessageBubble
-                        isProcessing={isVoiceMessageSending}
-                        transcript={voiceMessageResult?.transcript}
-                        summary={voiceMessageResult?.summary}
-                        actions={voiceMessageResult?.actions}
-                    />
+                    <VoiceMessageBubble isProcessing={true} />
                 </View>
             )}
             <AgentInput

@@ -6,7 +6,7 @@ import { decodeBase64, encodeBase64 } from '@/encryption/base64';
 import { storage } from './storage';
 import { ApiEphemeralUpdateSchema, ApiMessage, ApiUpdateContainerSchema } from './apiTypes';
 import type { ApiEphemeralActivityUpdate } from './apiTypes';
-import { Session, Machine } from './storageTypes';
+import { Session, Machine, VoiceMessageEntry } from './storageTypes';
 import { InvalidateSync } from '@/utils/sync';
 import { ActivityUpdateAccumulator } from './reducer/activityUpdateAccumulator';
 import { randomUUID } from 'expo-crypto';
@@ -440,6 +440,24 @@ class Sync {
         await this.notifyMessageSendFailed();
         this.failPendingOutboxMessages('Message failed to send in background after 30s. Please retry.');
         this.backgroundSendStartedAt = null;
+    }
+
+    saveVoiceMessage(sessionId: string, entry: VoiceMessageEntry) {
+        storage.setState((state) => {
+            const session = state.sessions[sessionId];
+            if (!session) return state;
+            const existing = session.voiceMessages ?? [];
+            return {
+                ...state,
+                sessions: {
+                    ...state.sessions,
+                    [sessionId]: {
+                        ...session,
+                        voiceMessages: [...existing, entry],
+                    },
+                },
+            };
+        });
     }
 
     async sendMessage(sessionId: string, text: string, attachments?: Array<{ base64: string; mediaType: string }>, displayText?: string) {
