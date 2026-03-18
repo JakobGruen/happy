@@ -637,14 +637,16 @@ export const storage = create<StorageState>()((set, get) => {
                         .sort((a, b) => b.createdAt - a.createdAt);
                 }
 
-                // Extract latestUsage from reducerState if available and update session
+                // Extract latestUsage and todos from reducerState if available and update session
                 let updatedSessions = state.sessions;
-                if (session && reducerState.latestUsage) {
+                const hasTodos = reducerState.latestTodos?.todos !== undefined;
+                if (session && (reducerState.latestUsage || hasTodos)) {
                     updatedSessions = {
                         ...state.sessions,
                         [sessionId]: {
                             ...session,
-                            latestUsage: { ...reducerState.latestUsage }
+                            ...(reducerState.latestUsage && { latestUsage: { ...reducerState.latestUsage } }),
+                            ...(hasTodos && { todos: Array.isArray(reducerState.latestTodos!.todos) ? reducerState.latestTodos!.todos : undefined }),
                         }
                     };
                 }
