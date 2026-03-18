@@ -50,6 +50,7 @@ let contextDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 // Tool input storage for get_tool_details requests from voice agent
 let toolInputStore: Map<string, { toolName: string; input: any; description: string | null }> = new Map();
 let lastKnownLogStepKeys: Set<string> = new Set();
+let lastKnownStatus: string | null = null;
 
 // --- Progress tracking state ---
 let progressIsWorking = false;
@@ -317,6 +318,7 @@ export const voiceHooks = {
         shownSessions.clear();
         resetProgressState();
         toolInputStore.clear();
+        lastKnownStatus = null;
 
         const session = storage.getState().sessions[sessionId];
         // Initialize logStep tracking with current keys
@@ -379,6 +381,15 @@ export const voiceHooks = {
      */
     onMetadataChanged(sessionId: string, metadata: any) {
         if (!isVoiceSession(sessionId)) return;
+
+        // Forward ephemeral status changes
+        if (metadata?.currentStatus !== undefined && metadata.currentStatus !== lastKnownStatus) {
+            lastKnownStatus = metadata.currentStatus;
+            if (lastKnownStatus) {
+                reportContextualUpdate(`Claude is now: ${lastKnownStatus}`);
+            }
+        }
+
         if (!metadata?.logSteps) return;
 
         const currentKeys = new Set(Object.keys(metadata.logSteps));
@@ -416,6 +427,7 @@ export const voiceHooks = {
         pendingContextUpdate = null;
         toolInputStore.clear();
         lastKnownLogStepKeys.clear();
+        lastKnownStatus = null;
     }
 };
 
