@@ -51,9 +51,13 @@ async function sendToVoiceAgent(
     const formData = new FormData();
 
     if (Platform.OS === 'web') {
-        // On web, audioUri is a blob URL — fetch it and append as File
+        // On web, audioUri is a blob URL — fetch it and use the blob's real MIME type.
+        // expo-audio on web records via MediaRecorder which produces audio/webm;codecs=opus,
+        // not m4a. Using the blob's actual type ensures Deepgram STT can decode it.
         const audioBlob = await fetch(audioUri).then(r => r.blob());
-        formData.append('audio', new File([audioBlob], 'voice-message.m4a', { type: 'audio/m4a' }));
+        const mimeType = audioBlob.type || 'audio/webm';
+        const ext = mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'm4a' : 'ogg';
+        formData.append('audio', new File([audioBlob], `voice-message.${ext}`, { type: mimeType }));
     } else {
         // On native, React Native FormData accepts { uri, type, name }
         const audioFile = {

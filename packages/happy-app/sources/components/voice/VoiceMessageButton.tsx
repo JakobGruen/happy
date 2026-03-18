@@ -1,28 +1,29 @@
 /**
- * VoiceMessageButton — wraps the send button with hold-to-record gesture handling.
+ * VoiceMessageButton — tap-to-record voice message button.
  *
- * Tap with text content → sends text (onSend).
- * Long-press without text → starts voice recording.
- * Exposes recording state for parent to show VoiceRecordingOverlay.
+ * Follows Telegram Web's pattern (no hold gesture — avoids mobile browser conflicts):
+ *   - Tap mic (when no text) → starts recording, button morphs to send
+ *   - Tap send → stops recording + sends
+ *   - Tap with text → sends text message
  *
- * Size: 44px when input is empty (bigger touch target for hold-to-record),
- * 32px when typing (more room for text). Animates with spring.
+ * Size: 44px when input is empty, 32px when typing. Animates with spring.
  */
 import * as React from 'react';
-import { ActivityIndicator, Platform, View } from 'react-native';
-import { GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, withSpring, useAnimatedReaction, runOnJS, type SharedValue } from 'react-native-reanimated';
+import { ActivityIndicator, Platform, Pressable } from 'react-native';
+import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useVoiceRecording } from './useVoiceRecording';
-import { useRecordingGestures, type RecordingState } from './useRecordingGestures';
 import { hapticsLight } from '@/components/haptics';
+import * as Haptics from 'expo-haptics';
 
 const SIZE_LARGE = 44;
 const SIZE_SMALL = 32;
 const ICON_LARGE = 20;
 const ICON_SMALL = 16;
 const SPRING_CONFIG = { damping: 15, stiffness: 200 };
+
+export type RecordingState = 'idle' | 'recording' | 'paused' | 'sending';
 
 interface VoiceMessageButtonProps {
     hasContent: boolean;
@@ -33,22 +34,19 @@ interface VoiceMessageButtonProps {
     onSend: () => void;
     onVoiceMessageSend?: (audioUri: string) => void;
     isSendDisabled?: boolean;
-    /** Called when recording state changes — parent can show/hide overlay */
     onRecordingStateChange?: (state: RecordingState) => void;
 }
 
 export interface VoiceMessageButtonHandle {
     recording: {
         isRecording: boolean;
+        isPaused: boolean;
         durationMs: number;
         metering: number;
     };
-    gestures: {
-        sendLocked: () => void;
-        cancelLocked: () => void;
-        stopLocked: () => void;
-        translateX: SharedValue<number>;
-    };
+    cancelRecording: () => void;
+    pauseRecording: () => void;
+    resumeRecording: () => void;
     recordingState: RecordingState;
 }
 
@@ -58,98 +56,130 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
         const recording = useVoiceRecording();
         const [recordingState, setRecordingState] = React.useState<RecordingState>('idle');
 
-        // Don't allow recording while voice agent is active (both use microphone)
         const voiceEnabled = (props.isVoiceMessageEnabled ?? false)
             && !props.isSending
             && !props.isVoiceMessageSending
             && !(props.isVoiceAgentActive ?? false);
 
-        const gestures = useRecordingGestures({
-            onRecordStart: recording.start,
-            onRecordStop: recording.stop,
-            onRecordCancel: recording.cancel,
-            onSend: (uri) => props.onVoiceMessageSend?.(uri),
-            onTap: () => {
+        const updateState = React.useCallback((state: RecordingState) => {
+            setRecordingState(state);
+            props.onRecordingStateChange?.(state);
+        }, [props.onRecordingStateChange]);
+
+        // Tap handler — context-dependent
+        const handlePress = React.useCallback(async () => {
+            if (props.hasContent) {
                 hapticsLight();
                 props.onSend();
-            },
-            hasContent: props.hasContent,
-            enabled: voiceEnabled,
-        });
+                return;
+            }
 
-        // Sync shared value state to React state for conditional rendering
-        useAnimatedReaction(
-            () => gestures.state.value,
-            (current) => { runOnJS(setRecordingState)(current); },
-            [gestures.state]
-        );
+            if (recordingState === 'recording' || recordingState === 'paused') {
+                // Recording or paused → stop and send
+                updateState('sending');
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                const uri = await recording.stop();
+                if (uri) {
+                    props.onVoiceMessageSend?.(uri);
+                }
+                updateState('idle');
+                return;
+            }
 
-        // Notify parent of recording state changes
-        React.useEffect(() => {
-            props.onRecordingStateChange?.(recordingState);
-        }, [recordingState]);
+            if (voiceEnabled && recordingState === 'idle') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                updateState('recording');
+                const started = await recording.start();
+                if (!started) {
+                    updateState('idle');
+                }
+            }
+        }, [props.hasContent, props.onSend, recordingState, voiceEnabled, recording, props.onVoiceMessageSend, updateState]);
 
-        // Expose recording data to parent via ref
+        // Cancel — called from parent (overlay cancel/swipe)
+        const cancelRecording = React.useCallback(async () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            await recording.cancel();
+            updateState('idle');
+        }, [recording, updateState]);
+
+        // Pause — called from overlay pause button
+        const pauseRecording = React.useCallback(() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            recording.pause();
+            updateState('paused');
+        }, [recording, updateState]);
+
+        // Resume — called from overlay pause button (toggle)
+        const resumeRecording = React.useCallback(() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            recording.resume();
+            updateState('recording');
+        }, [recording, updateState]);
+
+        // Expose to parent via ref
         React.useImperativeHandle(ref, () => ({
             recording: {
                 isRecording: recording.isRecording,
+                isPaused: recording.isPaused,
                 durationMs: recording.durationMs,
                 metering: recording.metering,
             },
-            gestures: {
-                sendLocked: gestures.sendLocked,
-                cancelLocked: gestures.cancelLocked,
-                stopLocked: gestures.stopLocked,
-                translateX: gestures.translateX,
-            },
+            cancelRecording,
+            pauseRecording,
+            resumeRecording,
             recordingState,
-        }), [recording.isRecording, recording.durationMs, recording.metering, recordingState, gestures]);
+        }), [recording.isRecording, recording.isPaused, recording.durationMs, recording.metering, cancelRecording, pauseRecording, resumeRecording, recordingState]);
 
-        // Animated size: 44px when empty → 32px when typing, plus scale-up during recording
+        // Animated size: 44px when empty → 32px when typing
+        const isActiveRecording = recordingState === 'recording' || recordingState === 'paused';
         const buttonAnimatedStyle = useAnimatedStyle(() => {
-            const isRecordingHeld = gestures.state.value === 'recording_held';
             const size = props.hasContent ? SIZE_SMALL : SIZE_LARGE;
             return {
                 width: withSpring(size, SPRING_CONFIG),
                 height: withSpring(size, SPRING_CONFIG),
                 borderRadius: withSpring(size / 2, SPRING_CONFIG),
                 transform: [{
-                    scale: isRecordingHeld ? withSpring(1.3, SPRING_CONFIG) : withSpring(1, SPRING_CONFIG),
+                    scale: isActiveRecording ? withSpring(1.15, SPRING_CONFIG) : withSpring(1, SPRING_CONFIG),
                 }],
             };
         });
 
-        const isActive = props.hasContent || voiceEnabled;
+        const isActive = props.hasContent || voiceEnabled || isActiveRecording;
         const iconSize = props.hasContent ? ICON_SMALL : ICON_LARGE;
 
-        // On web, prevent browser context menu on long-press which breaks gestures
-        const webProps = Platform.OS === 'web' ? {
-            onContextMenu: (e: { preventDefault: () => void }) => e.preventDefault(),
-        } : {};
+        // Determine which icon to show
+        const showSpinner = props.isSending || props.isVoiceMessageSending;
+        const showSendArrow = props.hasContent || isActiveRecording;
+        const showMic = !showSpinner && !showSendArrow && voiceEnabled;
 
         return (
-            <GestureDetector gesture={gestures.gesture}>
+            <Pressable
+                onPress={handlePress}
+                disabled={showSpinner || props.isSendDisabled}
+                hitSlop={{ top: 5, bottom: 10, left: 5, right: 5 }}
+            >
                 <Animated.View
-                    {...webProps}
                     style={[
                         styles.sendButton,
                         isActive ? styles.sendButtonActive : styles.sendButtonInactive,
+                        isActiveRecording && styles.sendButtonRecording,
                         buttonAnimatedStyle,
                     ]}
                 >
-                    {props.isSending || props.isVoiceMessageSending ? (
+                    {showSpinner ? (
                         <ActivityIndicator
                             size="small"
                             color={theme.colors.button.primary.tint}
                         />
-                    ) : props.hasContent ? (
+                    ) : showSendArrow ? (
                         <Octicons
                             name="arrow-up"
                             size={iconSize}
                             color={theme.colors.button.primary.tint}
-                            style={{ marginTop: Platform.OS === 'web' ? 2 : 0 }}
+                            style={Platform.OS === 'web' ? { marginTop: 2 } : undefined}
                         />
-                    ) : voiceEnabled ? (
+                    ) : showMic ? (
                         <Ionicons
                             name="mic-outline"
                             size={iconSize + 2}
@@ -160,11 +190,11 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
                             name="arrow-up"
                             size={iconSize}
                             color={theme.colors.button.primary.tint}
-                            style={{ marginTop: Platform.OS === 'web' ? 2 : 0 }}
+                            style={Platform.OS === 'web' ? { marginTop: 2 } : undefined}
                         />
                     )}
                 </Animated.View>
-            </GestureDetector>
+            </Pressable>
         );
     }
 ));
@@ -175,18 +205,14 @@ const styles = StyleSheet.create((theme) => ({
         alignItems: 'center',
         flexShrink: 0,
         marginLeft: 8,
-        // Mobile web: prevent browser from hijacking long-press for context menu,
-        // text selection, iOS link preview, or scroll/zoom gestures
-        ...(Platform.OS === 'web' ? {
-            userSelect: 'none' as const,
-            WebkitTouchCallout: 'none',
-            touchAction: 'none',
-        } : {}),
     },
     sendButtonActive: {
         backgroundColor: theme.colors.button.primary.background,
     },
     sendButtonInactive: {
         backgroundColor: theme.colors.button.primary.disabled,
+    },
+    sendButtonRecording: {
+        backgroundColor: '#FF3B30',
     },
 }));

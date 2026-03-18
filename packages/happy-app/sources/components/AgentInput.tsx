@@ -32,9 +32,8 @@ import { Metadata } from '@/sync/storageTypes';
 import { AIBackendProfile, getProfileEnvironmentVariables, validateProfileForAgent } from '@/sync/settings';
 import { getBuiltInProfile } from '@/sync/profileUtils';
 import { VoiceAgentButton } from './voice/VoiceAgentButton';
-import { VoiceMessageButton, type VoiceMessageButtonHandle } from './voice/VoiceMessageButton';
-import { VoiceRecordingOverlay, LockedRecordingControls } from './voice/VoiceRecordingOverlay';
-import type { RecordingState } from './voice/useRecordingGestures';
+import { VoiceMessageButton, type VoiceMessageButtonHandle, type RecordingState } from './voice/VoiceMessageButton';
+import { VoiceRecordingOverlay } from './voice/VoiceRecordingOverlay';
 
 interface AgentInputProps {
     value: string;
@@ -307,6 +306,14 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     sendButtonIcon: {
         color: theme.colors.button.primary.tint,
     },
+    recordingCancelButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+        marginLeft: 4,
+    },
 }));
 
 const getContextWarning = (contextSize: number, alwaysShow: boolean = false, theme: Theme) => {
@@ -504,7 +511,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     // Voice message recording state
     const voiceMessageRef = React.useRef<VoiceMessageButtonHandle>(null);
     const [recordingState, setRecordingState] = React.useState<RecordingState>('idle');
-    const isRecording = recordingState === 'recording_held' || recordingState === 'recording_locked' || recordingState === 'stopped_locked';
+    const isRecording = recordingState === 'recording' || recordingState === 'paused';
 
     // Abort button state
     const [isAborting, setIsAborting] = React.useState(false);
@@ -1260,21 +1267,13 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                 <View style={styles.unifiedPanel}>
                     {/* Input field OR recording overlay */}
                     {isRecording ? (
-                        recordingState === 'recording_locked' || recordingState === 'stopped_locked' ? (
-                            <LockedRecordingControls
-                                onSend={voiceMessageRef.current?.gestures.sendLocked ?? (() => {})}
-                                onCancel={voiceMessageRef.current?.gestures.cancelLocked ?? (() => {})}
-                                onStop={voiceMessageRef.current?.gestures.stopLocked ?? (() => {})}
-                                isStopped={recordingState === 'stopped_locked'}
-                                durationMs={voiceMessageRef.current?.recording.durationMs ?? 0}
-                            />
-                        ) : (
-                            <VoiceRecordingOverlay
-                                durationMs={voiceMessageRef.current?.recording.durationMs ?? 0}
-                                metering={voiceMessageRef.current?.recording.metering ?? -160}
-                                translateX={voiceMessageRef.current?.gestures.translateX!}
-                            />
-                        )
+                        <VoiceRecordingOverlay
+                            durationMs={voiceMessageRef.current?.recording.durationMs ?? 0}
+                            isPaused={recordingState === 'paused'}
+                            onCancel={() => voiceMessageRef.current?.cancelRecording()}
+                            onPause={() => voiceMessageRef.current?.pauseRecording()}
+                            onResume={() => voiceMessageRef.current?.resumeRecording()}
+                        />
                     ) : (
                         <View style={[styles.inputContainer, props.minHeight ? { minHeight: props.minHeight } : undefined]}>
                             <MultiTextInput
@@ -1491,15 +1490,23 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
                                 </View>
 
-                                {/* Voice Agent button — left of send button */}
-                                {props.onVoiceAgentPress && (
+                                {/* Voice Agent button — or trash button during recording */}
+                                {isRecording ? (
+                                    <Pressable
+                                        onPress={() => { hapticsLight(); voiceMessageRef.current?.cancelRecording(); }}
+                                        style={styles.recordingCancelButton}
+                                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                                    >
+                                        <Octicons name="trash" size={16} color="#FF3B30" />
+                                    </Pressable>
+                                ) : props.onVoiceAgentPress ? (
                                     <VoiceAgentButton
                                         onPress={props.onVoiceAgentPress}
                                         isActive={props.isVoiceAgentActive ?? false}
                                         isConnecting={props.isVoiceAgentConnecting ?? false}
                                         compact={hasContent}
                                     />
-                                )}
+                                ) : null}
 
                                 {/* Send / Voice Message button */}
                                 <VoiceMessageButton

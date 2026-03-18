@@ -380,7 +380,8 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
             setTimeout(() => setVoiceMessageResult(prev => prev === result ? null : prev), 8000);
         } catch (error) {
             console.error('[VoiceMessage] Failed:', error);
-            Modal.alert(t('common.error'), t('voiceMessage.failed'));
+            const detail = error instanceof Error ? error.message : String(error);
+            Modal.alert(t('common.error'), `${t('voiceMessage.failed')}\n\n${detail}`);
         } finally {
             setIsVoiceMessageSending(false);
         }
