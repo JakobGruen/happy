@@ -608,6 +608,7 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                     contextSize: session.latestUsage.contextSize
                 } : undefined}
                 alwaysShowContextSize={alwaysShowContextSize}
+                todos={session.todos}
             />
         </>
     );

@@ -106,6 +106,12 @@ interface AgentInputProps {
     onPickImage?: () => void;
     onRemoveAttachment?: (id: string) => void;
     onAddRawAttachment?: (base64: string, mediaType: string, uri: string) => void;
+    todos?: Array<{
+        content: string;
+        status: 'pending' | 'in_progress' | 'completed';
+        priority: 'high' | 'medium' | 'low';
+        id: string;
+    }>;
 }
 
 const MAX_CONTEXT_SIZE = 190000;
