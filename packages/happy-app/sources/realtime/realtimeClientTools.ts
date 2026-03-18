@@ -6,6 +6,7 @@ import { apiSocket } from '@/sync/apiSocket';
 import { trackPermissionResponse } from '@/track';
 import { getCurrentRealtimeSessionId } from './RealtimeSession';
 import { recordAnswer, confirmAndSubmit, resetFlow, isFlowActive } from './voiceQuestionBridge';
+import { getStoredToolInput, getRecentToolInputs } from './hooks/voiceHooks';
 
 /**
  * Static client tools for the realtime voice interface.
@@ -236,6 +237,52 @@ export const realtimeClientTools = {
             return "error (no active question flow)";
         }
         return resetFlow();
+    },
+
+    /**
+     * Return full tool input details for a specific tool call or most recent tools.
+     * Used by voice agent when user asks "what exactly is Claude doing?" or similar.
+     */
+    getToolDetails: async (parameters: unknown) => {
+        const schema = z.object({
+            toolId: z.string().optional(),
+        });
+        const parsed = schema.safeParse(parameters);
+
+        if (!parsed.success) {
+            console.error('Invalid getToolDetails parameter:', parsed.error);
+            return "error (invalid parameters)";
+        }
+
+        const { toolId } = parsed.data;
+
+        if (toolId) {
+            const stored = getStoredToolInput(toolId);
+            if (!stored) {
+                return `No details found for tool call ${toolId}. It may have expired from the cache.`;
+            }
+            return JSON.stringify({
+                toolName: stored.toolName,
+                description: stored.description,
+                input: stored.input,
+            }, null, 2);
+        }
+
+        // No specific ID — return most recent tools
+        const recent = getRecentToolInputs(3);
+        if (recent.length === 0) {
+            return "No recent tool calls stored.";
+        }
+        return JSON.stringify(
+            recent.map(t => ({
+                id: t.id,
+                toolName: t.toolName,
+                description: t.description,
+                input: t.input,
+            })),
+            null,
+            2
+        );
     },
 
     /**
