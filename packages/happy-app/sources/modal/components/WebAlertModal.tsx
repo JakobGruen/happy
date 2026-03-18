@@ -38,13 +38,7 @@ export function WebAlertModal({ config, onClose, onConfirm }: WebAlertModalProps
             borderRadius: 14,
             width: 270,
             overflow: 'hidden',
-            shadowColor: theme.colors.shadow.color,
-            shadowOffset: {
-                width: 0,
-                height: 2
-            },
-            shadowOpacity: 0.25,
-            shadowRadius: 4,
+            boxShadow: `0px 2px 4px rgba(0, 0, 0, 0.25)`,
             elevation: 5
         },
         content: {
