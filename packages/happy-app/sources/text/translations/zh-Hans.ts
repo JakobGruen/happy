@@ -423,6 +423,9 @@ export const zhHans: TranslationStructure = {
             title: '模型',
             configureInCli: '在 CLI 设置中配置模型',
         },
+        effort: {
+            title: 'EFFORT',
+        },
         codexPermissionMode: {
             title: 'CODEX 权限模式',
             default: 'CLI 设置',
@@ -610,7 +613,13 @@ export const zhHans: TranslationStructure = {
             title: '语言',
             footer: ({ count }: { count: number }) => `${count} 种可用语言`,
             autoDetect: '自动检测',
-        }
+        },
+        progressUpdatesTitle: '进度更新',
+        progressUpdatesDescription: '启用后，语音助手会在代理工作时定期总结其正在执行的操作。',
+        progressUpdatesEnabled: '自动更新',
+        progressUpdatesEnabledSubtitle: '活跃会话期间的语音更新',
+        progressInterval: '更新间隔',
+        progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
     settingsAccount: {

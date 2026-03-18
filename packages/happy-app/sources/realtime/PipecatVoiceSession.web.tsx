@@ -30,6 +30,7 @@ const TOOL_HANDLERS: Record<string, (params: any) => Promise<any>> = {
     answerSingleQuestion: (params) => realtimeClientTools.answerSingleQuestion(params.arguments),
     confirmQuestionAnswers: () => realtimeClientTools.confirmQuestionAnswers(),
     rejectQuestionAnswers: () => realtimeClientTools.rejectQuestionAnswers(),
+    getToolDetails: (params) => realtimeClientTools.getToolDetails(params.arguments),
     runSlashCommand: (params) => realtimeClientTools.messageClaudeCode({
         message: `/${params.arguments.command}${params.arguments.args ? ' ' + params.arguments.args : ''}`
     }),

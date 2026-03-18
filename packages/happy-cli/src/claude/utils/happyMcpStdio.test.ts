@@ -130,6 +130,7 @@ describe('happyMcpStdio', () => {
                 arguments: {
                     title: 'Did things',
                     summary: '- item 1',
+                    status: 'Processing next item',
                     stats: { linesAdded: 42, filesChanged: 3 },
                 },
             },
@@ -141,6 +142,7 @@ describe('happyMcpStdio', () => {
             type: 'log_step',
             title: 'Did things',
             summary: '- item 1',
+            status: 'Processing next item',
             stats: { linesAdded: 42, filesChanged: 3 },
         });
     });

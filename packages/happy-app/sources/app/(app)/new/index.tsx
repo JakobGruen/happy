@@ -1183,8 +1183,8 @@ function NewSessionWizard() {
     // ========================================================================
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? Constants.statusBarHeight + useHeaderHeight() : 0}
+            behavior="padding"
+            keyboardVerticalOffset={Constants.statusBarHeight + useHeaderHeight()}
             style={styles.container}
         >
             <View style={{ flex: 1 }}>

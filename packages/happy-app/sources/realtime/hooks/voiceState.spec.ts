@@ -32,6 +32,7 @@ describe('buildSessionState', () => {
             model: 'sonnet',
             permissionMode: 'default',
             autoApproveTools: false,
+            isWorking: false,
         });
     });
 
@@ -85,6 +86,20 @@ describe('buildSessionState', () => {
         const state = buildSessionState(session);
 
         expect(state.autoApproveTools).toBe(true);
+    });
+
+    it('reads isWorking from session.thinking', () => {
+        const session = makeSession({ thinking: true });
+        const state = buildSessionState(session);
+
+        expect(state.isWorking).toBe(true);
+    });
+
+    it('defaults isWorking to false', () => {
+        const session = makeSession({ thinking: false });
+        const state = buildSessionState(session);
+
+        expect(state.isWorking).toBe(false);
     });
 
     it('prefers metadata.autoApproveTools over session.autoApproveTools', () => {

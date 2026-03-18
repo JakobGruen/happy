@@ -5,13 +5,15 @@ export interface VoiceSessionState {
     model: string;
     permissionMode: string;
     autoApproveTools: boolean;
+    isWorking: boolean;
 }
 
-export function buildSessionState(session: Pick<Session, 'id' | 'metadata' | 'autoApproveTools'>): VoiceSessionState {
+export function buildSessionState(session: Pick<Session, 'id' | 'metadata' | 'autoApproveTools' | 'thinking'>): VoiceSessionState {
     return {
         sessionId: session.id,
         model: session.metadata?.currentModelCode ?? 'sonnet',
         permissionMode: session.metadata?.currentOperatingModeCode ?? 'default',
         autoApproveTools: session.metadata?.autoApproveTools ?? session.autoApproveTools ?? false,
+        isWorking: session.thinking ?? false,
     };
 }

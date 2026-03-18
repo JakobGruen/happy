@@ -453,6 +453,9 @@ export const ja: TranslationStructure = {
             title: 'モデル',
             configureInCli: 'CLIの設定でモデルを構成',
         },
+        effort: {
+            title: 'EFFORT',
+        },
         codexPermissionMode: {
             title: 'CODEX権限モード',
             default: 'CLI設定',
@@ -640,7 +643,13 @@ export const ja: TranslationStructure = {
             title: '言語',
             footer: ({ count }: { count: number }) => `${count}言語が利用可能`,
             autoDetect: '自動検出',
-        }
+        },
+        progressUpdatesTitle: '進捗アップデート',
+        progressUpdatesDescription: '有効にすると、音声アシスタントがエージェントの作業内容を定期的に要約します。',
+        progressUpdatesEnabled: '自動アップデート',
+        progressUpdatesEnabledSubtitle: 'アクティブなセッション中の音声アップデート',
+        progressInterval: 'アップデート間隔',
+        progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
     settingsAccount: {

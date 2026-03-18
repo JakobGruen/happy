@@ -431,6 +431,9 @@ export const pl: TranslationStructure = {
             title: 'MODEL',
             configureInCli: 'Skonfiguruj modele w ustawieniach CLI',
         },
+        effort: {
+            title: 'EFFORT',
+        },
         codexPermissionMode: {
             title: 'TRYB UPRAWNIEŃ CODEX',
             default: 'Ustawienia CLI',
@@ -618,7 +621,13 @@ export const pl: TranslationStructure = {
             title: 'Języki',
             footer: ({ count }: { count: number }) => `Dostępnych ${count} ${plural({ count, one: 'język', few: 'języki', many: 'języków' })}`,
             autoDetect: 'Automatyczne wykrywanie',
-        }
+        },
+        progressUpdatesTitle: 'Aktualizacje postępu',
+        progressUpdatesDescription: 'Po włączeniu asystent głosowy będzie okresowo podsumowywał, co robi agent podczas pracy.',
+        progressUpdatesEnabled: 'Automatyczne aktualizacje',
+        progressUpdatesEnabledSubtitle: 'Aktualizacje głosowe podczas aktywnych sesji',
+        progressInterval: 'Interwał aktualizacji',
+        progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
     settingsAccount: {

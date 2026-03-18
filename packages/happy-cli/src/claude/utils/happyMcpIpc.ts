@@ -6,7 +6,7 @@
  *
  * Protocol: newline-delimited JSON over UDS
  * Request:  { type: "change_title", title: string }
- *        or { type: "log_step", title: string, summary: string, stats?: Record<string, number> }
+ *        or { type: "log_step", title?: string, summary?: string, stats?: Record<string, number>, status?: string }
  * Response: { success: true } or { success: false, error: string }
  */
 
@@ -70,7 +70,7 @@ export async function startHappyMcpIpc(
         });
 
         function handleMessage(
-            msg: { type: string; title?: string; summary?: string; stats?: Record<string, number> },
+            msg: { type: string; title?: string; summary?: string; stats?: Record<string, number>; status?: string },
         ): { success: boolean; error?: string } {
             switch (msg.type) {
                 case 'change_title': {
@@ -85,9 +85,18 @@ export async function startHappyMcpIpc(
                 }
 
                 case 'log_step': {
+                    if (!msg.title || !msg.summary || typeof msg.status !== 'string') {
+                        return { success: false, error: 'title, summary, and status are all required' };
+                    }
+                    const hasStatus = true;
+                    // Resolve new currentStatus: explicit status wins, step-only clears it
+                    const newStatus = hasStatus
+                        ? (msg.status!.trim() || null)
+                        : null;
+
                     stepCounter++;
                     const stepKey = String(stepCounter);
-                    logger.debug(`[happyMcpIpc] log_step #${stepKey}`);
+                    logger.debug(`[happyMcpIpc] log_step #${stepKey}${hasStatus ? ` status="${msg.status}"` : ''}`);
                     client.updateMetadata((m: any) => {
                         const existing = m.logSteps ?? {};
                         const capped = { ...existing };
@@ -107,6 +116,7 @@ export async function startHappyMcpIpc(
                                     createdAt: Date.now(),
                                 },
                             },
+                            currentStatus: newStatus,
                         };
                     });
                     return { success: true };

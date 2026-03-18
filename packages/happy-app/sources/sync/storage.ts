@@ -10,7 +10,7 @@ import { LocalSettings, applyLocalSettings } from "./localSettings";
 import { Purchases, customerInfoToPurchases } from "./purchases";
 import { Profile } from "./profile";
 import { UserProfile, RelationshipUpdatedEvent } from "./friendTypes";
-import { loadSettings, loadLocalSettings, saveLocalSettings, saveSettings, loadPurchases, savePurchases, loadProfile, saveProfile, loadSessionDrafts, saveSessionDrafts, loadSessionPermissionModes, saveSessionPermissionModes, loadSessionModelModes, saveSessionModelModes, loadSessionAutoApproveTools, saveSessionAutoApproveTools } from "./persistence";
+import { loadSettings, loadLocalSettings, saveLocalSettings, saveSettings, loadPurchases, savePurchases, loadProfile, saveProfile, loadSessionDrafts, saveSessionDrafts, loadSessionPermissionModes, saveSessionPermissionModes, loadSessionModelModes, saveSessionModelModes, loadSessionEffortModes, saveSessionEffortModes, loadSessionAutoApproveTools, saveSessionAutoApproveTools } from "./persistence";
 import type { PermissionModeKey } from '@/components/PermissionModeSelector';
 import type { CustomerInfo } from './revenueCat/types';
 import React from "react";
@@ -107,7 +107,7 @@ interface StorageState {
     applyMachines: (machines: Machine[], replace?: boolean) => void;
     applyLoaded: () => void;
     applyReady: () => void;
-    applyMessages: (sessionId: string, messages: NormalizedMessage[]) => { changed: string[], hasReadyEvent: boolean, permissionModeChanged?: string, modelChanged?: string };
+    applyMessages: (sessionId: string, messages: NormalizedMessage[]) => { changed: string[], hasReadyEvent: boolean, permissionModeChanged?: string, modelChanged?: string, effortChanged?: string };
     applyMessagesLoaded: (sessionId: string) => void;
     applySettings: (settings: Settings, version: number) => void;
     applySettingsLocal: (settings: Partial<Settings>) => void;
@@ -127,6 +127,7 @@ interface StorageState {
     updateSessionDraft: (sessionId: string, draft: string | null) => void;
     updateSessionPermissionMode: (sessionId: string, mode: string) => void;
     updateSessionModelMode: (sessionId: string, mode: string) => void;
+    updateSessionEffortMode: (sessionId: string, mode: string) => void;
     updateSessionAutoApproveTools: (sessionId: string, enabled: boolean) => void;
     // Artifact methods
     applyArtifacts: (artifacts: DecryptedArtifact[]) => void;
@@ -261,6 +262,7 @@ export const storage = create<StorageState>()((set, get) => {
     let sessionDrafts = loadSessionDrafts();
     let sessionPermissionModes = loadSessionPermissionModes();
     let sessionModelModes = loadSessionModelModes();
+    let sessionEffortModes = loadSessionEffortModes();
     let sessionAutoApproveTools = loadSessionAutoApproveTools();
     return {
         settings,
@@ -316,6 +318,7 @@ export const storage = create<StorageState>()((set, get) => {
             const savedDrafts = Object.keys(state.sessions).length === 0 ? sessionDrafts : {};
             const savedPermissionModes = Object.keys(state.sessions).length === 0 ? sessionPermissionModes : {};
             const savedModelModes = Object.keys(state.sessions).length === 0 ? sessionModelModes : {};
+            const savedEffortModes = Object.keys(state.sessions).length === 0 ? sessionEffortModes : {};
             const savedAutoApproveTools = Object.keys(state.sessions).length === 0 ? sessionAutoApproveTools : {};
 
             // Merge new sessions with existing ones
@@ -346,6 +349,14 @@ export const storage = create<StorageState>()((set, get) => {
                     session.modelMode ||
                     null;
 
+                const existingEffortMode = state.sessions[session.id]?.effortMode;
+                const savedEffortMode = savedEffortModes[session.id];
+                const resolvedEffortMode =
+                    existingEffortMode ||
+                    savedEffortMode ||
+                    session.effortMode ||
+                    null;
+
                 const existingAutoApprove = state.sessions[session.id]?.autoApproveTools;
                 const savedAutoApprove = savedAutoApproveTools[session.id];
                 const resolvedAutoApprove = existingAutoApprove ?? savedAutoApprove ?? false;
@@ -356,6 +367,7 @@ export const storage = create<StorageState>()((set, get) => {
                     draft: existingDraft || savedDraft || session.draft || null,
                     permissionMode: resolvedPermissionMode,
                     modelMode: resolvedModelMode,
+                    effortMode: resolvedEffortMode,
                     autoApproveTools: resolvedAutoApprove,
                 };
             });
@@ -497,6 +509,7 @@ export const storage = create<StorageState>()((set, get) => {
             let hasReadyEvent = false;
             let permissionModeChanged: string | undefined;
             let modelChanged: string | undefined;
+            let effortChanged: string | undefined;
             set((state) => {
 
                 // Resolve session messages state
@@ -528,6 +541,9 @@ export const storage = create<StorageState>()((set, get) => {
                 }
                 if (reducerResult.modelChanged) {
                     modelChanged = reducerResult.modelChanged;
+                }
+                if (reducerResult.effortChanged) {
+                    effortChanged = reducerResult.effortChanged;
                 }
 
                 // Merge messages
@@ -583,8 +599,11 @@ export const storage = create<StorageState>()((set, get) => {
             if (modelChanged) {
                 get().updateSessionModelMode(sessionId, modelChanged);
             }
+            if (effortChanged) {
+                get().updateSessionEffortMode(sessionId, effortChanged);
+            }
 
-            return { changed: Array.from(changed), hasReadyEvent, permissionModeChanged, modelChanged };
+            return { changed: Array.from(changed), hasReadyEvent, permissionModeChanged, modelChanged, effortChanged };
         },
         applyMessagesLoaded: (sessionId: string) => set((state) => {
             const existingSession = state.sessionMessages[sessionId];
@@ -869,6 +888,32 @@ export const storage = create<StorageState>()((set, get) => {
                 sessions: updatedSessions
             };
         }),
+        updateSessionEffortMode: (sessionId: string, mode: string) => set((state) => {
+            const session = state.sessions[sessionId];
+            if (!session) return state;
+
+            const updatedSessions = {
+                ...state.sessions,
+                [sessionId]: {
+                    ...session,
+                    effortMode: mode
+                }
+            };
+
+            // Persist effort modes (only non-default values)
+            const allModes: Record<string, string> = {};
+            Object.entries(updatedSessions).forEach(([id, sess]) => {
+                if (sess.effortMode && sess.effortMode !== 'default') {
+                    allModes[id] = sess.effortMode;
+                }
+            });
+            saveSessionEffortModes(allModes);
+
+            return {
+                ...state,
+                sessions: updatedSessions
+            };
+        }),
         updateSessionAutoApproveTools: (sessionId: string, enabled: boolean) => set((state) => {
             const session = state.sessions[sessionId];
             if (!session) return state;
@@ -1003,6 +1048,10 @@ export const storage = create<StorageState>()((set, get) => {
             const modelModes = loadSessionModelModes();
             delete modelModes[sessionId];
             saveSessionModelModes(modelModes);
+
+            const effortModes = loadSessionEffortModes();
+            delete effortModes[sessionId];
+            saveSessionEffortModes(effortModes);
 
             const autoApprove = loadSessionAutoApproveTools();
             delete autoApprove[sessionId];

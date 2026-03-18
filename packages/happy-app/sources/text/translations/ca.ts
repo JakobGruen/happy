@@ -421,6 +421,9 @@ export const ca: TranslationStructure = {
             title: 'MODEL',
             configureInCli: 'Configura els models a la configuració del CLI',
         },
+        effort: {
+            title: 'EFFORT',
+        },
         codexPermissionMode: {
             title: 'MODE DE PERMISOS CODEX',
             default: 'Configuració del CLI',
@@ -608,7 +611,13 @@ export const ca: TranslationStructure = {
             title: 'Idiomes',
             footer: ({ count }: { count: number }) => `${count} ${plural({ count, singular: 'idioma', plural: 'idiomes' })} disponibles`,
             autoDetect: 'Detecta automàticament',
-        }
+        },
+        progressUpdatesTitle: 'Actualitzacions de progrés',
+        progressUpdatesDescription: 'Quan està activat, l\'assistent de veu resumirà periòdicament el que l\'agent està fent mentre treballa.',
+        progressUpdatesEnabled: 'Actualitzacions automàtiques',
+        progressUpdatesEnabledSubtitle: 'Actualitzacions de veu durant les sessions actives',
+        progressInterval: 'Interval d\'actualització',
+        progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
     settingsAccount: {

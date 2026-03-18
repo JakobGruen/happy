@@ -422,6 +422,9 @@ export const zhHant: TranslationStructure = {
             title: '模型',
             configureInCli: '在 CLI 設定中配置模型',
         },
+        effort: {
+            title: 'EFFORT',
+        },
         codexPermissionMode: {
             title: 'CODEX 權限模式',
             default: 'CLI 設定',
@@ -609,7 +612,13 @@ export const zhHant: TranslationStructure = {
             title: '語言',
             footer: ({ count }: { count: number }) => `${count} 種可用語言`,
             autoDetect: '自動偵測',
-        }
+        },
+        progressUpdatesTitle: '進度更新',
+        progressUpdatesDescription: '啟用後，語音助理會在代理工作時定期總結其正在執行的操作。',
+        progressUpdatesEnabled: '自動更新',
+        progressUpdatesEnabledSubtitle: '活躍工作階段期間的語音更新',
+        progressInterval: '更新間隔',
+        progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
     settingsAccount: {

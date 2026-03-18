@@ -431,6 +431,9 @@ export const ru: TranslationStructure = {
             title: 'МОДЕЛЬ',
             configureInCli: 'Настройте модели в настройках CLI',
         },
+        effort: {
+            title: 'EFFORT',
+        },
         codexPermissionMode: {
             title: 'РЕЖИМ РАЗРЕШЕНИЙ CODEX',
             default: 'Настройки CLI',
@@ -618,7 +621,13 @@ export const ru: TranslationStructure = {
             title: 'Языки',
             footer: ({ count }: { count: number }) => `Доступно ${count} ${plural({ count, one: 'язык', few: 'языка', many: 'языков' })}`,
             autoDetect: 'Автоопределение',
-        }
+        },
+        progressUpdatesTitle: 'Обновления прогресса',
+        progressUpdatesDescription: 'При включении голосовой помощник будет периодически озвучивать, что делает агент во время работы.',
+        progressUpdatesEnabled: 'Автоматические обновления',
+        progressUpdatesEnabledSubtitle: 'Голосовые обновления во время активных сессий',
+        progressInterval: 'Интервал обновлений',
+        progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
     },
 
     settingsAccount: {

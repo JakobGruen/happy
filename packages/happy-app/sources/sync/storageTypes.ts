@@ -23,6 +23,12 @@ export const MetadataSchema = z.object({
         description: z.string().nullish(),
     })).optional(),
     currentThoughtLevelCode: z.string().optional(),
+    effortLevels: z.array(z.object({
+        code: z.string(),
+        value: z.string(),
+        description: z.string().nullish(),
+    })).optional(),
+    currentEffortCode: z.string().optional(),
     path: z.string(),
     host: z.string(),
     version: z.string().optional(),
@@ -46,6 +52,7 @@ export const MetadataSchema = z.object({
         }).optional(),
         createdAt: z.number(),
     })).optional(),
+    currentStatus: z.string().nullable().optional(),
     title: z.string().optional(),
     machineId: z.string().optional(),
     claudeSessionId: z.string().optional(), // Claude Code session ID
@@ -111,6 +118,7 @@ export interface Session {
     draft?: string | null; // Local draft message, not synced to server
     permissionMode?: string | null; // Local permission mode key, not synced to server
     modelMode?: string | null; // Local model key, not synced to server
+    effortMode?: string | null; // Local effort level key, not synced to server
     autoApproveTools?: boolean; // Local auto-approve tools toggle, synced via RPC
     // IMPORTANT: latestUsage is extracted from reducerState.latestUsage after message processing.
     // We store it directly on Session to ensure it's available immediately on load.

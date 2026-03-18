@@ -1,5 +1,6 @@
 import { getCurrentRealtimeSessionId, getVoiceSession, isVoiceSessionStarted } from '../RealtimeSession';
 import {
+    formatNewLogSteps,
     formatNewMessages,
     formatNewSingleMessage,
     formatPermissionRequest,
@@ -46,6 +47,11 @@ let lastFocusSession: string | null = null;
 let pendingContextUpdate: string | null = null;
 let contextDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+// Tool input storage for get_tool_details requests from voice agent
+let toolInputStore: Map<string, { toolName: string; input: any; description: string | null }> = new Map();
+let lastKnownLogStepKeys: Set<string> = new Set();
+let lastKnownStatus: string | null = null;
+
 // --- Progress tracking state ---
 let progressIsWorking = false;
 let progressLastUpdateAt = 0;
@@ -69,6 +75,21 @@ function resetProgressState() {
     }
 }
 
+function storeToolInput(message: Message) {
+    if (message.kind !== 'tool-call') return;
+    const toolId = message.id;
+    toolInputStore.set(toolId, {
+        toolName: message.tool.name,
+        input: message.tool.input,
+        description: message.tool.description ?? null,
+    });
+    // Cap the store size
+    if (toolInputStore.size > VOICE_CONFIG.MAX_TOOL_INPUT_STORE) {
+        const oldest = toolInputStore.keys().next().value;
+        if (oldest) toolInputStore.delete(oldest);
+    }
+}
+
 function getMessageSummary(message: Message): string | null {
     if (message.kind === 'agent-text') {
         const preview = message.text.length > 80 ? message.text.slice(0, 80) + '...' : message.text;
@@ -80,8 +101,16 @@ function getMessageSummary(message: Message): string | null {
     return null;
 }
 
+/** Read the user's progress update interval setting (0 = disabled) */
+function getProgressIntervalMs(): number {
+    const seconds = storage.getState().settings.voiceProgressUpdateInterval;
+    return seconds * 1000;
+}
+
 function sendTrigger(trigger: { type: string; [key: string]: any }) {
     if (!VOICE_CONFIG.ENABLE_PROACTIVE_SPEECH) return;
+    // Respect user setting: 0 = disabled
+    if (getProgressIntervalMs() === 0) return;
     const voice = getVoiceSession();
     if (!voice || !isVoiceSessionStarted()) return;
     if (VOICE_CONFIG.ENABLE_DEBUG_LOGGING) {
@@ -90,7 +119,7 @@ function sendTrigger(trigger: { type: string; [key: string]: any }) {
     voice.sendTrigger(JSON.stringify(trigger));
 }
 
-export function sendSessionState(session: Pick<Session, 'id' | 'metadata' | 'autoApproveTools'>) {
+export function sendSessionState(session: Pick<Session, 'id' | 'metadata' | 'autoApproveTools' | 'thinking'>) {
     const voice = getVoiceSession();
     if (!voice) return;
     const state = buildSessionState(session);
@@ -236,11 +265,24 @@ export const voiceHooks = {
         if (!isVoiceSession(sessionId)) return;
 
         reportSession(sessionId);
-        reportContextualUpdate(formatNewMessages(sessionId, messages));
+
+        // Store tool inputs for later retrieval via get_tool_details
+        for (const msg of messages) {
+            storeToolInput(msg);
+        }
+
+        // Only forward non-tool messages (agent-text, user-text) as context.
+        // Tool calls are now covered by logSteps + get_tool_details on demand.
+        const nonToolMessages = messages.filter(m => m.kind !== 'tool-call');
+        if (nonToolMessages.length > 0) {
+            reportContextualUpdate(formatNewMessages(sessionId, nonToolMessages));
+        }
 
         // --- Progress tracking ---
         if (!VOICE_CONFIG.ENABLE_PROACTIVE_SPEECH) return;
         if (!isVoiceSessionStarted()) return;
+        const intervalMs = getProgressIntervalMs();
+        if (intervalMs === 0) return; // User disabled progress updates
 
         // Enter working state on first messages
         if (!progressIsWorking) {
@@ -249,10 +291,10 @@ export const voiceHooks = {
             progressNewMessageCount = 0;
             progressRecentSummaries = [];
 
-            // Start periodic progress check
+            // Start periodic progress check using user-configured interval
             progressTimer = setInterval(() => {
                 checkAndSendProgressUpdate(sessionId);
-            }, VOICE_CONFIG.PROGRESS_UPDATE_INTERVAL_MS);
+            }, intervalMs);
         }
 
         // Accumulate message summaries
@@ -285,6 +327,15 @@ export const voiceHooks = {
         lastFocusSession = null;
         shownSessions.clear();
         resetProgressState();
+        toolInputStore.clear();
+        lastKnownStatus = null;
+
+        const session = storage.getState().sessions[sessionId];
+        // Initialize logStep tracking with current keys
+        lastKnownLogStepKeys = new Set(
+            Object.keys(session?.metadata?.logSteps ?? {})
+        );
+
         let prompt = '';
         prompt += 'THIS IS AN ACTIVE SESSION: \n\n' + formatSessionFull(storage.getState().sessions[sessionId], storage.getState().sessionMessages[sessionId]?.messages ?? []);
         shownSessions.add(sessionId);
@@ -336,6 +387,49 @@ export const voiceHooks = {
     },
 
     /**
+     * Called when session metadata changes (including logStep updates)
+     */
+    onMetadataChanged(sessionId: string, metadata: any) {
+        if (!isVoiceSession(sessionId)) return;
+
+        // Forward ephemeral status changes
+        if (metadata?.currentStatus !== undefined && metadata.currentStatus !== lastKnownStatus) {
+            lastKnownStatus = metadata.currentStatus;
+            if (lastKnownStatus) {
+                reportContextualUpdate(`Claude is now: ${lastKnownStatus}`);
+            }
+        }
+
+        if (!metadata?.logSteps) return;
+
+        const currentKeys = new Set(Object.keys(metadata.logSteps));
+        const newKeys = [...currentKeys].filter(k => !lastKnownLogStepKeys.has(k));
+
+        if (newKeys.length === 0) return;
+
+        // Build a record of just the new steps
+        const newSteps: Record<string, any> = {};
+        for (const key of newKeys) {
+            newSteps[key] = metadata.logSteps[key];
+        }
+
+        lastKnownLogStepKeys = currentKeys;
+
+        reportContextualUpdate(formatNewLogSteps(sessionId, newSteps));
+    },
+
+    /**
+     * Called when session thinking state changes (CC starts/stops working)
+     */
+    onThinkingChanged(sessionId: string, thinking: boolean) {
+        if (!isVoiceSession(sessionId)) return;
+
+        const session = storage.getState().sessions[sessionId];
+        if (!session) return;
+        sendSessionState(session);
+    },
+
+    /**
      * Called when voice session stops
      */
     onVoiceStopped() {
@@ -352,5 +446,18 @@ export const voiceHooks = {
             contextDebounceTimer = null;
         }
         pendingContextUpdate = null;
+        toolInputStore.clear();
+        lastKnownLogStepKeys.clear();
+        lastKnownStatus = null;
     }
 };
+
+export function getStoredToolInput(toolId: string): { toolName: string; input: any; description: string | null } | null {
+    return toolInputStore.get(toolId) ?? null;
+}
+
+/** Get the most recent tool inputs (for when voice agent doesn't have a specific ID) */
+export function getRecentToolInputs(count: number = 5): Array<{ id: string; toolName: string; input: any; description: string | null }> {
+    const entries = [...toolInputStore.entries()];
+    return entries.slice(-count).map(([id, data]) => ({ id, ...data }));
+}

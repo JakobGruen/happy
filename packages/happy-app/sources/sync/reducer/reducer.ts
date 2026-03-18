@@ -226,6 +226,7 @@ export type ReducerResult = {
     hasReadyEvent?: boolean;
     permissionModeChanged?: string;
     modelChanged?: string;
+    effortChanged?: string;
 };
 
 export function reducer(state: ReducerState, messages: NormalizedMessage[], agentState?: AgentState | null): ReducerResult {
@@ -244,6 +245,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
     let hasReadyEvent = false;
     let permissionModeChanged: string | undefined;
     let modelChanged: string | undefined;
+    let effortChanged: string | undefined;
 
     // First, trace all messages to identify sidechains
     const tracedMessages = traceMessages(state.tracerState, messages);
@@ -309,6 +311,13 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
         if (msg.role === 'event' && msg.content.type === 'model-changed') {
             state.messageIds.set(msg.id, msg.id);
             modelChanged = msg.content.model;
+            continue;
+        }
+
+        // Filter out effort-changed events - apply side-effect, don't create visible message
+        if (msg.role === 'event' && msg.content.type === 'effort-changed') {
+            state.messageIds.set(msg.id, msg.id);
+            effortChanged = msg.content.effort;
             continue;
         }
 
@@ -1313,7 +1322,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
         } : undefined,
         hasReadyEvent: hasReadyEvent || undefined,
         permissionModeChanged: permissionModeChanged || undefined,
-        modelChanged: modelChanged || undefined
+        modelChanged: modelChanged || undefined,
+        effortChanged: effortChanged || undefined
     };
 }
 

@@ -5,10 +5,13 @@ import { isClaudeFlavor } from '@/components/tools/permissionUtils';
 import {
     getAvailableModels,
     getAvailablePermissionModes,
+    getAvailableEffortModes,
     getDefaultModelKey,
     getDefaultPermissionModeKey,
+    getDefaultEffortKey,
     resolveCurrentOption,
 } from '@/components/modelModeOptions';
+import type { EffortMode } from '@/components/modelModeOptions';
 import { getSuggestions } from '@/components/autocomplete/suggestions';
 import { ChatHeaderView } from '@/components/ChatHeaderView';
 import { ChatList } from '@/components/ChatList';
@@ -230,6 +233,16 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
             getDefaultModelKey(flavor),
         ])
     ), [availableModels, session.modelMode, session.metadata?.currentModelCode, flavor]);
+    const availableEffort = React.useMemo(() => (
+        getAvailableEffortModes(flavor, session.metadata, t)
+    ), [flavor, session.metadata]);
+    const effortMode = React.useMemo<EffortMode | null>(() => (
+        resolveCurrentOption(availableEffort, [
+            session.metadata?.currentEffortCode,           // CC is source of truth
+            session.effortMode,                            // fallback before metadata arrives
+            getDefaultEffortKey(flavor),
+        ])
+    ), [availableEffort, session.effortMode, session.metadata?.currentEffortCode, flavor]);
     const sessionStatus = useSessionStatus(session);
     const sessionUsage = useSessionUsage(sessionId);
     const alwaysShowContextSize = useSetting('alwaysShowContextSize');
@@ -277,6 +290,19 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                 }
             }, 2000);
         }).catch(() => storage.getState().updateSessionModelMode(sessionId, mode.key));
+    }, [sessionId]);
+
+    // Function to update effort level — send RPC to CLI, retry if not confirmed after 2s
+    const updateEffortMode = React.useCallback((mode: EffortMode) => {
+        const sendRPC = () => apiSocket.sessionRPC(sessionId, 'switch-effort', { effort: mode.key });
+        sendRPC().then(() => {
+            setTimeout(() => {
+                const s = storage.getState().sessions[sessionId];
+                if (s?.metadata?.currentEffortCode !== mode.key) {
+                    sendRPC().catch(() => storage.getState().updateSessionEffortMode(sessionId, mode.key));
+                }
+            }, 2000);
+        }).catch(() => storage.getState().updateSessionEffortMode(sessionId, mode.key));
     }, [sessionId]);
 
     // Function to update auto-approve tools toggle — sync to CLI via same RPC
@@ -445,11 +471,14 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                 permissionMode={permissionMode}
                 onPermissionModeChange={updatePermissionMode}
                 availableModes={availableModes}
-                autoApproveTools={session.autoApproveTools ?? false}
+                autoApproveTools={session.metadata?.autoApproveTools ?? session.autoApproveTools ?? false}
                 onAutoApproveToolsChange={flavor === 'claude' || !flavor ? updateAutoApproveTools : undefined}
                 modelMode={modelMode}
                 availableModels={availableModels}
                 onModelModeChange={updateModelMode}
+                effortMode={effortMode}
+                availableEffort={availableEffort}
+                onEffortModeChange={updateEffortMode}
                 metadata={session.metadata}
                 isSendDisabled={!session.active}
                 activeView={activeView}

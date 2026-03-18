@@ -273,6 +273,7 @@ export const SettingsSchema = z.object({
     reviewPromptAnswered: z.boolean().describe('Whether the review prompt has been answered'),
     reviewPromptLikedApp: z.boolean().nullish().describe('Whether user liked the app when asked'),
     voiceAssistantLanguage: z.string().nullable().describe('Preferred language for voice assistant (null for auto-detect)'),
+    voiceProgressUpdateInterval: z.number().min(0).max(300).describe('Progress update interval in seconds during active voice sessions (0 = disabled)'),
     preferredLanguage: z.string().nullable().describe('Preferred UI language (null for auto-detect from device locale)'),
     recentMachinePaths: z.array(z.object({
         machineId: z.string(),
@@ -343,6 +344,7 @@ export const settingsDefaults: Settings = {
     reviewPromptAnswered: false,
     reviewPromptLikedApp: null,
     voiceAssistantLanguage: null,
+    voiceProgressUpdateInterval: 60,
     preferredLanguage: null,
     recentMachinePaths: [],
     lastUsedAgent: null,

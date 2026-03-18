@@ -1,8 +1,9 @@
 /**
  * Generate temporary settings file with Claude hooks for session tracking
- * 
- * Creates a settings.json file that configures Claude's SessionStart hook
- * to notify our HTTP server when sessions change (new session, resume, compact, etc.)
+ *
+ * Creates a settings.json file that configures:
+ * - SessionStart hook: notifies HTTP server on session changes
+ * - PostToolUse hooks: keeps TodoWrite and log_step in sync
  */
 
 import { join, resolve } from 'node:path';
@@ -38,6 +39,37 @@ export function generateHookSettingsFile(port: number): string {
                         {
                             type: "command",
                             command: hookCommand
+                        }
+                    ]
+                }
+            ],
+            Stop: [
+                {
+                    hooks: [
+                        {
+                            type: "command",
+                            command: "uv run --script ~/.claude/hooks/enforce-log-step.py",
+                            timeout: 10000
+                        }
+                    ]
+                }
+            ],
+            PostToolUse: [
+                {
+                    matcher: "TodoWrite",
+                    hooks: [
+                        {
+                            type: "prompt",
+                            prompt: "You updated your todo list. If your current status no longer reflects what you're doing, call mcp__happy__log_step to update the log feed. Keep todos and log steps in sync."
+                        }
+                    ]
+                },
+                {
+                    matcher: "mcp__happy__log_step",
+                    hooks: [
+                        {
+                            type: "prompt",
+                            prompt: "You logged a step. If your todo list has stale items (completed work not marked done, or new tasks discovered), update it with TodoWrite. Keep log steps and todos in sync."
                         }
                     ]
                 }

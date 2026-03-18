@@ -82,6 +82,7 @@ describe('happyMcpIpc', () => {
             type: 'log_step',
             title: 'First step',
             summary: '- thing 1',
+            status: 'in progress',
         });
 
         const meta1 = client.getMetadata();
@@ -94,6 +95,7 @@ describe('happyMcpIpc', () => {
             type: 'log_step',
             title: 'Second step',
             summary: '- thing 2',
+            status: 'done',
         });
 
         const meta2 = client.getMetadata();
@@ -111,6 +113,7 @@ describe('happyMcpIpc', () => {
             type: 'log_step',
             title: 'Step with stats',
             summary: '- did stuff',
+            status: 'complete',
             stats: { tokensUsed: 1234, durationMs: 500 },
         });
 
@@ -142,6 +145,7 @@ describe('happyMcpIpc', () => {
             type: 'log_step',
             title: 'New step',
             summary: '- new',
+            status: 'done',
         });
 
         expect(existing['1']).toBeDefined();
@@ -160,6 +164,7 @@ describe('happyMcpIpc', () => {
             type: 'log_step',
             title: 'New step',
             summary: '- new thing',
+            status: 'done',
         });
 
         const meta = client.getMetadata();
@@ -175,6 +180,7 @@ describe('happyMcpIpc', () => {
             type: 'log_step',
             title: 'First step',
             summary: '- first',
+            status: 'started',
         });
 
         const meta = client.getMetadata();
@@ -193,6 +199,7 @@ describe('happyMcpIpc', () => {
             type: 'log_step',
             title: 'New step',
             summary: '- new',
+            status: 'done',
         });
 
         const meta = client.getMetadata();

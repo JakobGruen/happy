@@ -469,6 +469,8 @@ export class ApiSessionClient extends EventEmitter {
     } | {
         type: 'model-changed', model: string
     } | {
+        type: 'effort-changed', effort: string
+    } | {
         type: 'ready'
     }, id?: string) {
         let content = {
@@ -532,6 +534,13 @@ export class ApiSessionClient extends EventEmitter {
         }
         logger.debugLargeJson('[SOCKET] Sending usage data:', usageReport)
         this.socket.emit('usage-report', usageReport);
+    }
+
+    /**
+     * Read current session metadata snapshot (for initializing eager processes with correct state)
+     */
+    getMetadata(): Metadata | null {
+        return this.metadata;
     }
 
     /**
