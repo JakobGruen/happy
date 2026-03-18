@@ -174,3 +174,33 @@ export function getDefaultModelKey(flavor: AgentFlavor): string {
 export function getDefaultPermissionModeKey(_flavor: AgentFlavor): string {
     return 'default';
 }
+
+export type EffortMode = ModeOption;
+
+export function getClaudeEffortModes(): EffortMode[] {
+    return [
+        { key: 'low', name: 'Low', description: 'Faster, cheaper' },
+        { key: 'medium', name: 'Medium', description: 'Balanced' },
+        { key: 'high', name: 'High', description: 'Deep reasoning' },
+    ];
+}
+
+export function getAvailableEffortModes(
+    flavor: AgentFlavor,
+    metadata: Metadata | null | undefined,
+    _translate: Translate,
+): EffortMode[] {
+    const metadataEffort = mapMetadataOptions(metadata?.effortLevels);
+    if (metadataEffort.length > 0) {
+        return metadataEffort;
+    }
+    // Only Claude supports effort levels
+    if (flavor === 'claude' || !flavor) {
+        return getClaudeEffortModes();
+    }
+    return [];
+}
+
+export function getDefaultEffortKey(_flavor: AgentFlavor): string {
+    return 'high';
+}

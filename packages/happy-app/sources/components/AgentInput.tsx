@@ -49,6 +49,9 @@ interface AgentInputProps {
     modelMode?: ModelMode | null;
     availableModels?: ModelMode[];
     onModelModeChange?: (mode: ModelMode) => void;
+    effortMode?: ModelMode | null;
+    availableEffort?: ModelMode[];
+    onEffortModeChange?: (mode: ModelMode) => void;
     metadata?: Metadata | null;
     onAbort?: () => void | Promise<void>;
     showAbortButton?: boolean;
@@ -444,6 +447,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         hackModes(props.availableModes ?? [])
     ), [props.availableModes]);
     const availableModels = props.availableModels ?? [];
+    const availableEffort = props.availableEffort ?? [];
     const isSandboxEnabled = React.useMemo(() => {
         const sandbox = props.metadata?.sandbox as unknown;
         if (!sandbox) {
@@ -913,6 +917,87 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         </Text>
                                     )}
                                 </View>
+
+                                {/* Effort Section */}
+                                {availableEffort.length > 0 && (
+                                    <>
+                                        <View style={{
+                                            height: 1,
+                                            backgroundColor: theme.colors.divider,
+                                            marginHorizontal: 16
+                                        }} />
+                                        <View style={{ paddingVertical: 8 }}>
+                                            <Text style={{
+                                                fontSize: 12,
+                                                fontWeight: '600',
+                                                color: theme.colors.textSecondary,
+                                                paddingHorizontal: 16,
+                                                paddingBottom: 4,
+                                                ...Typography.default('semiBold')
+                                            }}>
+                                                {t('agentInput.effort.title')}
+                                            </Text>
+                                            {availableEffort.map((effort) => {
+                                                const isSelected = props.effortMode?.key === effort.key;
+
+                                                return (
+                                                    <Pressable
+                                                        key={effort.key}
+                                                        onPress={() => {
+                                                            hapticsLight();
+                                                            props.onEffortModeChange?.(effort);
+                                                        }}
+                                                        style={({ pressed }) => ({
+                                                            flexDirection: 'row',
+                                                            alignItems: 'center',
+                                                            paddingHorizontal: 16,
+                                                            paddingVertical: 8,
+                                                            backgroundColor: pressed ? theme.colors.surfacePressed : 'transparent'
+                                                        })}
+                                                    >
+                                                        <View style={{
+                                                            width: 16,
+                                                            height: 16,
+                                                            borderRadius: 8,
+                                                            borderWidth: 2,
+                                                            borderColor: isSelected ? theme.colors.radio.active : theme.colors.radio.inactive,
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            marginRight: 12
+                                                        }}>
+                                                            {isSelected && (
+                                                                <View style={{
+                                                                    width: 6,
+                                                                    height: 6,
+                                                                    borderRadius: 3,
+                                                                    backgroundColor: theme.colors.radio.dot
+                                                                }} />
+                                                            )}
+                                                        </View>
+                                                        <View>
+                                                            <Text style={{
+                                                                fontSize: 14,
+                                                                color: isSelected ? theme.colors.radio.active : theme.colors.text,
+                                                                ...Typography.default()
+                                                            }}>
+                                                                {effort.name}
+                                                            </Text>
+                                                            {!!effort.description && (
+                                                                <Text style={{
+                                                                    fontSize: 11,
+                                                                    color: theme.colors.textSecondary,
+                                                                    ...Typography.default()
+                                                                }}>
+                                                                    {effort.description}
+                                                                </Text>
+                                                            )}
+                                                        </View>
+                                                    </Pressable>
+                                                );
+                                            })}
+                                        </View>
+                                    </>
+                                )}
                             </FloatingOverlay>
                         </View>
                     </>
@@ -1068,7 +1153,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     color: theme.colors.textSecondary,
                                     ...Typography.default()
                                 }}>
-                                    {props.modelMode.name}
+                                    {props.modelMode.name}{props.effortMode && props.effortMode.key !== 'high' ? ` · ${props.effortMode.name}` : ''}
                                 </Text>
                             )}
                         </View>

@@ -28,7 +28,7 @@ import { claudeLocal } from '@/claude/claudeLocal';
 import { createSessionScanner } from '@/claude/utils/sessionScanner';
 import { Session } from './session';
 import { applySandboxPermissionPolicy, resolveInitialClaudePermissionMode } from './utils/permissionMode';
-import { getClaudeModels, getClaudeOperatingModes, normalizeModelCode } from '@jakobgruen/happy-wire';
+import { getClaudeModels, getClaudeOperatingModes, getClaudeEffortLevels, normalizeModelCode } from '@jakobgruen/happy-wire';
 import { storeSessionKey, loadSessionKey } from '@/claude/sessionKeyStore';
 import { decrypt, decodeBase64 } from '@/api/encryption';
 
@@ -137,6 +137,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         dangerouslySkipPermissions,
         models: getClaudeModels(),
         operatingModes: getClaudeOperatingModes(),
+        effortLevels: getClaudeEffortLevels(),
         currentOperatingModeCode: initialPermissionMode,
         ...(options.model ? { currentModelCode: normalizeModelCode(options.model) } : {}),
     };
@@ -340,6 +341,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         isPlan: mode.permissionMode === 'plan',
         model: mode.model,
         fallbackModel: mode.fallbackModel,
+        effort: mode.effort,
         customSystemPrompt: mode.customSystemPrompt,
         appendSystemPrompt: mode.appendSystemPrompt,
         allowedTools: mode.allowedTools,
@@ -355,6 +357,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     let currentAppendSystemPrompt: string | undefined = undefined; // Track current append system prompt
     let currentAllowedTools: string[] | undefined = undefined; // Track current allowed tools
     let currentDisallowedTools: string[] | undefined = undefined; // Track current disallowed tools
+    let currentEffort: string | undefined = undefined; // Track current effort level
     session.onUserMessage((message) => {
 
         // Resolve permission mode from meta - pass through as-is, mapping happens at SDK boundary
@@ -440,6 +443,22 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             logger.debug(`[loop] User message received with no disallowed tools override, using current: ${currentDisallowedTools ? currentDisallowedTools.join(', ') : 'none'}`);
         }
 
+        // Resolve effort - use message.meta.effort if provided, otherwise use current
+        let messageEffort = currentEffort;
+        if (message.meta?.hasOwnProperty('effort')) {
+            messageEffort = message.meta.effort || undefined; // null becomes undefined
+            currentEffort = messageEffort;
+            if (currentEffort) {
+                session.updateMetadata((m) => ({
+                    ...m,
+                    currentEffortCode: currentEffort,
+                }));
+            }
+            logger.debug(`[loop] Effort updated from user message: ${messageEffort || 'reset to default'}`);
+        } else {
+            logger.debug(`[loop] User message received with no effort override, using current: ${currentEffort || 'default'}`);
+        }
+
         // Extract content for queue — string for text-only, content blocks for multimodal
         const userContent = extractUserContent(message.content);
         const textContent = extractTextFromContent(message.content);
@@ -456,7 +475,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
                 customSystemPrompt: messageCustomSystemPrompt,
                 appendSystemPrompt: messageAppendSystemPrompt,
                 allowedTools: messageAllowedTools,
-                disallowedTools: messageDisallowedTools
+                disallowedTools: messageDisallowedTools,
+                effort: messageEffort
             };
             messageQueue.pushIsolateAndClear(specialCommand.originalMessage || textContent, enhancedMode);
             logger.debugLargeJson('[start] /compact command pushed to queue:', message);
@@ -472,7 +492,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
                 customSystemPrompt: messageCustomSystemPrompt,
                 appendSystemPrompt: messageAppendSystemPrompt,
                 allowedTools: messageAllowedTools,
-                disallowedTools: messageDisallowedTools
+                disallowedTools: messageDisallowedTools,
+                effort: messageEffort
             };
             messageQueue.pushIsolateAndClear(specialCommand.originalMessage || textContent, enhancedMode);
             logger.debugLargeJson('[start] /clear command pushed to queue:', message);
@@ -487,7 +508,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             customSystemPrompt: messageCustomSystemPrompt,
             appendSystemPrompt: messageAppendSystemPrompt,
             allowedTools: messageAllowedTools,
-            disallowedTools: messageDisallowedTools
+            disallowedTools: messageDisallowedTools,
+            effort: messageEffort
         };
         messageQueue.push(userContent, enhancedMode);
         logger.debugLargeJson('User message pushed to queue:', message)
@@ -575,6 +597,11 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             sessionInstance.onModelSwitch = (model: string) => {
                 currentModel = model;
                 logger.debug(`[loop] Model switched via RPC to: ${model}`);
+            };
+            // Wire up effort switch callback so RPC handler can update running effort state
+            sessionInstance.onEffortSwitch = (effort: string) => {
+                currentEffort = effort;
+                logger.debug(`[loop] Effort switched via RPC to: ${effort}`);
             };
             // Mark session as reactivation so message forwarding skips history replay
             if (reactivateSessionId && response?.id === reactivateSessionId) {

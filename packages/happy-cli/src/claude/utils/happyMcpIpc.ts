@@ -85,46 +85,40 @@ export async function startHappyMcpIpc(
                 }
 
                 case 'log_step': {
-                    const hasStep = msg.title && msg.summary;
-                    const hasStatus = typeof msg.status === 'string';
-                    // Resolve new currentStatus: explicit status wins, step-only clears it, empty string clears it
+                    if (!msg.title || !msg.summary || typeof msg.status !== 'string') {
+                        return { success: false, error: 'title, summary, and status are all required' };
+                    }
+                    const hasStatus = true;
+                    // Resolve new currentStatus: explicit status wins, step-only clears it
                     const newStatus = hasStatus
                         ? (msg.status!.trim() || null)
-                        : (hasStep ? null : undefined); // undefined = don't touch
+                        : null;
 
-                    if (hasStep) {
-                        stepCounter++;
-                        const stepKey = String(stepCounter);
-                        logger.debug(`[happyMcpIpc] log_step #${stepKey}${hasStatus ? ` status="${msg.status}"` : ''}`);
-                        client.updateMetadata((m: any) => {
-                            const existing = m.logSteps ?? {};
-                            const capped = { ...existing };
-                            const keys = Object.keys(capped);
-                            if (keys.length >= 50) {
-                                const oldest = keys.sort((a, b) => Number(a) - Number(b))[0];
-                                delete capped[oldest];
-                            }
-                            return {
-                                ...m,
-                                logSteps: {
-                                    ...capped,
-                                    [stepKey]: {
-                                        title: msg.title,
-                                        summary: msg.summary?.replace(/\\n/g, '\n'),
-                                        ...(msg.stats ? { stats: msg.stats } : {}),
-                                        createdAt: Date.now(),
-                                    },
-                                },
-                                ...(newStatus !== undefined ? { currentStatus: newStatus } : {}),
-                            };
-                        });
-                    } else if (hasStatus) {
-                        logger.debug(`[happyMcpIpc] status="${msg.status}"`);
-                        client.updateMetadata((m: any) => ({
+                    stepCounter++;
+                    const stepKey = String(stepCounter);
+                    logger.debug(`[happyMcpIpc] log_step #${stepKey}${hasStatus ? ` status="${msg.status}"` : ''}`);
+                    client.updateMetadata((m: any) => {
+                        const existing = m.logSteps ?? {};
+                        const capped = { ...existing };
+                        const keys = Object.keys(capped);
+                        if (keys.length >= 50) {
+                            const oldest = keys.sort((a, b) => Number(a) - Number(b))[0];
+                            delete capped[oldest];
+                        }
+                        return {
                             ...m,
+                            logSteps: {
+                                ...capped,
+                                [stepKey]: {
+                                    title: msg.title,
+                                    summary: msg.summary?.replace(/\\n/g, '\n'),
+                                    ...(msg.stats ? { stats: msg.stats } : {}),
+                                    createdAt: Date.now(),
+                                },
+                            },
                             currentStatus: newStatus,
-                        }));
-                    }
+                        };
+                    });
                     return { success: true };
                 }
 

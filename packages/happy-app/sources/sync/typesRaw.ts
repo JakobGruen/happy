@@ -46,6 +46,9 @@ const agentEventSchema = z.discriminatedUnion('type', [z.object({
 }), z.object({
     type: z.literal('model-changed'),
     model: z.string(),
+}), z.object({
+    type: z.literal('effort-changed'),
+    effort: z.string(),
 })]);
 export type AgentEvent = z.infer<typeof agentEventSchema>;
 

@@ -420,6 +420,9 @@ export const en = {
             title: 'MODEL',
             configureInCli: 'Configure models in CLI settings',
         },
+        effort: {
+            title: 'EFFORT',
+        },
         codexPermissionMode: {
             title: 'CODEX PERMISSION MODE',
             default: 'CLI Settings',

@@ -80,8 +80,8 @@ async function main() {
         description: 'Record a completed step and/or set an ephemeral status. Call with title+summary to log a completed step. Call with status to show what you are currently doing. Call with all three to log a step and set the next status.',
         title: 'Log Step',
         inputSchema: {
-            title: z.string().optional().describe('Short title for this step (<60 chars)'),
-            summary: z.string().optional().describe('Bullet-point summary of actions taken'),
+            title: z.string().describe('Short title for this step (<60 chars)'),
+            summary: z.string().describe('Bullet-point summary of actions taken'),
             stats: z.object({
                 linesAdded: z.number().optional().describe('Lines of code added'),
                 linesRemoved: z.number().optional().describe('Lines of code removed'),
@@ -91,12 +91,12 @@ async function main() {
                 testsPassed: z.number().optional().describe('Number of tests passing'),
                 testsFailed: z.number().optional().describe('Number of tests failing'),
             }).optional().describe('Optional structured stats about the step'),
-            status: z.string().optional().describe('Ephemeral status of what you are currently doing (e.g. "Exploring auth module", "Running tests"). Shown temporarily until the next log_step call.'),
+            status: z.string().describe('Ephemeral status of what you are currently doing (e.g. "Exploring auth module", "Running tests"). Shown temporarily until the next log_step call.'),
         },
     }, async (args) => {
-        if (!args.title && !args.summary && !args.status) {
+        if (!args.title || !args.summary || args.status === undefined) {
             return {
-                content: [{ type: 'text' as const, text: 'Error: provide at least title+summary or status' }],
+                content: [{ type: 'text' as const, text: 'Error: title, summary, and status are all required. Every call must log a step AND set a status.' }],
                 isError: true,
             };
         }

@@ -423,6 +423,9 @@ export const zhHans: TranslationStructure = {
             title: '模型',
             configureInCli: '在 CLI 设置中配置模型',
         },
+        effort: {
+            title: 'EFFORT',
+        },
         codexPermissionMode: {
             title: 'CODEX 权限模式',
             default: 'CLI 设置',

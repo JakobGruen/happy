@@ -1,7 +1,7 @@
 // LogStepList.tsx
 import * as React from 'react';
 import { View, Text, FlatList } from 'react-native';
-import Animated, { useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, cancelAnimation, Easing, ReduceMotion } from 'react-native-reanimated';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import type { Metadata } from '@/sync/storageTypes';
@@ -126,34 +126,54 @@ const StatsRow = React.memo(function StatsRow({ stats }: { stats: NonNullable<Lo
     );
 });
 
+const INNER_DOT_SIZE = 10;
+
 const StatusItem = React.memo(function StatusItem({ status }: { status: string }) {
     const { theme } = useUnistyles();
+    const isCompleted = status.startsWith('Turn completed');
+    const opacity = useSharedValue(isCompleted ? 0.5 : 1);
+
+    React.useEffect(() => {
+        if (isCompleted) {
+            cancelAnimation(opacity);
+            opacity.value = 0.5;
+        } else {
+            opacity.value = withRepeat(
+                withTiming(0.2, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+                -1,
+                true,
+                undefined,
+                ReduceMotion.Never,
+            );
+        }
+    }, [isCompleted, opacity]);
 
     const pulseStyle = useAnimatedStyle(() => ({
-        opacity: withRepeat(
-            withTiming(0.35, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
-            -1,
-            true,
-        ),
+        opacity: opacity.value,
     }));
 
     return (
         <View style={styles.turnGroup}>
             <View style={styles.turnRow}>
                 <View style={styles.timelineCol}>
-                    <Animated.View
-                        style={[
-                            styles.turnNumber,
-                            { backgroundColor: theme.colors.textLink },
-                            pulseStyle,
-                        ]}
-                    />
+                    <View style={[styles.turnNumber, { backgroundColor: theme.colors.surfaceHighest }]}>
+                        <Animated.View
+                            style={[
+                                {
+                                    width: INNER_DOT_SIZE,
+                                    height: INNER_DOT_SIZE,
+                                    borderRadius: INNER_DOT_SIZE / 2,
+                                    backgroundColor: isCompleted ? theme.colors.textSecondary : theme.colors.textLink,
+                                },
+                                pulseStyle,
+                            ]}
+                        />
+                    </View>
                 </View>
                 <View style={styles.contentCol}>
                     <View style={styles.turnHeader}>
                         <Text
                             style={[styles.statusText, { color: theme.colors.textSecondary }]}
-                            numberOfLines={1}
                         >
                             {status}
                         </Text>

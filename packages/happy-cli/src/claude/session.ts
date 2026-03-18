@@ -1,6 +1,6 @@
 import { ApiClient, ApiSessionClient } from "@/lib";
 import { MessageQueue2 } from "@/utils/MessageQueue2";
-import { EnhancedMode } from "./loop";
+import { EnhancedMode, PermissionMode } from "./loop";
 import { logger } from "@/ui/logger";
 import { notifyDaemonSessionActivity } from "@/daemon/controlClient";
 import type { JsRuntime } from "./runClaude";
@@ -25,6 +25,8 @@ export class Session {
 
     /** Callback to update the running model state from RPC handlers (set by runClaude) */
     onModelSwitch?: (model: string) => void;
+    /** Callback to update the running effort level from RPC handlers (set by runClaude) */
+    onEffortSwitch?: (effort: string) => void;
 
     sessionId: string | null;
     mode: 'local' | 'remote' = 'local';
@@ -112,7 +114,26 @@ export class Session {
         this.client.keepAlive(thinking, this.mode);
         if (thinking) {
             this.reportActivityToDaemon();
+        } else {
+            // Set ephemeral status to "Turn completed" when agent finishes
+            this.client.updateMetadata((m: any) => ({
+                ...m,
+                currentStatus: 'Turn completed — waiting for input',
+            }));
         }
+    }
+
+    /**
+     * Build initial EnhancedMode from current metadata for eager init.
+     * Ensures claudeRemote spawns with the correct --model flag.
+     */
+    getInitialMode(): EnhancedMode {
+        const metadata = this.client.getMetadata();
+        return {
+            permissionMode: (metadata?.currentOperatingModeCode as PermissionMode) || 'default',
+            model: metadata?.currentModelCode || undefined,
+            effort: metadata?.currentEffortCode || undefined,
+        };
     }
 
     onModeChange = (mode: 'local' | 'remote') => {

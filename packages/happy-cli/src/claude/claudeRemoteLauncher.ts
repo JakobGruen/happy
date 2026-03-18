@@ -143,6 +143,26 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
         }
     );
 
+    // Switch effort level directly (from voice agent or app)
+    session.client.rpcHandlerManager.registerHandler<{ effort: string }, void>(
+        'switch-effort', async (data) => {
+            const { effort } = data;
+            logger.debug(`[remote]: Effort switch → ${effort}`);
+
+            // Update running effort state so next CC invocation uses it
+            session.onEffortSwitch?.(effort);
+
+            // Sync metadata so app shows correct effort
+            session.client.updateMetadata((m) => ({
+                ...m,
+                currentEffortCode: effort,
+            }));
+
+            // Notify app that effort was applied
+            session.client.sendSessionEvent({ type: 'effort-changed', effort });
+        }
+    );
+
     // Removed catch-all stdin handler - now handled by RemoteModeDisplay keyboard handlers
 
     // Display connection status changes in remote mode
@@ -156,6 +176,13 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
 
     // Create permission handler
     const permissionHandler = new PermissionHandler(session);
+
+    // Restore autoApproveTools from session metadata (persisted across reactivations)
+    const initialMetadata = session.client.getMetadata();
+    if (initialMetadata?.autoApproveTools) {
+        permissionHandler.setAutoApproveTools(true);
+        logger.debug('[remote]: Restored autoApproveTools=true from session metadata');
+    }
 
     // Create outgoing message queue
     const messageQueue = new OutgoingMessageQueue(
@@ -464,6 +491,8 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                     mcpServers: session.mcpServers,
                     hookSettingsPath: session.hookSettingsPath,
                     jsRuntime: session.jsRuntime,
+                    // Pass initial mode so eager init spawns with correct --model flag
+                    initialMode: (pending as { mode: EnhancedMode } | null)?.mode ?? session.getInitialMode(),
                     canCallTool: permissionHandler.handleToolCall,
                     isAborted: (toolCallId: string) => {
                         return permissionHandler.isAborted(toolCallId);
@@ -488,6 +517,15 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                             modeHash = msg.hash;
                             mode = msg.mode;
                             permissionHandler.handleModeChange(mode.permissionMode);
+
+                            // Sync autoApproveTools from metadata (set by runClaude.ts onUserMessage from message meta)
+                            const currentMetadata = session.client.getMetadata();
+                            const metaAutoApprove = currentMetadata?.autoApproveTools ?? false;
+                            if (metaAutoApprove !== permissionHandler.getAutoApproveTools()) {
+                                permissionHandler.setAutoApproveTools(metaAutoApprove);
+                                logger.debug(`[remote]: Synced autoApproveTools=${metaAutoApprove} from metadata`);
+                            }
+
                             return {
                                 message: msg.message,
                                 mode: msg.mode

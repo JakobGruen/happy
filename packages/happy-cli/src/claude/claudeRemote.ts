@@ -36,6 +36,9 @@ export async function claudeRemote(opts: {
     onReady: (stats?: TurnEndStats) => void,
     isAborted: (toolCallId: string) => boolean,
 
+    // Initial mode to use for eager init (ensures correct --model flag on first spawn)
+    initialMode?: EnhancedMode,
+
     // Callbacks
     onSessionFound: (id: string) => void,
     onModelDetected?: (model: string) => void,
@@ -84,8 +87,8 @@ export async function claudeRemote(opts: {
         });
     }
 
-    // Start with default mode (will be updated when first user message arrives)
-    let mode: EnhancedMode = {
+    // Start with initial mode if provided, otherwise default (updated when first user message arrives)
+    let mode: EnhancedMode = opts.initialMode ?? {
         permissionMode: 'default',
     };
     let isCompactCommand = false;
@@ -96,6 +99,7 @@ export async function claudeRemote(opts: {
         permissionMode: mapToClaudeMode(modeSettings.permissionMode),
         model: modeSettings.model,
         fallbackModel: modeSettings.fallbackModel,
+        effort: modeSettings.effort as QueryOptions['effort'],
         customSystemPrompt: modeSettings.customSystemPrompt ? modeSettings.customSystemPrompt + '\n\n' + systemPrompt : undefined,
         appendSystemPrompt: modeSettings.appendSystemPrompt ? modeSettings.appendSystemPrompt + '\n\n' + systemPrompt : systemPrompt,
         allowedTools: modeSettings.allowedTools ? modeSettings.allowedTools.concat(opts.allowedTools) : opts.allowedTools,

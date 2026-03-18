@@ -208,6 +208,23 @@ export function saveSessionModelModes(modes: Record<string, string>) {
     mmkv.set('session-model-modes', JSON.stringify(modes));
 }
 
+export function loadSessionEffortModes(): Record<string, string> {
+    const modes = mmkv.getString('session-effort-modes');
+    if (modes) {
+        try {
+            return JSON.parse(modes);
+        } catch (e) {
+            console.error('Failed to parse session effort modes', e);
+            return {};
+        }
+    }
+    return {};
+}
+
+export function saveSessionEffortModes(modes: Record<string, string>) {
+    mmkv.set('session-effort-modes', JSON.stringify(modes));
+}
+
 export function loadSessionAutoApproveTools(): Record<string, boolean> {
     const data = mmkv.getString('session-auto-approve-tools');
     if (data) {

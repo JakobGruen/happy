@@ -210,7 +210,8 @@ export const MessageMetaSchema = z.object({
   customSystemPrompt: z.string().nullable().optional(), // Custom system prompt for this message (null = reset)
   appendSystemPrompt: z.string().nullable().optional(), // Append to system prompt for this message (null = reset)
   allowedTools: z.array(z.string()).nullable().optional(), // Allowed tools for this message (null = reset)
-  disallowedTools: z.array(z.string()).nullable().optional() // Disallowed tools for this message (null = reset)
+  disallowedTools: z.array(z.string()).nullable().optional(), // Disallowed tools for this message (null = reset)
+  effort: z.string().nullable().optional() // Effort level for this message (null = reset)
 })
 
 export type MessageMeta = z.infer<typeof MessageMetaSchema>
@@ -316,6 +317,8 @@ export type Metadata = {
   currentOperatingModeCode?: string,
   thoughtLevels?: Array<{ code: string; value: string; description?: string | null }>,
   currentThoughtLevelCode?: string,
+  effortLevels?: Array<{ code: string; value: string; description?: string | null }>,
+  currentEffortCode?: string,
   path: string,
   host: string,
   version?: string,
@@ -360,6 +363,7 @@ export type Metadata = {
   }>
   currentStatus?: string | null
   title?: string
+  autoApproveTools?: boolean
 };
 
 export type AgentState = {

@@ -36,6 +36,17 @@ export function getClaudeOperatingModes(): Array<{ code: string; value: string; 
 }
 
 /**
+ * Returns the effort level list for session metadata.
+ */
+export function getClaudeEffortLevels(): Array<{ code: string; value: string; description: string }> {
+    return [
+        { code: 'low', value: 'Low', description: 'Faster, cheaper' },
+        { code: 'medium', value: 'Medium', description: 'Balanced' },
+        { code: 'high', value: 'High', description: 'Deep reasoning' },
+    ];
+}
+
+/**
  * Normalizes a full SDK model ID (e.g. 'claude-opus-4-20250514') to a shorthand code ('opus').
  * Returns the raw ID if no pattern matches — enables dynamic discovery of future models.
  */
