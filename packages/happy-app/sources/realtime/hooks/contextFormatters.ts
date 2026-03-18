@@ -3,6 +3,62 @@ import { Message } from "@/sync/typesMessage";
 import { trimIdent } from "@/utils/trimIdent";
 import { VOICE_CONFIG } from "../voiceConfig";
 
+interface LogStep {
+    title: string;
+    summary: string;
+    stats?: {
+        linesAdded?: number;
+        linesRemoved?: number;
+        filesChanged?: number;
+        filesCreated?: number;
+        filesDeleted?: number;
+        testsPassed?: number;
+        testsFailed?: number;
+    };
+    createdAt: number;
+}
+
+export function formatLogSteps(logSteps: Record<string, LogStep> | undefined): string {
+    if (!logSteps || Object.keys(logSteps).length === 0) {
+        return 'No activity logged yet.';
+    }
+    const sorted = Object.entries(logSteps)
+        .sort(([a], [b]) => Number(a) - Number(b));
+
+    const lines: string[] = [];
+    for (const [key, step] of sorted) {
+        let line = `[Step ${key}] ${step.title}`;
+        if (step.summary) {
+            const bullets = step.summary
+                .split('\n')
+                .map(l => l.trim())
+                .filter(Boolean)
+                .map(l => `  ${l}`)
+                .join('\n');
+            line += '\n' + bullets;
+        }
+        if (step.stats) {
+            const parts: string[] = [];
+            if (step.stats.linesAdded) parts.push(`+${step.stats.linesAdded}`);
+            if (step.stats.linesRemoved) parts.push(`-${step.stats.linesRemoved}`);
+            if (step.stats.filesChanged) parts.push(`${step.stats.filesChanged} files`);
+            if (step.stats.testsPassed) parts.push(`${step.stats.testsPassed} tests passed`);
+            if (step.stats.testsFailed) parts.push(`${step.stats.testsFailed} tests failed`);
+            if (parts.length > 0) line += `\n  (${parts.join(', ')})`;
+        }
+        lines.push(line);
+    }
+    return lines.join('\n\n');
+}
+
+export function formatNewLogSteps(
+    sessionId: string,
+    newSteps: Record<string, LogStep>
+): string {
+    const formatted = formatLogSteps(newSteps);
+    return `New activity in session ${sessionId}:\n\n${formatted}`;
+}
+
 function truncate(text: string, maxLength: number): string {
     if (text.length <= maxLength) return text;
     return text.slice(0, maxLength) + '…[truncated]';
@@ -95,27 +151,21 @@ export function formatHistory(sessionId: string, messages: Message[]): string {
 // Session states
 //
 
-export function formatSessionFull(session: Session, messages: Message[]): string {
+export function formatSessionFull(session: Session, _messages: Message[]): string {
     const sessionName = session.metadata?.summary?.text;
     const sessionPath = session.metadata?.path;
     const lines: string[] = [];
 
-    // Add session context
     lines.push(`# Session ID: ${session.id}`);
     lines.push(`# Project path: ${sessionPath}`);
-    lines.push(`# Session summary:\n${sessionName}`);
-
-    // Add session metadata if available
-    if (session.metadata?.summary?.text) {
-        lines.push('## Session Summary');
-        lines.push(session.metadata.summary.text);
-        lines.push('');
+    if (sessionName) {
+        lines.push(`# Session summary: ${sessionName}`);
     }
 
-    // Add history
-    lines.push('## Our interaction history so far');
+    // Use logSteps instead of message history
+    lines.push('## Activity Log');
     lines.push('');
-    lines.push(formatHistory(session.id, messages));
+    lines.push(formatLogSteps(session.metadata?.logSteps));
 
     return lines.join('\n\n');
 }

@@ -49,4 +49,7 @@ export const VOICE_CONFIG = {
 
     /** Minimum number of new messages required to trigger a progress update */
     PROGRESS_MIN_NEW_MESSAGES: 3,
+
+    /** Maximum number of tool inputs to store for voice agent detail requests */
+    MAX_TOOL_INPUT_STORE: 50,
 } as const;
