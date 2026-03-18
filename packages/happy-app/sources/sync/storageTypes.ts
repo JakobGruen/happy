@@ -46,6 +46,7 @@ export const MetadataSchema = z.object({
         }).optional(),
         createdAt: z.number(),
     })).optional(),
+    currentStatus: z.string().nullable().optional(),
     title: z.string().optional(),
     machineId: z.string().optional(),
     claudeSessionId: z.string().optional(), // Claude Code session ID

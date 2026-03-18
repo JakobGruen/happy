@@ -171,8 +171,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
                     if (decrypted && typeof decrypted === 'object') {
                         if (decrypted.logSteps && typeof decrypted.logSteps === 'object') {
                             carriedLogSteps = decrypted.logSteps as NonNullable<Metadata['logSteps']>;
-                            metadata = { ...metadata, logSteps: carriedLogSteps };
-                            logger.debug(`[START] Carried over ${Object.keys(carriedLogSteps).length} logSteps from previous session`);
+                            metadata = { ...metadata, logSteps: carriedLogSteps, currentStatus: null };
+                            logger.debug(`[START] Carried over ${Object.keys(carriedLogSteps).length} logSteps from previous session (cleared stale currentStatus)`);
                         }
                         if (decrypted.summary && typeof decrypted.summary === 'object' && typeof (decrypted.summary as any).text === 'string') {
                             metadata = { ...metadata, summary: decrypted.summary as Metadata['summary'] };

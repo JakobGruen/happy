@@ -358,6 +358,7 @@ export type Metadata = {
       }
       createdAt: number
   }>
+  currentStatus?: string | null
   title?: string
 };
 

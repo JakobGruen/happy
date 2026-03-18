@@ -1,6 +1,7 @@
 // LogStepList.tsx
 import * as React from 'react';
 import { View, Text, FlatList } from 'react-native';
+import Animated, { useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import type { Metadata } from '@/sync/storageTypes';
@@ -125,20 +126,61 @@ const StatsRow = React.memo(function StatsRow({ stats }: { stats: NonNullable<Lo
     );
 });
 
+const StatusItem = React.memo(function StatusItem({ status }: { status: string }) {
+    const { theme } = useUnistyles();
+
+    const pulseStyle = useAnimatedStyle(() => ({
+        opacity: withRepeat(
+            withTiming(0.35, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+            -1,
+            true,
+        ),
+    }));
+
+    return (
+        <View style={styles.turnGroup}>
+            <View style={styles.turnRow}>
+                <View style={styles.timelineCol}>
+                    <Animated.View
+                        style={[
+                            styles.turnNumber,
+                            { backgroundColor: theme.colors.textLink },
+                            pulseStyle,
+                        ]}
+                    />
+                </View>
+                <View style={styles.contentCol}>
+                    <View style={styles.turnHeader}>
+                        <Text
+                            style={[styles.statusText, { color: theme.colors.textSecondary }]}
+                            numberOfLines={1}
+                        >
+                            {status}
+                        </Text>
+                    </View>
+                </View>
+            </View>
+        </View>
+    );
+});
+
 export const LogStepList = React.memo(function LogStepList({ metadata }: LogStepListProps) {
     const { theme } = useUnistyles();
     const steps = React.useMemo(() => parseLogSteps(metadata), [metadata]);
+    const currentStatus = metadata?.currentStatus ?? null;
     const listRef = React.useRef<FlatList>(null);
     const prevCount = React.useRef(steps.length);
+    const prevStatus = React.useRef(currentStatus);
 
     React.useEffect(() => {
-        if (steps.length > prevCount.current) {
+        if (steps.length > prevCount.current || currentStatus !== prevStatus.current) {
             listRef.current?.scrollToEnd({ animated: true });
         }
         prevCount.current = steps.length;
-    }, [steps.length]);
+        prevStatus.current = currentStatus;
+    }, [steps.length, currentStatus]);
 
-    if (steps.length === 0) {
+    if (steps.length === 0 && !currentStatus) {
         return (
             <View style={styles.emptyContainer}>
                 <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
@@ -154,10 +196,11 @@ export const LogStepList = React.memo(function LogStepList({ metadata }: LogStep
             data={steps}
             keyExtractor={(item) => item.key}
             renderItem={({ item, index }) => (
-                <LogStepItem step={item} isLast={index === steps.length - 1} />
+                <LogStepItem step={item} isLast={index === steps.length - 1 && !currentStatus} />
             )}
             contentContainerStyle={styles.listContent}
             keyboardShouldPersistTaps="handled"
+            ListFooterComponent={currentStatus ? <StatusItem status={currentStatus} /> : null}
         />
     );
 });
@@ -250,5 +293,9 @@ const styles = StyleSheet.create((theme) => ({
     },
     emptyText: {
         fontSize: 14,
+    },
+    statusText: {
+        fontSize: 15,
+        fontStyle: 'italic',
     },
 }));
