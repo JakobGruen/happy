@@ -109,22 +109,9 @@ async function createPipecatClient(config: VoiceSessionConfig): Promise<PipecatC
             },
             onBotReady: () => {
                 console.log('[Pipecat] Bot ready');
-                if (config.initialContext && pcClient) {
-                    try {
-                        pcClient.sendClientMessage('happy.context', { text: config.initialContext });
-                    } catch (err) {
-                        console.error('[Pipecat] Failed to send initial context:', err);
-                    }
-                }
-
-                // Send initial session state after context
-                if (config.initialState && pcClient) {
-                    try {
-                        pcClient.sendClientMessage('happy.state', { text: config.initialState });
-                    } catch (err) {
-                        console.error('[Pipecat] Failed to send initial state:', err);
-                    }
-                }
+                // Initial context and state are sent in the offer body (requestData),
+                // so the bot has them before the pipeline starts. Only subsequent
+                // updates use the happy.context / happy.state data channels.
             },
             onDisconnected: () => {
                 console.log('[Pipecat] Disconnected');
@@ -250,7 +237,13 @@ class PipecatVoiceSessionImpl implements VoiceSession {
         try {
             pcClient = await createPipecatClient(config);
             await pcClient.connect({
-                webrtcRequestParams: { endpoint: config.pipecatUrl },
+                webrtcRequestParams: {
+                    endpoint: config.pipecatUrl,
+                    requestData: {
+                        ...(config.initialContext && { initialContext: config.initialContext }),
+                        ...(config.initialState && { initialState: config.initialState }),
+                    },
+                },
             });
         } catch (err) {
             console.error('[Pipecat] Connection failed:', err);

@@ -331,6 +331,9 @@ export const voiceHooks = {
         lastKnownStatus = null;
 
         const session = storage.getState().sessions[sessionId];
+        const logStepCount = Object.keys(session?.metadata?.logSteps ?? {}).length;
+        console.log(`🎤 Voice: session=${sessionId}, metadata=${!!session?.metadata}, logSteps=${logStepCount}`);
+
         // Initialize logStep tracking with current keys
         lastKnownLogStepKeys = new Set(
             Object.keys(session?.metadata?.logSteps ?? {})
@@ -349,6 +352,7 @@ export const voiceHooks = {
             }
         }
 
+        console.log(`🎤 Voice: initialContext length=${prompt.length}, first 200 chars:`, prompt.slice(0, 200));
         return prompt;
     },
 
