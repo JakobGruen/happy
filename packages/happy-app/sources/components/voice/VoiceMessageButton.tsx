@@ -10,7 +10,7 @@
  */
 import * as React from 'react';
 import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
-import Animated, { useAnimatedStyle, withSpring, FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useVoiceRecording } from './useVoiceRecording';
@@ -22,7 +22,6 @@ const SIZE_SMALL = 32;
 const ICON_LARGE = 22;
 const ICON_SMALL = 16;
 const MINI_SIZE = 28;
-const MINI_GAP = 8;
 const SPRING_CONFIG = { damping: 25, stiffness: 200, overshootClamping: true };
 
 export type RecordingState = 'idle' | 'recording' | 'paused' | 'sending';
@@ -37,6 +36,10 @@ interface VoiceMessageButtonProps {
     onVoiceMessageSend?: (audioUri: string) => void;
     isSendDisabled?: boolean;
     onRecordingStateChange?: (state: RecordingState) => void;
+    /** Ref to the enclosing input panel (for dynamic mini-button placement) */
+    panelRef?: React.RefObject<View | null>;
+    /** Measured height of the input panel */
+    panelHeight?: number;
 }
 
 export interface VoiceMessageButtonHandle {
@@ -165,79 +168,136 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
 
         const wrapperSize = props.hasContent ? SIZE_SMALL : SIZE_LARGE;
 
+        // Smooth hide when voice agent is active (scale+opacity, no overflow clip)
+        const isHidden = props.isVoiceAgentActive ?? false;
+        const visibleProgress = useSharedValue(isHidden ? 0 : 1);
+        React.useEffect(() => {
+            visibleProgress.value = withSpring(isHidden ? 0 : 1, SPRING_CONFIG);
+        }, [isHidden]);
+        const wrapperAnimStyle = useAnimatedStyle(() => ({
+            opacity: visibleProgress.value,
+            transform: [{ scale: visibleProgress.value }],
+            marginLeft: 14 * visibleProgress.value,
+        }));
+
+        // Measure button Y offset from panel top for dynamic mini placement
+        const wrapperRef = React.useRef<View>(null);
+        const [buttonYInPanel, setButtonYInPanel] = React.useState(0);
+        const measureButtonPosition = React.useCallback(() => {
+            if (!wrapperRef.current || !props.panelRef?.current) return;
+            wrapperRef.current.measureLayout(
+                props.panelRef.current as any,
+                (_x, y) => setButtonYInPanel(y),
+                () => {},
+            );
+        }, [props.panelRef]);
+
+        // Mini-buttons: emerge from behind main button
+        const showMinis = isActiveRecording && !props.hasContent;
+        const miniProgress = useSharedValue(0);
+        React.useEffect(() => {
+            miniProgress.value = withSpring(showMinis ? 1 : 0, SPRING_CONFIG);
+        }, [showMinis]);
+
+        // Scale factor when compact (main goes 52→32, minis scale proportionally)
+        const sizeRatio = wrapperSize / SIZE_LARGE;
+        const miniScale = props.hasContent ? sizeRatio : 1;
+
+        // Dynamic mini target: center lands between button top and panel top (biased toward button)
+        // 0.6 = 60% down from panel top toward button (visually balanced)
+        const MINI_BIAS = 0.6;
+        const miniTargetY = buttonYInPanel > 0
+            ? buttonYInPanel * (MINI_BIAS - 1) - wrapperSize / 2
+            : -(MINI_SIZE + 8); // fallback before measurement
+
+        // Pause — centered behind main, slides up to dynamic target
+        const pauseAnimStyle = useAnimatedStyle(() => ({
+            position: 'absolute' as const,
+            bottom: (wrapperSize - MINI_SIZE * miniScale) / 2,
+            left: (wrapperSize - MINI_SIZE * miniScale) / 2,
+            opacity: miniProgress.value,
+            transform: [
+                { scale: miniScale },
+                { translateY: miniTargetY * miniProgress.value },
+            ],
+        }));
+
+        // Trash — centered behind main, slides up + left to dynamic target
+        const trashTargetX = -(SIZE_LARGE + 6 - (SIZE_LARGE - MINI_SIZE) / 2);
+        const trashAnimStyle = useAnimatedStyle(() => ({
+            position: 'absolute' as const,
+            bottom: (wrapperSize - MINI_SIZE * miniScale) / 2,
+            left: (wrapperSize - MINI_SIZE * miniScale) / 2,
+            opacity: miniProgress.value,
+            transform: [
+                { scale: miniScale },
+                { translateY: miniTargetY * miniProgress.value },
+                { translateX: trashTargetX * miniProgress.value },
+            ],
+        }));
+
         return (
-            <View style={{ position: 'relative', marginLeft: 14, width: wrapperSize, alignItems: 'center' }}>
-                {/* Pause button — centered above main button */}
-                {isActiveRecording && !props.hasContent && (
-                    <Animated.View
-                        entering={FadeIn.duration(150)}
-                        exiting={FadeOut.duration(150)}
-                        style={{
-                            position: 'absolute',
-                            top: -(MINI_SIZE + MINI_GAP),
-                            left: (SIZE_LARGE - MINI_SIZE) / 2,
-                            zIndex: 1,
-                        }}
-                    >
-                        <Pressable
-                            onPress={handlePauseToggle}
-                            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                            style={{
-                                width: MINI_SIZE,
-                                height: MINI_SIZE,
-                                borderRadius: MINI_SIZE / 2,
-                                backgroundColor: recordingState === 'paused' ? '#FF3B30' : 'rgba(255,255,255,0.15)',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                borderWidth: 1,
-                                borderColor: recordingState === 'paused' ? '#FF3B30' : 'rgba(255,255,255,0.3)',
-                            }}
-                        >
-                            <Ionicons
-                                name={recordingState === 'paused' ? 'play' : 'pause'}
-                                size={15}
-                                color="#FFFFFF"
-                            />
-                        </Pressable>
-                    </Animated.View>
+            <Animated.View
+                ref={wrapperRef as any}
+                onLayout={measureButtonPosition}
+                style={[{ position: 'relative', width: wrapperSize, alignItems: 'center' }, wrapperAnimStyle]}
+                pointerEvents={isHidden ? 'none' : 'auto'}
+            >
+                {/* Mini-buttons — only rendered when recording (no laggy exit animation) */}
+                {showMinis && (
+                    <>
+                        {/* Pause — slides up from behind main button */}
+                        <Animated.View style={pauseAnimStyle}>
+                            <Pressable
+                                onPress={handlePauseToggle}
+                                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                                style={{
+                                    width: MINI_SIZE,
+                                    height: MINI_SIZE,
+                                    borderRadius: MINI_SIZE / 2,
+                                    backgroundColor: recordingState === 'paused' ? '#FF3B30' : 'rgba(255,255,255,0.15)',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    borderWidth: 1,
+                                    borderColor: recordingState === 'paused' ? '#FF3B30' : 'rgba(255,255,255,0.3)',
+                                }}
+                            >
+                                <Ionicons
+                                    name={recordingState === 'paused' ? 'play' : 'pause'}
+                                    size={15}
+                                    color="#FFFFFF"
+                                />
+                            </Pressable>
+                        </Animated.View>
+
+                        {/* Trash — slides up+left from behind main button */}
+                        <Animated.View style={trashAnimStyle}>
+                            <Pressable
+                                onPress={cancelRecording}
+                                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                                style={{
+                                    width: MINI_SIZE,
+                                    height: MINI_SIZE,
+                                    borderRadius: MINI_SIZE / 2,
+                                    backgroundColor: 'rgba(255,255,255,0.15)',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(255,255,255,0.3)',
+                                }}
+                            >
+                                <Octicons name="trash" size={14} color="#FF3B30" />
+                            </Pressable>
+                        </Animated.View>
+                    </>
                 )}
 
-                {/* Trash button — far left, roughly where the voice agent button sits */}
-                {isActiveRecording && !props.hasContent && (
-                    <Animated.View
-                        entering={FadeIn.duration(150)}
-                        exiting={FadeOut.duration(150)}
-                        style={{
-                            position: 'absolute',
-                            top: -(MINI_SIZE + MINI_GAP),
-                            right: SIZE_LARGE + 6,
-                            zIndex: 1,
-                        }}
-                    >
-                        <Pressable
-                            onPress={cancelRecording}
-                            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                            style={{
-                                width: MINI_SIZE,
-                                height: MINI_SIZE,
-                                borderRadius: MINI_SIZE / 2,
-                                backgroundColor: 'rgba(255,255,255,0.15)',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                borderWidth: 1,
-                                borderColor: 'rgba(255,255,255,0.3)',
-                            }}
-                        >
-                            <Octicons name="trash" size={14} color="#FF3B30" />
-                        </Pressable>
-                    </Animated.View>
-                )}
-
-                {/* Main button */}
+                {/* Main button — renders on top (later sibling = higher z) */}
                 <Pressable
                     onPress={handlePress}
                     disabled={showSpinner || props.isSendDisabled}
                     hitSlop={{ top: 5, bottom: 10, left: 5, right: 5 }}
+                    style={{ zIndex: 1 }}
                 >
                     <Animated.View
                         style={[
@@ -275,7 +335,7 @@ export const VoiceMessageButton = React.memo(React.forwardRef<VoiceMessageButton
                         )}
                     </Animated.View>
                 </Pressable>
-            </View>
+            </Animated.View>
         );
     }
 ));

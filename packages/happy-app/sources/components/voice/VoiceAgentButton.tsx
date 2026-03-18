@@ -4,13 +4,12 @@ import { Image } from 'expo-image';
 import { useUnistyles } from 'react-native-unistyles';
 import { hapticsLight } from '@/components/haptics';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useAnimatedStyle, withSpring, FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Pressable } from 'react-native';
 
 const SIZE_LARGE = 52;
 const SIZE_SMALL = 32;
 const MINI_SIZE = 28;
-const MINI_GAP = 8;
 const SPRING_CONFIG = { damping: 25, stiffness: 200, overshootClamping: true };
 
 interface VoiceAgentButtonProps {
@@ -23,6 +22,12 @@ interface VoiceAgentButtonProps {
     isMuted?: boolean;
     /** Toggle mute */
     onMutePress?: () => void;
+    /** Smoothly hide (e.g. during voice message recording) */
+    hidden?: boolean;
+    /** Ref to the enclosing input panel (for dynamic mini-button placement) */
+    panelRef?: React.RefObject<View | null>;
+    /** Measured height of the input panel */
+    panelHeight?: number;
 }
 
 export const VoiceAgentButton = React.memo(function VoiceAgentButton(props: VoiceAgentButtonProps) {
@@ -35,20 +40,68 @@ export const VoiceAgentButton = React.memo(function VoiceAgentButton(props: Voic
         borderRadius: withSpring(size / 2, SPRING_CONFIG),
     }));
 
+    // Smooth hide/show (scale + opacity, no overflow clip)
+    const visibleProgress = useSharedValue(props.hidden ? 0 : 1);
+    React.useEffect(() => {
+        visibleProgress.value = withSpring(props.hidden ? 0 : 1, SPRING_CONFIG);
+    }, [props.hidden]);
+
+    const wrapperAnimStyle = useAnimatedStyle(() => ({
+        opacity: visibleProgress.value,
+        transform: [{ scale: visibleProgress.value }],
+        marginLeft: 6 * visibleProgress.value,
+    }));
+
+    // Measure button Y offset from panel top for dynamic mini placement
+    const wrapperRef = React.useRef<View>(null);
+    const [buttonYInPanel, setButtonYInPanel] = React.useState(0);
+    const measureButtonPosition = React.useCallback(() => {
+        if (!wrapperRef.current || !props.panelRef?.current) return;
+        wrapperRef.current.measureLayout(
+            props.panelRef.current as any,
+            (_x, y) => setButtonYInPanel(y),
+            () => {},
+        );
+    }, [props.panelRef]);
+
+    // Mute mini-button — sits behind main, slides up when active
+    const showMute = props.isActive && !props.compact && !!props.onMutePress;
+    const muteProgress = useSharedValue(0);
+    React.useEffect(() => {
+        muteProgress.value = withSpring(showMute ? 1 : 0, SPRING_CONFIG);
+    }, [showMute]);
+
+    // Scale minis proportionally when compact
+    const sizeRatio = size / SIZE_LARGE;
+    const miniScale = props.compact ? sizeRatio : 1;
+
+    // Dynamic mini target: center lands between button top and panel top (biased toward button)
+    const MINI_BIAS = 0.6;
+    const miniTargetY = buttonYInPanel > 0
+        ? buttonYInPanel * (MINI_BIAS - 1) - size / 2
+        : -(MINI_SIZE + 8); // fallback before measurement
+
+    const muteAnimStyle = useAnimatedStyle(() => ({
+        position: 'absolute' as const,
+        bottom: (size - MINI_SIZE * miniScale) / 2,
+        left: (size - MINI_SIZE * miniScale) / 2,
+        opacity: muteProgress.value,
+        transform: [
+            { scale: miniScale },
+            { translateY: miniTargetY * muteProgress.value },
+        ],
+    }));
+
     return (
-        <View style={{ position: 'relative', marginLeft: 6, width: size, alignItems: 'center' }}>
-            {/* Mini mute button — centered on top of main button */}
-            {props.isActive && !props.compact && props.onMutePress && (
-                <Animated.View
-                    entering={FadeIn.duration(150)}
-                    exiting={FadeOut.duration(150)}
-                    style={{
-                        position: 'absolute',
-                        top: -(MINI_SIZE + MINI_GAP),
-                        left: (size - MINI_SIZE) / 2,
-                        zIndex: 1,
-                    }}
-                >
+        <Animated.View
+            ref={wrapperRef as any}
+            onLayout={measureButtonPosition}
+            style={[{ position: 'relative', width: size, alignItems: 'center' }, wrapperAnimStyle]}
+            pointerEvents={props.hidden ? 'none' : 'auto'}
+        >
+            {/* Mute mini — only rendered when active (no laggy exit animation) */}
+            {showMute && (
+                <Animated.View style={muteAnimStyle}>
                     <Pressable
                         onPress={() => {
                             hapticsLight();
@@ -75,7 +128,7 @@ export const VoiceAgentButton = React.memo(function VoiceAgentButton(props: Voic
                 </Animated.View>
             )}
 
-            {/* Main button */}
+            {/* Main button — later sibling renders on top */}
             <Pressable
                 hitSlop={{ top: 5, bottom: 10, left: 5, right: 5 }}
                 onPress={() => {
@@ -83,6 +136,7 @@ export const VoiceAgentButton = React.memo(function VoiceAgentButton(props: Voic
                     props.onPress();
                 }}
                 disabled={props.isConnecting}
+                style={{ zIndex: 1 }}
             >
                 <Animated.View
                     style={[
@@ -103,6 +157,6 @@ export const VoiceAgentButton = React.memo(function VoiceAgentButton(props: Voic
                     />
                 </Animated.View>
             </Pressable>
-        </View>
+        </Animated.View>
     );
 });

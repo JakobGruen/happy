@@ -123,7 +123,7 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     unifiedPanel: {
         backgroundColor: theme.colors.input.background,
         borderRadius: Platform.select({ default: 16, android: 20 }),
-        overflow: 'hidden',
+        overflow: 'visible',
         paddingVertical: 2,
         paddingBottom: 8,
         paddingHorizontal: 8,
@@ -506,6 +506,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     // Voice message recording state
     const voiceMessageRef = React.useRef<VoiceMessageButtonHandle>(null);
     const [recordingState, setRecordingState] = React.useState<RecordingState>('idle');
+    const panelRef = React.useRef<View>(null);
+    const [panelHeight, setPanelHeight] = React.useState(0);
     const isRecording = recordingState === 'recording' || recordingState === 'paused';
 
     // Abort button state
@@ -1259,7 +1261,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                 )}
 
                 {/* Box 2: Action Area (Input + Send) */}
-                <View style={styles.unifiedPanel}>
+                <View ref={panelRef} style={styles.unifiedPanel} onLayout={(e) => setPanelHeight(e.nativeEvent.layout.height)}>
                     {/* Input field OR recording overlay */}
                     {isRecording ? (
                         <VoiceRecordingOverlay
@@ -1487,8 +1489,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
                                 </View>
 
-                                {/* Voice Agent button — hidden during voice message recording */}
-                                {!isRecording && props.onVoiceAgentPress ? (
+                                {/* Voice Agent button — animates out during voice message recording */}
+                                {props.onVoiceAgentPress ? (
                                     <VoiceAgentButton
                                         onPress={props.onVoiceAgentPress}
                                         isActive={props.isVoiceAgentActive ?? false}
@@ -1496,6 +1498,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         compact={hasContent}
                                         isMuted={props.isMicMuted}
                                         onMutePress={props.onMutePress}
+                                        hidden={isRecording}
+                                        panelRef={panelRef}
+                                        panelHeight={panelHeight}
                                     />
                                 ) : null}
 
@@ -1514,6 +1519,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     onVoiceMessageSend={props.onVoiceMessageSend}
                                     isSendDisabled={props.isSendDisabled}
                                     onRecordingStateChange={setRecordingState}
+                                    panelRef={panelRef}
+                                    panelHeight={panelHeight}
                                 />
                             </View>
                         </View>
