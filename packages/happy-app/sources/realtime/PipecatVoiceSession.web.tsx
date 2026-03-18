@@ -137,7 +137,13 @@ async function createPipecatClient(config: VoiceSessionConfig): Promise<PipecatC
                 storage.getState().setRealtimeMode('idle', true);
                 storage.getState().clearRealtimeModeDebounce();
             },
-            onTrackStarted: (track: MediaStreamTrack) => {
+            onTrackStarted: (track: MediaStreamTrack, participant?: { local?: boolean }) => {
+                // Skip local tracks — only handle remote (bot) audio.
+                // DailyMediaManager fires onTrackStarted for local mic tracks too
+                // (e.g. after setLocalAudio(true) on unmute), which would replace
+                // the bot's audio element with the user's own mic → feedback loop.
+                if (participant?.local) return;
+
                 if (track.kind === 'audio') {
                     // Skip if we already have an audio element playing this exact track
                     if (botAudioElement?.srcObject) {
