@@ -401,6 +401,12 @@ export const ru: TranslationStructure = {
         reactivateSessionSubtitle: 'Продолжить сессию с того места, где она остановилась',
         reactivating: 'Восстановление...',
         sessionArchived: 'Сессия завершена',
+        todoPill: {
+            tasks: 'Задачи',
+            active: 'активна',
+            accessibility: ({ completed, total }: { completed: number; total: number }) =>
+                `${completed} из ${total} задач выполнено, нажмите для просмотра`,
+        },
     },
 
     commandPalette: {

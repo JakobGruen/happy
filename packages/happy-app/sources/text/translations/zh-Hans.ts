@@ -311,6 +311,12 @@ export const zhHans: TranslationStructure = {
         reactivateSessionSubtitle: '从上次中断的地方继续会话',
         reactivating: '正在重新激活...',
         sessionArchived: '会话已结束',
+        todoPill: {
+            tasks: '任务',
+            active: '进行中',
+            accessibility: ({ completed, total }: { completed: number; total: number }) =>
+                `${total}个任务中已完成${completed}个，点击查看`,
+        },
     },
 
     commandPalette: {

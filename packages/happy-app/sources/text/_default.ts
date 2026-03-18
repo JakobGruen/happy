@@ -308,6 +308,12 @@ export const en = {
         reactivateSessionSubtitle: 'Resume this session where it left off',
         reactivating: 'Reactivating...',
         sessionArchived: 'Session ended',
+        todoPill: {
+            tasks: 'Tasks',
+            active: 'active',
+            accessibility: ({ completed, total }: { completed: number; total: number }) =>
+                `${completed} of ${total} tasks completed, tap to view`,
+        },
     },
 
     commandPalette: {

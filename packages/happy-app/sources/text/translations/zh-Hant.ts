@@ -310,6 +310,12 @@ export const zhHant: TranslationStructure = {
         reactivateSessionSubtitle: '從上次中斷的地方繼續工作階段',
         reactivating: '正在重新啟動...',
         sessionArchived: '工作階段已結束',
+        todoPill: {
+            tasks: '任務',
+            active: '進行中',
+            accessibility: ({ completed, total }: { completed: number; total: number }) =>
+                `${total}個任務中已完成${completed}個，點擊查看`,
+        },
     },
 
     commandPalette: {

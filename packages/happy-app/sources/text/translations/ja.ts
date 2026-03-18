@@ -341,6 +341,12 @@ export const ja: TranslationStructure = {
         reactivateSessionSubtitle: '中断したところからセッションを再開します',
         reactivating: '再開中...',
         sessionArchived: 'セッション終了',
+        todoPill: {
+            tasks: 'タスク',
+            active: '実行中',
+            accessibility: ({ completed, total }: { completed: number; total: number }) =>
+                `${total}件中${completed}件完了、タップして表示`,
+        },
     },
 
     commandPalette: {

@@ -309,6 +309,12 @@ export const ca: TranslationStructure = {
         reactivateSessionSubtitle: 'Reprendre aquesta sessió on es va quedar',
         reactivating: 'Reactivant...',
         sessionArchived: 'Sessió finalitzada',
+        todoPill: {
+            tasks: 'Tasques',
+            active: 'activa',
+            accessibility: ({ completed, total }: { completed: number; total: number }) =>
+                `${completed} de ${total} tasques completades, toca per veure`,
+        },
     },
 
     commandPalette: {

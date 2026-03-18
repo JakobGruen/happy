@@ -338,6 +338,12 @@ export const it: TranslationStructure = {
         reactivateSessionSubtitle: 'Riprendi questa sessione da dove si era interrotta',
         reactivating: 'Riattivazione...',
         sessionArchived: 'Sessione terminata',
+        todoPill: {
+            tasks: 'Attività',
+            active: 'attiva',
+            accessibility: ({ completed, total }: { completed: number; total: number }) =>
+                `${completed} di ${total} attività completate, tocca per visualizzare`,
+        },
     },
 
     commandPalette: {

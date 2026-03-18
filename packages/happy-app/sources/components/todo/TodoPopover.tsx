@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { t } from '@/text';
 import { TodoPopoverItem } from './TodoPopoverItem';
 
 interface TodoItem {
@@ -88,7 +89,7 @@ export const TodoPopover = React.memo<TodoPopoverProps>(({ todos, visible, onDis
                     borderBottomColor: 'rgba(255,255,255,0.06)',
                 }}>
                     <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-                        Tasks
+                        {t('session.todoPill.tasks')}
                     </Text>
                     <Text style={{ color: '#666', fontSize: 11 }}>
                         {completed}/{total}

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { t } from '@/text';
 
 interface TodoPopoverItemProps {
     content: string;
@@ -75,7 +76,7 @@ export const TodoPopoverItem = React.memo<TodoPopoverItemProps>(({ content, stat
                             marginTop: 1,
                         }}>
                             <Text style={{ fontSize: 8, color: '#007AFF' }}>
-                                active
+                                {t('session.todoPill.active')}
                             </Text>
                         </View>
                     )}

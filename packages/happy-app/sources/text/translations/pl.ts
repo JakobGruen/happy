@@ -320,6 +320,12 @@ export const pl: TranslationStructure = {
         reactivateSessionSubtitle: 'Wznów tę sesję od miejsca, w którym została przerwana',
         reactivating: 'Reaktywacja...',
         sessionArchived: 'Sesja zakończona',
+        todoPill: {
+            tasks: 'Zadania',
+            active: 'aktywne',
+            accessibility: ({ completed, total }: { completed: number; total: number }) =>
+                `${completed} z ${total} zadań ukończonych, dotknij aby wyświetlić`,
+        },
     },
 
     commandPalette: {
