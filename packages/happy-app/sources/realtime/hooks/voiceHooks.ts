@@ -337,7 +337,7 @@ export const voiceHooks = {
         );
 
         let prompt = '';
-        prompt += '[BACKGROUND — do not acknowledge or discuss this context]\n\n' + formatSessionFull(storage.getState().sessions[sessionId], storage.getState().sessionMessages[sessionId]?.messages ?? []);
+        prompt += formatSessionFull(storage.getState().sessions[sessionId], storage.getState().sessionMessages[sessionId]?.messages ?? []);
         shownSessions.add(sessionId);
 
         // Include available slash commands for the agent

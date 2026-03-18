@@ -84,8 +84,10 @@ async function createPipecatClient(config: VoiceSessionConfig): Promise<PipecatC
                 console.log('[Pipecat] Connected');
                 storage.getState().setRealtimeStatus('connected');
                 storage.getState().setRealtimeMode('idle');
-
-                // Send initial context after connection
+            },
+            onBotReady: () => {
+                console.log('[Pipecat] Bot ready');
+                // Send initial context once pipeline is ready (not on transport connect)
                 if (config.initialContext && pcClient) {
                     try {
                         pcClient.sendClientMessage('happy.context', { text: config.initialContext });

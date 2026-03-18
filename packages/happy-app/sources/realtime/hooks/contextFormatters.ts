@@ -154,18 +154,23 @@ export function formatHistory(sessionId: string, messages: Message[]): string {
 export function formatSessionFull(session: Session, _messages: Message[]): string {
     const sessionName = session.metadata?.summary?.text;
     const sessionPath = session.metadata?.path;
+    const logSteps = session.metadata?.logSteps;
+    const hasLogSteps = logSteps && Object.keys(logSteps).length > 0;
     const lines: string[] = [];
 
-    lines.push(`# Session ID: ${session.id}`);
-    lines.push(`# Project path: ${sessionPath}`);
+    lines.push(`# Session: ${session.id}`);
+    lines.push(`Project path: ${sessionPath}`);
     if (sessionName) {
-        lines.push(`# Session summary: ${sessionName}`);
+        lines.push(`Session title: ${sessionName}`);
     }
 
-    // Use logSteps instead of message history
-    lines.push('## Activity Log');
-    lines.push('');
-    lines.push(formatLogSteps(session.metadata?.logSteps));
+    lines.push('## Session History');
+    if (hasLogSteps) {
+        lines.push('This is the COMPLETE activity history for this session. You do not receive full messages — only these log steps. Use them to understand what has happened so far.');
+        lines.push(formatLogSteps(logSteps));
+    } else {
+        lines.push('This is a fresh session with no prior activity.');
+    }
 
     return lines.join('\n\n');
 }
