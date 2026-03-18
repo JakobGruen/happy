@@ -69,9 +69,11 @@ function ZoomableImage({ image, onDismiss }: { image: ImageAttachmentData; onDis
 
     const pinchGesture = Gesture.Pinch()
         .onUpdate((e) => {
+            'worklet';
             scale.value = Math.min(MAX_SCALE, Math.max(MIN_SCALE, savedScale.value * e.scale));
         })
         .onEnd(() => {
+            'worklet';
             if (scale.value < MIN_SCALE) {
                 scale.value = withSpring(MIN_SCALE);
             }
@@ -80,6 +82,7 @@ function ZoomableImage({ image, onDismiss }: { image: ImageAttachmentData; onDis
 
     const panGesture = Gesture.Pan()
         .onUpdate((e) => {
+            'worklet';
             if (savedScale.value > 1) {
                 translateX.value = savedTranslateX.value + e.translationX;
                 translateY.value = savedTranslateY.value + e.translationY;
@@ -88,6 +91,7 @@ function ZoomableImage({ image, onDismiss }: { image: ImageAttachmentData; onDis
             }
         })
         .onEnd((e) => {
+            'worklet';
             if (savedScale.value > 1) {
                 savedTranslateX.value = translateX.value;
                 savedTranslateY.value = translateY.value;
@@ -103,6 +107,7 @@ function ZoomableImage({ image, onDismiss }: { image: ImageAttachmentData; onDis
     const doubleTapGesture = Gesture.Tap()
         .numberOfTaps(2)
         .onEnd(() => {
+            'worklet';
             if (scale.value > 1) {
                 scale.value = withTiming(1);
                 translateX.value = withTiming(0);
@@ -118,6 +123,7 @@ function ZoomableImage({ image, onDismiss }: { image: ImageAttachmentData; onDis
 
     const singleTapGesture = Gesture.Tap()
         .onEnd(() => {
+            'worklet';
             if (savedScale.value <= 1) {
                 runOnJS(onDismiss)();
             }

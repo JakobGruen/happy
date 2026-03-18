@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated } from 'react-native';
+import { View, Animated, Platform } from 'react-native';
 
 interface VoiceBarsProps {
     isActive: boolean;
@@ -26,12 +26,12 @@ export const VoiceBars: React.FC<VoiceBarsProps> = ({
                         Animated.timing(bar, {
                             toValue: 1,
                             duration: duration,
-                            useNativeDriver: true,
+                            useNativeDriver: Platform.OS !== 'web',
                         }),
                         Animated.timing(bar, {
                             toValue: 0.3,
                             duration: duration,
-                            useNativeDriver: true,
+                            useNativeDriver: Platform.OS !== 'web',
                         }),
                     ])
                 ).start();

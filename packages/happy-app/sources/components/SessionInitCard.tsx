@@ -80,11 +80,11 @@ export const SessionInitCard = React.memo<SessionInitCardProps>(({
                                     ]}>
                                         {option.label}
                                     </Text>
-                                    {option.description && (
+                                    {option.description ? (
                                         <Text style={styles.optionDescription}>
                                             {option.description}
                                         </Text>
-                                    )}
+                                    ) : null}
                                 </View>
                                 {option.badge && (
                                     <View style={styles.badge}>

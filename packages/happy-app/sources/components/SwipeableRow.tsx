@@ -240,17 +240,20 @@ export const SwipeableRow = React.forwardRef<SwipeableRowRef, SwipeableRowProps>
 
             gesture
                 .onBegin(() => {
+                    'worklet';
                     startX.value = translateX.value;
                     didHapticOpen.value = false;
                     didHapticFull.value = false;
                 })
                 .onStart(() => {
+                    'worklet';
                     runOnJS(closeOtherRows)();
                     if (Platform.OS === 'web') {
                         runOnJS(markDragging)();
                     }
                 })
                 .onUpdate((e) => {
+                    'worklet';
                     let next = startX.value + e.translationX;
 
                     // Clamp: no swipe in directions without actions
@@ -314,6 +317,7 @@ export const SwipeableRow = React.forwardRef<SwipeableRowRef, SwipeableRowProps>
                     }
                 })
                 .onEnd((e) => {
+                    'worklet';
                     const currentX = translateX.value;
                     const vx = e.velocityX;
                     const fullThreshold = rowWidth.value * FULL_SWIPE_RATIO;
@@ -350,6 +354,7 @@ export const SwipeableRow = React.forwardRef<SwipeableRowRef, SwipeableRowProps>
                     leftProgress.value = withTiming(0, { duration: 200 });
                 })
                 .onFinalize(() => {
+                    'worklet';
                     // Clear drag flag after click event has fired (rAF delay)
                     if (Platform.OS === 'web') {
                         runOnJS(clearDraggingNextFrame)();
