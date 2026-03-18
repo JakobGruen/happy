@@ -22,7 +22,7 @@ interface TodoPillState {
 export function useTodoPillState(todos: TodoItem[] | undefined): TodoPillState {
     const pillAppearedAt = useRef<number | null>(null);
     const prevTodosRef = useRef<TodoItem[] | undefined>(undefined);
-    const innerTimerRef = useRef<ReturnType<typeof setTimeout>>();
+    const innerTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [phase, setPhase] = useState<PillPhase>('hidden');
 
     // Reset appearance timer when todos array is fully replaced

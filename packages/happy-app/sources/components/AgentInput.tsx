@@ -34,6 +34,8 @@ import { getBuiltInProfile } from '@/sync/profileUtils';
 import { VoiceAgentButton } from './voice/VoiceAgentButton';
 import { VoiceMessageButton, type VoiceMessageButtonHandle, type RecordingState } from './voice/VoiceMessageButton';
 import { VoiceRecordingOverlay } from './voice/VoiceRecordingOverlay';
+import { TodoPill } from './todo/TodoPill';
+import { useTodoPillState } from './todo/useTodoPillState';
 
 interface AgentInputProps {
     value: string;
@@ -489,6 +491,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         }
         return label;
     }, [isSandboxEnabled]);
+
+    // Todo pill state
+    const todoPillState = useTodoPillState(props.todos);
+    const [todoPopoverVisible, setTodoPopoverVisible] = React.useState(false);
 
     // Profile data
     const profiles = useSetting('profiles');
@@ -1050,8 +1056,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         <Text style={{
                                             fontSize: 11,
                                             color: props.connectionStatus.color,
+                                            ...(todoPillState.phase !== 'hidden' && { maxWidth: 80 }),
                                             ...Typography.default()
-                                        }}>
+                                        }} numberOfLines={1}>
                                             {props.connectionStatus.text}
                                         </Text>
                                     </View>
@@ -1133,6 +1140,14 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 }}>
                                     {props.connectionStatus ? '• ' : ''}{contextWarning.text}
                                 </Text>
+                            )}
+                            {todoPillState.phase !== 'hidden' && (
+                                <TodoPill
+                                    completed={todoPillState.completed}
+                                    total={todoPillState.total}
+                                    phase={todoPillState.phase}
+                                    onPress={() => setTodoPopoverVisible(v => !v)}
+                                />
                             )}
                         </View>
                         {props.activeView && props.onViewChange && (

@@ -7,7 +7,6 @@ import Animated, {
     withDelay,
 } from 'react-native-reanimated';
 import { Typography } from '@/constants/Typography';
-import { t } from '@/text';
 import type { PillPhase } from './useTodoPillState';
 
 interface TodoPillProps {
@@ -60,7 +59,7 @@ export const TodoPill = React.memo<TodoPillProps>(({ completed, total, phase, on
         <Animated.View style={animatedStyle}>
             <Pressable
                 onPress={onPress}
-                accessibilityLabel={t('session.todoPill.accessibility', { completed, total })}
+                accessibilityLabel={`${completed} of ${total} tasks completed, tap to view`}
                 accessibilityRole="button"
                 style={{
                     flexDirection: 'row',
