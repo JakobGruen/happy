@@ -46,14 +46,15 @@ export function useVoiceRecording() {
     }, [recorder]);
 
     const stop = useCallback(async (): Promise<string | null> => {
+        if (!state.isRecording) return null;
         await recorder.stop();
         return recorder.uri ?? null;
-    }, [recorder]);
+    }, [recorder, state.isRecording]);
 
     const cancel = useCallback(async () => {
+        if (!state.isRecording) return;
         await recorder.stop();
-        // URI is discarded — caller should not use it
-    }, [recorder]);
+    }, [recorder, state.isRecording]);
 
     return {
         isRecording: state.isRecording,
