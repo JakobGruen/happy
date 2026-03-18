@@ -1898,6 +1898,10 @@ class Sync {
                     seq: updateData.seq
                 }]);
 
+                if (updateData.body.metadata && metadata) {
+                    voiceHooks.onMetadataChanged(updateData.body.id, metadata);
+                }
+
                 // Invalidate git status when agent state changes (files may have been modified)
                 if (updateData.body.agentState) {
                     gitStatusSync.invalidate(updateData.body.id);
