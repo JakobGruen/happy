@@ -126,7 +126,11 @@ async function createPipecatClient(config: VoiceSessionConfig): Promise<PipecatC
             },
             onDisconnected: () => {
                 console.log('[Pipecat] Disconnected');
-                cleanupBotAudio();
+                try {
+                    cleanupBotAudio();
+                } catch (err) {
+                    console.warn('[Pipecat] Cleanup error on disconnect:', err);
+                }
                 storage.getState().setRealtimeStatus('disconnected');
                 storage.getState().setRealtimeMode('idle', true);
                 storage.getState().clearRealtimeModeDebounce();
@@ -253,7 +257,11 @@ class PipecatVoiceSessionImpl implements VoiceSession {
             }
             pcClient = null;
         }
-        cleanupBotAudio();
+        try {
+            cleanupBotAudio();
+        } catch (err) {
+            console.warn('[Pipecat] Cleanup error on endSession:', err);
+        }
         consecutiveSendFailures = 0;
         storage.getState().setRealtimeStatus('disconnected');
         storage.getState().setRealtimeMode('idle', true);
