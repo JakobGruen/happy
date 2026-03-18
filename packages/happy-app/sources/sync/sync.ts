@@ -2262,10 +2262,26 @@ class Sync {
     private applySessions = (sessions: (Omit<Session, "presence"> & {
         presence?: "online" | number;
     })[]) => {
+        // Snapshot thinking state before applying
+        const prevThinking = new Map<string, boolean>();
+        for (const s of sessions) {
+            const prev = storage.getState().sessions[s.id];
+            if (prev) prevThinking.set(s.id, prev.thinking);
+        }
+
         const active = storage.getState().getActiveSessions();
         storage.getState().applySessions(sessions);
         const newActive = storage.getState().getActiveSessions();
         this.applySessionDiff(active, newActive);
+
+        // Notify voice hooks on thinking state changes
+        for (const s of sessions) {
+            const wasThinking = prevThinking.get(s.id);
+            const nowThinking = s.thinking ?? false;
+            if (wasThinking !== undefined && wasThinking !== nowThinking) {
+                voiceHooks.onThinkingChanged(s.id, nowThinking);
+            }
+        }
     }
 
     private applySessionDiff = (active: Session[], newActive: Session[]) => {

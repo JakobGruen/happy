@@ -347,6 +347,7 @@ describe('voiceHooks session isolation', () => {
 
             mod.sendSessionState({
                 id: 'test-session',
+                thinking: false,
                 metadata: {
                     currentModelCode: 'opus',
                     currentOperatingModeCode: 'plan',
@@ -363,6 +364,7 @@ describe('voiceHooks session isolation', () => {
                 model: 'opus',
                 permissionMode: 'plan',
                 autoApproveTools: true,
+                isWorking: false,
             });
         });
 
@@ -373,6 +375,7 @@ describe('voiceHooks session isolation', () => {
 
             mod.sendSessionState({
                 id: 'test-session',
+                thinking: false,
                 metadata: { path: '/test', host: 'test-host' },
             });
 
