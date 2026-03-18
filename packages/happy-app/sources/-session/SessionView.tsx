@@ -22,7 +22,7 @@ import { useDraft } from '@/hooks/useDraft';
 import { useImageAttachment } from '@/hooks/useImageAttachment';
 import { Modal } from '@/modal';
 import { voiceHooks, sendSessionState } from '@/realtime/hooks/voiceHooks';
-import { startRealtimeSession, stopRealtimeSession, setVoiceMicEnabled } from '@/realtime/RealtimeSession';
+import { startRealtimeSession, stopRealtimeSession, setVoiceMicEnabled, getCurrentRealtimeSessionId, isVoiceSessionStarted } from '@/realtime/RealtimeSession';
 import { buildSessionState } from '@/realtime/hooks/voiceState';
 import { buildVoiceMessageContext } from '@/realtime/voiceMessageContext';
 import { sendVoiceMessage, processVoiceMessageActions } from '@/sync/apiVoiceMessage';
@@ -251,6 +251,23 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     const sessionUsage = useSessionUsage(sessionId);
     const alwaysShowContextSize = useSetting('alwaysShowContextSize');
     const experiments = useSetting('experiments');
+
+    // Auto-reconnect voice when navigating to a different session while voice is active.
+    // SessionViewLoaded has key={sessionId}, so this runs on mount for each new session.
+    // startSession internally kicks out the old connection before connecting the new one.
+    // Uses isVoiceSessionStarted() (module-level) instead of realtimeStatus (stale in closure).
+    React.useEffect(() => {
+        const voiceSessionId = getCurrentRealtimeSessionId();
+        if (voiceSessionId && voiceSessionId !== sessionId && isVoiceSessionStarted()) {
+            voiceHooks.onVoiceStopped();
+            const initialPrompt = voiceHooks.onVoiceStarted(sessionId);
+            const s = storage.getState().sessions[sessionId];
+            const initialState = s ? JSON.stringify(buildSessionState(s)) : undefined;
+            startRealtimeSession(sessionId, initialPrompt, initialState).catch((err) => {
+                console.error('[Voice] Failed to reconnect on session switch:', err);
+            });
+        }
+    }, []); // mount-only (key={sessionId} causes remount)
 
     // Use draft hook for auto-saving message drafts
     const { clearDraft } = useDraft(sessionId, message, setMessage);

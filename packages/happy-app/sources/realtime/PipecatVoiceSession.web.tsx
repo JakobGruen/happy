@@ -74,9 +74,11 @@ async function createPipecatClient(config: VoiceSessionConfig): Promise<PipecatC
     const { PipecatClient } = await import('@pipecat-ai/client-js');
     const { SmallWebRTCTransport } = await import('@pipecat-ai/small-webrtc-transport');
 
-    // Request microphone permission (web)
+    // Request microphone permission (web) — stop tracks immediately to avoid
+    // holding an orphan mic stream that can interfere with the transport's stream.
     try {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
+        const permStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        permStream.getTracks().forEach(t => t.stop());
     } catch (error) {
         console.error('[Pipecat] Failed to get microphone permission:', error);
         storage.getState().setRealtimeStatus('error');
@@ -224,13 +226,19 @@ function sendClientMessage(topic: string, text: string): void {
 
 class PipecatVoiceSessionImpl implements VoiceSession {
     async startSession(config: VoiceSessionConfig): Promise<void> {
-        isDisconnecting = false;
         consecutiveSendFailures = 0;
         if (!config.pipecatUrl) {
             console.error('[Pipecat] Missing URL');
             return;
         }
 
+        // Kick out any existing connection before starting a new one
+        if (pcClient) {
+            console.log('[Pipecat] Replacing existing connection');
+            await this.endSession();
+        }
+
+        isDisconnecting = false;
         storage.getState().setRealtimeStatus('connecting');
 
         try {
@@ -249,9 +257,36 @@ class PipecatVoiceSessionImpl implements VoiceSession {
 
     async endSession(): Promise<void> {
         isDisconnecting = true;
+
+        // Suppress InvalidStateError thrown asynchronously by the Pipecat SDK
+        // during WebRTC teardown (pipecat-client-web-transports#63).
+        // The SDK's keepAlive interval calls dc.send() after dc.close(), and
+        // closePeerConnection() calls transceiver.stop() without try-catch.
+        const suppress = (e: Event) => {
+            const err = (e as ErrorEvent).error ?? (e as PromiseRejectionEvent).reason;
+            if (err?.name === 'InvalidStateError' || err?.message?.includes?.('invalid state')) {
+                e.preventDefault();
+            }
+        };
+        window.addEventListener('error', suppress);
+        window.addEventListener('unhandledrejection', suppress);
+
         const client = pcClient;
         pcClient = null; // Prevent double-disconnect
         if (client) {
+            // Pre-clean SDK internals before disconnect to avoid the keepAlive race
+            // condition (pipecat-client-web-transports#63): the SDK's dc "close" event
+            // handler clears the interval async, but the interval can fire first.
+            try {
+                const transport = (client as any)._transport;
+                if (transport?.keepAliveInterval) {
+                    clearInterval(transport.keepAliveInterval);
+                    transport.keepAliveInterval = null;
+                }
+            } catch (_) {
+                // Transport internals may not be accessible — fall through to disconnect()
+            }
+
             try {
                 await client.disconnect();
             } catch (err) {
@@ -267,6 +302,14 @@ class PipecatVoiceSessionImpl implements VoiceSession {
         consecutiveSendFailures = 0;
         storage.getState().setRealtimeStatus('disconnected');
         storage.getState().setRealtimeMode('idle', true);
+
+        // Keep suppressors active briefly for any remaining async teardown events
+        // (ICE state change handlers, late interval ticks) then remove
+        setTimeout(() => {
+            window.removeEventListener('error', suppress);
+            window.removeEventListener('unhandledrejection', suppress);
+            isDisconnecting = false;
+        }, 5000);
     }
 
     sendTextMessage(message: string): void {

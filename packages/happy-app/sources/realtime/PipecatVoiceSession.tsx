@@ -160,13 +160,19 @@ function sendClientMessage(topic: string, text: string): void {
 
 class PipecatVoiceSessionImpl implements VoiceSession {
     async startSession(config: VoiceSessionConfig): Promise<void> {
-        isDisconnecting = false;
         consecutiveSendFailures = 0;
         if (!config.pipecatUrl) {
             console.error('[Pipecat] Missing URL');
             return;
         }
 
+        // Kick out any existing connection before starting a new one
+        if (pcClient) {
+            console.log('[Pipecat] Replacing existing connection');
+            await this.endSession();
+        }
+
+        isDisconnecting = false;
         storage.getState().setRealtimeStatus('connecting');
 
         try {
