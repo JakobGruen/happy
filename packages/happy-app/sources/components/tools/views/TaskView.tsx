@@ -36,7 +36,7 @@ export const TaskView = React.memo<ToolViewProps>(({ tool, metadata, messages })
                 }
             }
 
-            if (m.tool.state === 'running' || m.tool.state === 'completed' || m.tool.state === 'error') {
+            if (m.tool.state === 'running' || m.tool.state === 'completed' || m.tool.state === 'error' || m.tool.state === 'backgrounded') {
                 filtered.push({
                     tool: m.tool,
                     title,
@@ -114,6 +114,9 @@ export const TaskView = React.memo<ToolViewProps>(({ tool, metadata, messages })
                         )}
                         {item.state === 'error' && (
                             <Ionicons name="close-circle" size={16} color={theme.colors.textDestructive} />
+                        )}
+                        {item.state === 'backgrounded' && (
+                            <ActivityIndicator size={Platform.OS === 'ios' ? "small" : 14 as any} color="#AF52DE" />
                         )}
                     </View>
                 </View>

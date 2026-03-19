@@ -84,7 +84,7 @@ export const AgentModalContent = React.memo<AgentModalContentProps>(
     ({ tool, metadata, messages }) => {
         const { theme } = useUnistyles();
         const experiments = useSetting('experiments');
-        const isRunning = tool.state === 'running';
+        const isRunning = tool.state === 'running' || tool.state === 'backgrounded';
 
         const { promptText, activityMessages, responseText } = useAgentSections(messages, tool);
 
