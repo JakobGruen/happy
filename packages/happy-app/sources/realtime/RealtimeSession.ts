@@ -32,7 +32,7 @@ export async function startRealtimeSession(sessionId: string, initialContext?: s
         if (directUrl) {
             const secret = storage.getState().localSettings.pipecatAuthSecret;
             const baseUrl = directUrl.replace(/\/+$/, '');
-            offerUrl = `${baseUrl}/api/offer?session_id=${encodeURIComponent(sessionId)}`;
+            offerUrl = `${baseUrl}/api/room?session_id=${encodeURIComponent(sessionId)}`;
             if (secret) {
                 offerUrl += `&secret=${encodeURIComponent(secret)}`;
             }

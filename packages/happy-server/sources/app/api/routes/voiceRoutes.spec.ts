@@ -157,7 +157,7 @@ describe("voiceRoutes", () => {
             expect(response.statusCode).toBe(200);
             const body = response.json();
             expect(body.url).not.toContain("token=");
-            expect(body.url).toBe("https://voice.example.com/api/offer?session_id=test-session");
+            expect(body.url).toBe("https://voice.example.com/api/room?session_id=test-session");
         });
 
         it("validates request body requires sessionId", async () => {
