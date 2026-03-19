@@ -15,7 +15,7 @@ export interface LayoutConfig {
 export interface ContextInfo {
     isInPermissionModal: boolean;
     isPermissionPending: boolean;
-    toolState: 'running' | 'completed' | 'error';
+    toolState: 'running' | 'completed' | 'error' | 'backgrounded';
 }
 
 /**

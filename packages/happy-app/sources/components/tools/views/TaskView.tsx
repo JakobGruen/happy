@@ -10,7 +10,7 @@ import { t } from '@/text';
 interface FilteredTool {
     tool: ToolCall;
     title: string;
-    state: 'running' | 'completed' | 'error';
+    state: 'running' | 'completed' | 'error' | 'backgrounded';
 }
 
 export const TaskView = React.memo<ToolViewProps>(({ tool, metadata, messages }) => {
