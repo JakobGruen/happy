@@ -1,26 +1,19 @@
 import React, { useEffect, useRef } from 'react';
-import { registerGlobals } from '@daily-co/react-native-webrtc';
+import { registerGlobals } from '@livekit/react-native';
 import { registerVoiceSession } from './RealtimeSession';
 import { realtimeClientTools } from './realtimeClientTools';
-import { SimpleMediaManager } from './PipecatMediaManager';
+import { LiveKitVoiceClient } from './LiveKitVoiceClient';
 import { storage } from '@/sync/storage';
 import { VOICE_CONFIG } from './voiceConfig';
 import type { VoiceSession, VoiceSessionConfig } from './types';
 
-// Polyfill WebRTC APIs (RTCPeerConnection, navigator.mediaDevices) for React Native
+// Polyfill WebRTC APIs for LiveKit on React Native
 registerGlobals();
 
-// Pipecat client types — dynamically imported to avoid bundling when not used
-type PipecatClientType = any;
-
-let pcClient: PipecatClientType | null = null;
+let client: LiveKitVoiceClient | null = null;
 
 // Circuit breaker for send failures
 let consecutiveSendFailures = 0;
-
-// Suppress errors fired during intentional disconnect (WebKit throws InvalidStateError
-// when closing WebRTC transceivers)
-let isDisconnecting = false;
 
 /**
  * Map of tool handler registrations.
@@ -35,113 +28,73 @@ const TOOL_HANDLERS: Record<string, (params: any) => Promise<any>> = {
     confirmQuestionAnswers: () => realtimeClientTools.confirmQuestionAnswers(),
     rejectQuestionAnswers: () => realtimeClientTools.rejectQuestionAnswers(),
     getToolDetails: (params) => realtimeClientTools.getToolDetails(params.arguments),
-    // runSlashCommand is handled via messageClaudeCode on the client side
     runSlashCommand: (params) => realtimeClientTools.messageClaudeCode({
         message: `/${params.arguments.command}${params.arguments.args ? ' ' + params.arguments.args : ''}`
     }),
 };
 
-const DEFAULT_ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
-
-async function fetchIceServers(pipecatUrl: string): Promise<RTCIceServer[]> {
-    try {
-        const url = new URL(pipecatUrl);
-        const secret = url.searchParams.get('secret') || '';
-        const configUrl = `${url.origin}/config${secret ? `?secret=${encodeURIComponent(secret)}` : ''}`;
-        const res = await fetch(configUrl);
-        if (!res.ok) {
-            console.warn('[Pipecat] /config returned', res.status, '— using default ICE servers');
-            return DEFAULT_ICE_SERVERS;
-        }
-        const data = await res.json();
-        return data.iceServers || DEFAULT_ICE_SERVERS;
-    } catch (err) {
-        console.warn('[Pipecat] Failed to fetch ICE config, using defaults:', err);
-        return DEFAULT_ICE_SERVERS;
-    }
-}
-
-async function createPipecatClient(config: VoiceSessionConfig): Promise<PipecatClientType> {
-    // Dynamic imports to avoid bundling Pipecat when not selected
-    const { PipecatClient } = await import('@pipecat-ai/client-js');
-    const { RNSmallWebRTCTransport } = await import('@pipecat-ai/react-native-small-webrtc-transport');
-
-    const iceServers = config.pipecatUrl
-        ? await fetchIceServers(config.pipecatUrl)
-        : DEFAULT_ICE_SERVERS;
-
-    const transport = new RNSmallWebRTCTransport({
-        iceServers,
-        mediaManager: new SimpleMediaManager(),
-    });
-
-    const client = new PipecatClient({
-        transport,
-        enableCam: false,
-        enableMic: true,
-        callbacks: {
-            onConnected: () => {
-                console.log('[Pipecat] Connected');
-                storage.getState().setRealtimeStatus('connected');
-                storage.getState().setRealtimeMode('idle');
-            },
-            onBotReady: () => {
-                console.log('[Pipecat] Bot ready');
-                // Initial context and state are sent in the offer body (requestData),
-                // so the bot has them before the pipeline starts. Only subsequent
-                // updates use the happy.context / happy.state data channels.
-            },
-            onDisconnected: () => {
-                console.log('[Pipecat] Disconnected');
-                storage.getState().setRealtimeStatus('disconnected');
-                storage.getState().setRealtimeMode('idle', true);
-                storage.getState().clearRealtimeModeDebounce();
-            },
-            onBotStartedSpeaking: () => {
-                storage.getState().setRealtimeMode('speaking');
-            },
-            onBotStoppedSpeaking: () => {
-                storage.getState().setRealtimeMode('idle');
-            },
-            onError: (error: any) => {
-                if (isDisconnecting) return;
-                console.warn('[Pipecat] Error:', error);
-                storage.getState().setRealtimeStatus('disconnected');
-                storage.getState().setRealtimeMode('idle', true);
-            },
+function createVoiceClient(): LiveKitVoiceClient {
+    const voiceClient = new LiveKitVoiceClient({
+        onConnected: () => {
+            console.log('[LiveKit] Connected');
+            storage.getState().setRealtimeStatus('connected');
+            storage.getState().setRealtimeMode('idle');
+        },
+        onBotReady: () => {
+            console.log('[LiveKit] Bot ready');
+        },
+        onDisconnected: () => {
+            console.log('[LiveKit] Disconnected');
+            storage.getState().setRealtimeStatus('disconnected');
+            storage.getState().setRealtimeMode('idle', true);
+            storage.getState().clearRealtimeModeDebounce();
+        },
+        onBotStartedSpeaking: () => {
+            storage.getState().setRealtimeMode('speaking');
+        },
+        onBotStoppedSpeaking: () => {
+            storage.getState().setRealtimeMode('idle');
+        },
+        onBotAudioTrack: (_track) => {
+            // React Native: @livekit/react-native handles audio routing automatically
+            console.log('[LiveKit] Bot audio track received');
+        },
+        onError: (error: any) => {
+            console.warn('[LiveKit] Error:', error);
+            storage.getState().setRealtimeStatus('disconnected');
+            storage.getState().setRealtimeMode('idle', true);
         },
     });
 
     // Register all tool handlers
     for (const [name, handler] of Object.entries(TOOL_HANDLERS)) {
-        client.registerFunctionCallHandler(name, async (params: any) => {
+        voiceClient.registerToolHandler(name, async (params) => {
             try {
-                const result = await handler(params);
-                return result;
+                return await handler(params);
             } catch (err) {
-                console.error(`[Pipecat] Tool ${name} failed:`, err);
+                console.error(`[LiveKit] Tool ${name} failed:`, err);
                 return `error (${name} failed)`;
             }
         });
     }
 
-    return client;
+    return voiceClient;
 }
 
 function sendClientMessage(topic: string, text: string): void {
-    if (!pcClient) {
-        console.warn('[Pipecat] Client not ready');
+    if (!client) {
+        console.warn('[LiveKit] Client not ready');
         return;
     }
     if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) return;
 
     try {
-        pcClient.sendClientMessage(topic, { text });
+        client.sendClientMessage(topic, { text });
         consecutiveSendFailures = 0;
     } catch (err) {
         consecutiveSendFailures++;
         if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) {
-            console.error('[Pipecat] sendClientMessage circuit breaker open after', consecutiveSendFailures, 'failures:', err);
+            console.error('[LiveKit] sendClientMessage circuit breaker open after', consecutiveSendFailures, 'failures:', err);
         }
     }
 }
@@ -150,36 +103,30 @@ class PipecatVoiceSessionImpl implements VoiceSession {
     async startSession(config: VoiceSessionConfig): Promise<void> {
         consecutiveSendFailures = 0;
         if (!config.pipecatUrl) {
-            console.error('[Pipecat] Missing URL');
+            console.error('[LiveKit] Missing URL');
             return;
         }
 
         // Kick out any existing connection before starting a new one
-        if (pcClient) {
-            console.log('[Pipecat] Replacing existing connection');
+        if (client) {
+            console.log('[LiveKit] Replacing existing connection');
             await this.endSession();
         }
 
-        isDisconnecting = false;
         storage.getState().setRealtimeStatus('connecting');
 
         try {
-            pcClient = await createPipecatClient(config);
-            await pcClient.connect({
-                webrtcRequestParams: {
-                    endpoint: config.pipecatUrl,
-                    requestData: {
-                        ...(config.initialContext && { initialContext: config.initialContext }),
-                        ...(config.initialState && { initialState: config.initialState }),
-                        ...(config.voiceAssistantName && { voiceAssistantName: config.voiceAssistantName }),
-                        ...(config.voiceAssistantBio && { voiceAssistantBio: config.voiceAssistantBio }),
-                        ...(config.voiceAssistantSetup && { voiceAssistantSetup: config.voiceAssistantSetup }),
-                    },
-                },
+            client = createVoiceClient();
+            await client.connect(config.pipecatUrl, {
+                ...(config.initialContext && { initialContext: config.initialContext }),
+                ...(config.initialState && { initialState: config.initialState }),
+                ...(config.voiceAssistantName && { voiceAssistantName: config.voiceAssistantName }),
+                ...(config.voiceAssistantBio && { voiceAssistantBio: config.voiceAssistantBio }),
+                ...(config.voiceAssistantSetup && { voiceAssistantSetup: config.voiceAssistantSetup }),
             });
         } catch (err) {
-            console.error('[Pipecat] Connection failed:', err);
-            pcClient = null;
+            console.error('[LiveKit] Connection failed:', err);
+            client = null;
             storage.getState().setRealtimeStatus('disconnected');
             storage.getState().setRealtimeMode('idle', true);
             throw err;
@@ -187,14 +134,14 @@ class PipecatVoiceSessionImpl implements VoiceSession {
     }
 
     async endSession(): Promise<void> {
-        isDisconnecting = true;
-        if (pcClient) {
+        const c = client;
+        client = null;
+        if (c) {
             try {
-                await pcClient.disconnect();
+                await c.disconnect();
             } catch (err) {
-                console.error('[Pipecat] Disconnect error:', err);
+                console.error('[LiveKit] Disconnect error:', err);
             }
-            pcClient = null;
         }
         consecutiveSendFailures = 0;
         storage.getState().setRealtimeStatus('disconnected');
@@ -218,11 +165,11 @@ class PipecatVoiceSessionImpl implements VoiceSession {
     }
 
     setMicEnabled(enabled: boolean): void {
-        if (pcClient) {
+        if (client) {
             try {
-                pcClient.enableMic(enabled);
+                client.enableMic(enabled);
             } catch (err) {
-                console.warn('[Pipecat] Failed to set mic enabled:', err);
+                console.warn('[LiveKit] Failed to set mic enabled:', err);
             }
         }
     }

@@ -36,7 +36,7 @@ export function voiceRoutes(app: Fastify) {
 
         // Generate HMAC auth token for the Pipecat server
         const authSecret = process.env.PIPECAT_AUTH_SECRET;
-        let offerUrl = `${pipecatUrl}/api/offer?session_id=${encodeURIComponent(sessionId)}`;
+        let offerUrl = `${pipecatUrl}/api/room?session_id=${encodeURIComponent(sessionId)}`;
 
         if (authSecret) {
             const expiry = Math.floor(Date.now() / 1000) + 300; // 5 minutes
