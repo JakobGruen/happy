@@ -180,20 +180,23 @@ State updates (session metadata, agent state, machine daemon state) use `expecte
 Server can run with embedded WASM PostgreSQL (PGlite) instead of external Postgres. Azure deployment uses `tsx sources/standalone.ts migrate && tsx sources/standalone.ts serve`.
 
 ### Voice Architecture
-Self-hosted Pipecat voice agent via WebRTC. The app implements the `VoiceSession` interface (`startSession`, `endSession`, `sendTextMessage`, `sendContextualUpdate`, `sendTrigger`, `sendState`).
+Self-hosted Pipecat voice agent via **LiveKit WebRTC**. Bot and app join a LiveKit room as participants; RTVI protocol messages flow over LiveKit data channels.
 
 ```
-User speaks → Pipecat WebRTC (self-hosted)
-  → Voice agent LLM decides action
-  → RPC tool call lands in happy-app (client-registered handlers)
+User speaks → LiveKit Room (self-hosted or Cloud)
+  → Pipecat bot (STT → LLM → TTS)
+  → RTVI tool call over data channel → happy-app (client-registered handlers)
   → App calls sessionAllow / sends message to CLI daemon
 ```
 
-**Server endpoint:** `POST /v1/voice/pipecat-session` — returns HMAC-signed WebRTC offer URL. App can also connect directly via `localSettings.pipecatUrl` for local dev.
+**Transport**: LiveKit room-based. Server creates room + JWT tokens (`POST /api/room`), bot and client join as participants. App uses `livekit-client` Room API directly with inline RTVI protocol handling (no PipecatClient abstraction).
+
+**Server endpoint:** `POST /v1/voice/pipecat-session` — returns HMAC-signed LiveKit room URL. App can also connect directly via `localSettings.pipecatUrl` for local dev.
 
 **Key app files** (all in `packages/happy-app/sources/realtime/`):
-- `RealtimeSession.ts` — orchestrator: requests mic, connects to Pipecat
-- `PipecatVoiceSession.tsx` / `.web.tsx` — WebRTC client implementation
+- `RealtimeSession.ts` — orchestrator: requests mic, connects via LiveKit
+- `LiveKitVoiceClient.ts` — shared LiveKit + RTVI protocol handler (connect, disconnect, mic, data channel)
+- `PipecatVoiceSession.tsx` / `.web.tsx` — platform adapters (native uses `@livekit/react-native` registerGlobals; web creates `<audio>` element for bot playback)
 - `types.ts` — `VoiceSession` interface contract
 - `hooks/voiceHooks.ts` — bridges app events (messages, permissions, focus) to voice session
 - `hooks/voiceState.ts` — `buildSessionState()` + `VoiceSessionState` for `happy.state` channel
