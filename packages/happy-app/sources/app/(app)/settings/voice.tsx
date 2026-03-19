@@ -114,7 +114,7 @@ export default memo(function VoiceSettingsScreen() {
                         placeholder={t('settingsVoice.assistantBioPlaceholder')}
                         placeholderTextColor={theme.colors.textSecondary}
                         multiline
-                        maxLength={500}
+                        maxLength={2000}
                         textAlignVertical="top"
                     />
                     <Text style={[styles.inputHint, { color: theme.colors.textSecondary }]}>
@@ -132,7 +132,7 @@ export default memo(function VoiceSettingsScreen() {
                         placeholder={t('settingsVoice.assistantSetupPlaceholder')}
                         placeholderTextColor={theme.colors.textSecondary}
                         multiline
-                        maxLength={500}
+                        maxLength={2000}
                         textAlignVertical="top"
                     />
                     <Text style={[styles.inputHint, { color: theme.colors.textSecondary }]}>
