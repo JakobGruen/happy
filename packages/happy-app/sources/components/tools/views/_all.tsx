@@ -4,7 +4,6 @@ import { BashView } from './BashView';
 import { Message, ToolCall } from '@/sync/typesMessage';
 import { Metadata } from '@/sync/storageTypes';
 import { WriteView } from './WriteView';
-import { TodoView } from './TodoView';
 import { ExitPlanToolView } from './ExitPlanToolView';
 import { MultiEditView } from './MultiEditView';
 import { TaskView } from './TaskView';
@@ -38,7 +37,6 @@ export const toolViewRegistry: Record<string, ToolViewComponent> = {
     CodexPatch: CodexPatchView,
     CodexDiff: CodexDiffView,
     Write: WriteView,
-    TodoWrite: TodoView,
     ExitPlanMode: ExitPlanToolView,
     exit_plan_mode: ExitPlanToolView,
     MultiEdit: MultiEditView,
