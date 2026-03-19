@@ -3077,4 +3077,191 @@ describe('reducer', () => {
             }
         });
     });
+
+    describe('backgrounded tool state', () => {
+        it('should set tool state to backgrounded when tool result has _backgrounded flag', () => {
+            const state = createReducer();
+
+            // Step 1: Tool call arrives
+            const toolCallMessages: NormalizedMessage[] = [
+                {
+                    id: 'msg-bg-1',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'toolu_bg1',
+                        name: 'Bash',
+                        input: { command: 'sleep 60' },
+                        description: 'Running background task',
+                        uuid: 'uuid-bg-1',
+                        parentUUID: null,
+                    }]
+                }
+            ];
+
+            const result1 = reducer(state, toolCallMessages);
+            expect(result1.messages).toHaveLength(1);
+            expect(result1.messages[0].kind).toBe('tool-call');
+            if (result1.messages[0].kind === 'tool-call') {
+                expect(result1.messages[0].tool.state).toBe('running');
+            }
+
+            // Step 2: Backgrounded tool result arrives
+            const backgroundedResult: NormalizedMessage[] = [
+                {
+                    id: 'msg-bg-2',
+                    localId: null,
+                    createdAt: 2000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'toolu_bg1',
+                        content: 'Command running in background',
+                        is_error: false,
+                        uuid: 'uuid-bg-2',
+                        parentUUID: null,
+                        _backgrounded: true,
+                    } as any]
+                }
+            ];
+
+            const result2 = reducer(state, backgroundedResult);
+            expect(result2.messages).toHaveLength(1);
+            if (result2.messages[0].kind === 'tool-call') {
+                expect(result2.messages[0].tool.state).toBe('backgrounded');
+                expect(result2.messages[0].tool.result).toBe('Command running in background');
+                expect(result2.messages[0].tool.completedAt).toBeNull();
+            }
+        });
+
+        it('should transition from backgrounded to completed on background-complete', () => {
+            const state = createReducer();
+
+            // Step 1: Tool call arrives
+            const toolCallMessages: NormalizedMessage[] = [
+                {
+                    id: 'msg-bgc-1',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'toolu_bg2',
+                        name: 'Bash',
+                        input: { command: 'sleep 60' },
+                        description: 'Running background task',
+                        uuid: 'uuid-bgc-1',
+                        parentUUID: null,
+                    }]
+                }
+            ];
+
+            reducer(state, toolCallMessages);
+
+            // Step 2: Backgrounded tool result
+            const backgroundedResult: NormalizedMessage[] = [
+                {
+                    id: 'msg-bgc-2',
+                    localId: null,
+                    createdAt: 2000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'toolu_bg2',
+                        content: 'Command running in background',
+                        is_error: false,
+                        uuid: 'uuid-bgc-2',
+                        parentUUID: null,
+                        _backgrounded: true,
+                    } as any]
+                }
+            ];
+
+            reducer(state, backgroundedResult);
+
+            // Step 3: Background complete arrives
+            const bgCompleteResult: NormalizedMessage[] = [
+                {
+                    id: 'msg-bgc-3',
+                    localId: null,
+                    createdAt: 3000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'toolu_bg2',
+                        content: 'Command output: done',
+                        is_error: false,
+                        uuid: 'uuid-bgc-3',
+                        parentUUID: null,
+                        _backgroundComplete: true,
+                    } as any]
+                }
+            ];
+
+            const result3 = reducer(state, bgCompleteResult);
+            expect(result3.messages).toHaveLength(1);
+            if (result3.messages[0].kind === 'tool-call') {
+                expect(result3.messages[0].tool.state).toBe('completed');
+                expect(result3.messages[0].tool.result).toBe('Command output: done');
+                expect(result3.messages[0].tool.completedAt).toBe(3000);
+            }
+        });
+
+        it('should ignore background-complete if tool is not in backgrounded state', () => {
+            const state = createReducer();
+
+            // Step 1: Tool call arrives
+            const toolCallMessages: NormalizedMessage[] = [
+                {
+                    id: 'msg-bgi-1',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'toolu_bg3',
+                        name: 'Bash',
+                        input: { command: 'ls' },
+                        description: 'List files',
+                        uuid: 'uuid-bgi-1',
+                        parentUUID: null,
+                    }]
+                }
+            ];
+
+            reducer(state, toolCallMessages);
+
+            // Step 2: background-complete arrives but tool is still 'running' (not 'backgrounded')
+            const bgCompleteResult: NormalizedMessage[] = [
+                {
+                    id: 'msg-bgi-2',
+                    localId: null,
+                    createdAt: 2000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'toolu_bg3',
+                        content: 'Should be ignored',
+                        is_error: false,
+                        uuid: 'uuid-bgi-2',
+                        parentUUID: null,
+                        _backgroundComplete: true,
+                    } as any]
+                }
+            ];
+
+            const result = reducer(state, bgCompleteResult);
+            // Should not produce a changed message since tool is not in backgrounded state
+            expect(result.messages).toHaveLength(0);
+        });
+    });
 });

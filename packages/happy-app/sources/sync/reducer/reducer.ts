@@ -952,6 +952,21 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
         if (msg.role === 'agent') {
             for (let c of msg.content) {
                 if (c.type === 'tool-result') {
+                    // Handle background-complete: transition backgrounded → completed
+                    if ((c as any)._backgroundComplete) {
+                        let messageId = state.toolIdToMessageId.get(c.tool_use_id);
+                        if (messageId) {
+                            let message = state.messages.get(messageId);
+                            if (message && message.tool && message.tool.state === 'backgrounded') {
+                                message.tool.state = 'completed';
+                                message.tool.result = c.content;
+                                message.tool.completedAt = msg.createdAt;
+                                changed.add(messageId);
+                            }
+                        }
+                        continue;
+                    }
+
                     // Find the message containing this tool
                     let messageId = state.toolIdToMessageId.get(c.tool_use_id);
                     if (!messageId) {
@@ -973,6 +988,15 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         if (!isLateAgentResult) {
                             continue;
                         }
+                    }
+
+                    // Check if this is a backgrounded tool result
+                    if ((c as any)._backgrounded) {
+                        message.tool.state = 'backgrounded';
+                        message.tool.result = c.content;
+                        // Don't set completedAt — tool is still running in background
+                        changed.add(messageId);
+                        continue;
                     }
 
                     // Update tool state and result
