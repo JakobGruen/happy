@@ -3,7 +3,7 @@ import { MessageMeta } from "./typesMessageMeta";
 
 export type ToolCall = {
     name: string;
-    state: 'running' | 'completed' | 'error';
+    state: 'running' | 'completed' | 'error' | 'backgrounded';
     input: any;
     createdAt: number;
     startedAt: number | null;

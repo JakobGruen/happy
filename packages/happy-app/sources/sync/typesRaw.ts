@@ -77,6 +77,14 @@ const sessionToolCallEndEventSchema = z.object({
     call: z.string(),
     result: z.string().optional(),
     isError: z.boolean().optional(),
+    backgrounded: z.boolean().optional(),
+});
+
+const sessionBackgroundCompleteEventSchema = z.object({
+    t: z.literal('background-complete'),
+    call: z.string(),
+    result: z.string().optional(),
+    isError: z.boolean().optional(),
 });
 
 const sessionFileEventSchema = z.object({
@@ -120,6 +128,7 @@ const sessionEventSchema = z.discriminatedUnion('t', [
     sessionServiceMessageEventSchema,
     sessionToolCallStartEventSchema,
     sessionToolCallEndEventSchema,
+    sessionBackgroundCompleteEventSchema,
     sessionFileEventSchema,
     sessionTurnStartEventSchema,
     sessionStartEventSchema,
@@ -760,6 +769,26 @@ function normalizeSessionEnvelope(
         } satisfies NormalizedMessage;
     }
 
+    if (envelope.ev.t === 'background-complete') {
+        return {
+            id: messageId,
+            localId,
+            createdAt: messageCreatedAt,
+            role: 'agent',
+            isSidechain,
+            content: [{
+                type: 'tool-result',
+                tool_use_id: envelope.ev.call,
+                content: envelope.ev.result ?? '',
+                is_error: envelope.ev.isError ?? false,
+                uuid: contentUUID,
+                parentUUID,
+                _backgroundComplete: true,
+            } as any],
+            meta
+        } satisfies NormalizedMessage;
+    }
+
     if (envelope.ev.t === 'tool-call-end') {
         return {
             id: messageId,
@@ -773,8 +802,9 @@ function normalizeSessionEnvelope(
                 content: envelope.ev.result ?? null,
                 is_error: envelope.ev.isError ?? false,
                 uuid: contentUUID,
-                parentUUID
-            }],
+                parentUUID,
+                ...(envelope.ev.backgrounded ? { _backgrounded: true } : {}),
+            } as any],
             meta
         } satisfies NormalizedMessage;
     }
