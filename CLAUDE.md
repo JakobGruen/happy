@@ -142,6 +142,19 @@ gh run watch                    # Watch current branch's latest run
 ```
 Useful for AI-driven development — get immediate terminal notification if checks fail.
 
+### EAS Build (Mobile)
+
+Custom Build pipeline for iOS (`packages/happy-app/.eas/build/ios-preview.yml`). Key design: `.easignore` fully excludes `happy-cli/`, `happy-server/`, `happy-agent/` directories (~295MB saved), then a custom build step creates stub `package.json` files before `bun install` so workspace resolution succeeds without installing their 100+ deps.
+
+**Key files**: `.easignore`, `packages/happy-app/eas.json`, `packages/happy-app/.eas/build/ios-preview.yml`
+
+**Gotchas**:
+- `EAS_NO_FROZEN_LOCKFILE=1` required — stub packages cause lockfile drift
+- Custom build `working_directory` is relative to app dir, not monorepo root (use `../..`)
+- Custom builds need explicit `eas/configure_ios_credentials` + credential inputs to `eas/generate_gymfile_from_template` for IPA signing
+- `scripts/postinstall.cjs` and `patches/` must NOT be in `.easignore` — postinstall builds wire and applies patches
+- EAS detects package manager from lockfile (`bun.lock`) — never exclude it from `.easignore`
+
 ### Deployment Safety
 - Build failures are caught in CI before Coolify ever tries to deploy
 - JSON syntax errors, missing migrations, Docker build issues all blocked at PR stage

@@ -1,0 +1,41 @@
+build:
+  name: iOS Preview Build
+  steps:
+    - eas/checkout
+
+    # Create stub package.json for excluded workspace packages
+    # so bun resolves workspaces without installing their (100+) deps
+    - run:
+        name: Create workspace stubs
+        working_directory: ../..
+        command: |
+          for stub in \
+            "packages/happy-cli:happy-coder:0.0.0" \
+            "packages/happy-server:happy-server:0.0.0" \
+            "packages/happy-agent:@slopus/agent:0.0.0"; do
+            dir="${stub%%:*}"
+            rest="${stub#*:}"
+            name="${rest%%:*}"
+            version="${rest##*:}"
+            mkdir -p "$dir"
+            echo "{\"name\":\"$name\",\"version\":\"$version\"}" > "$dir/package.json"
+          done
+
+    - eas/install_node_modules
+    - eas/resolve_apple_team_id_from_credentials:
+        id: resolve_apple_team_id_from_credentials
+    - eas/prebuild:
+        inputs:
+          clean: false
+          apple_team_id: ${ steps.resolve_apple_team_id_from_credentials.apple_team_id }
+    - run:
+        name: Install pods
+        working_directory: ./ios
+        command: pod install
+    - eas/configure_eas_update
+    - eas/configure_ios_credentials
+    - eas/generate_gymfile_from_template:
+        inputs:
+          credentials: ${ eas.job.secrets.buildCredentials }
+    - eas/run_fastlane
+    - eas/find_and_upload_build_artifacts

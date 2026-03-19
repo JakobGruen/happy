@@ -57,15 +57,33 @@ progress*.txt
 # === Non-workspace packages ===
 packages/happy-voice-agent/
 
-# === Heavy directories (saves ~600MB) ===
+# === Workspace packages (custom build creates stubs before install) ===
+packages/happy-cli/
+packages/happy-server/
+packages/happy-agent/
+
+# === Heavy directories ===
 .git/
-packages/happy-cli/tools/
-packages/happy-server/sources/
 docs/
 notes/
 .github/
+
+# === Root artifacts ===
+*.ipa
+*.cer
+yarn.lock
+logo.png
+
+# === Dev config ===
+mise.toml
+packages/happy-app/mise.toml
+.dev/
+.worktrees/
 
 # === App-specific exclusions ===
 packages/happy-app/src-tauri/
 packages/happy-app/**/*.test.ts
 packages/happy-app/**/*.test.tsx
+packages/happy-app/**/*.spec.ts
+packages/happy-app/**/*.spec.tsx
+packages/happy-app/sources/sync/__testdata__/
