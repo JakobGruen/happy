@@ -40,6 +40,22 @@ export function getGitBranchAsync(cwd: string): Promise<string | undefined> {
     })
 }
 
+/** Extracts background task ID from tool result text, if present */
+function extractBackgroundTaskId(toolResultContent: unknown, toolUseId: string): string | undefined {
+    if (typeof toolResultContent !== 'string') return undefined
+
+    // Bash: "Command running in background with ID: <id>" or "Command was manually backgrounded by user with ID: <id>"
+    const bashMatch = toolResultContent.match(/(?:Command running in background|Command was manually backgrounded by user) with ID: (\S+)/)
+    if (bashMatch) return bashMatch[1].replace(/\.$/, '')
+
+    // Agent: "Backgrounded agent"
+    if (toolResultContent.trim() === 'Backgrounded agent') {
+        return `agent:${toolUseId}`
+    }
+
+    return undefined
+}
+
 /**
  * SDK to Log converter class
  * Maintains state for parent-child relationships between messages
@@ -117,10 +133,16 @@ export class SDKToLogConverter {
                 // Check if this is a tool result and add mode if available
                 if (Array.isArray(userMsg.message.content)) {
                     for (const content of userMsg.message.content) {
-                        if (content.type === 'tool_result' && content.tool_use_id && this.responses?.has(content.tool_use_id)) {
-                            const response = this.responses.get(content.tool_use_id)
-                            if (response?.mode) {
-                                (logMessage as any).mode = response.mode
+                        if (content.type === 'tool_result' && content.tool_use_id) {
+                            if (this.responses?.has(content.tool_use_id)) {
+                                const response = this.responses.get(content.tool_use_id)
+                                if (response?.mode) {
+                                    (logMessage as any).mode = response.mode
+                                }
+                            }
+                            const bgId = extractBackgroundTaskId(content.content, content.tool_use_id)
+                            if (bgId) {
+                                (logMessage as any)._backgroundTaskId = bgId
                             }
                         }
                     }

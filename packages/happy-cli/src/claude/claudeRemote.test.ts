@@ -22,6 +22,10 @@ vi.mock('@/ui/logger', () => ({
     logger: mockLogger,
 }));
 
+vi.mock('@/lib', () => ({
+    logger: mockLogger,
+}));
+
 import { claudeRemote } from './claudeRemote';
 
 vi.mock('./utils/claudeCheckSession', () => ({
@@ -364,5 +368,97 @@ describe('claudeRemote - Eager Session Initialization', () => {
 
         // Verify: query was called before nextMessage resolved
         expect(callOrder[0]).toBe('query-called');
+    });
+
+    it('processes CC stdout messages without blocking on nextMessage (concurrent loop)', async () => {
+        // Setup: CC emits result, then autonomous turn, then another result
+        // nextMessage never resolves after first — simulates user not sending anything
+        // The consumer should still process all messages
+
+        let resolveFirstMessage: any;
+        let callCount = 0;
+        nextMessageMock.mockImplementation(() => {
+            callCount++;
+            if (callCount === 1) {
+                return new Promise(resolve => { resolveFirstMessage = resolve; });
+            }
+            // Second+ calls: never resolve (simulate no user input after first message)
+            return new Promise(() => {});
+        });
+
+        const readyCount = { value: 0 };
+        const receivedMessages: string[] = [];
+
+        mockQuery.mockImplementation(({ prompt }: any) => {
+            messageStreamCapture = prompt;
+            return (async function* () {
+                yield {
+                    type: 'system',
+                    subtype: 'init',
+                    session_id: 'test-session',
+                    model: 'claude-opus',
+                } as SDKSystemMessage;
+
+                // Wait for first message to be pushed before yielding result
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                yield {
+                    type: 'assistant',
+                    message: { role: 'assistant', content: [{ type: 'text', text: 'Turn 1' }] },
+                } as any;
+
+                yield {
+                    type: 'result',
+                    subtype: 'success',
+                    duration_ms: 100,
+                    num_turns: 1,
+                    total_cost_usd: 0.01,
+                } as SDKResultMessage;
+
+                // Autonomous turn (background task completed — no user message needed)
+                yield {
+                    type: 'assistant',
+                    message: { role: 'assistant', content: [{ type: 'text', text: 'Background task completed' }] },
+                } as any;
+
+                yield {
+                    type: 'result',
+                    subtype: 'success',
+                    duration_ms: 50,
+                    num_turns: 1,
+                    total_cost_usd: 0.005,
+                } as SDKResultMessage;
+            })();
+        });
+
+        // Start claudeRemote
+        const remoteDone = claudeRemote({
+            sessionId: null,
+            path: '/test',
+            allowedTools: [],
+            hookSettingsPath: '/test/hooks.json',
+            canCallTool: async () => ({ behavior: 'allow' as const }),
+            isAborted: () => false,
+            onMessage: (msg) => receivedMessages.push(msg.type),
+            onSessionFound: onSessionFoundMock,
+            onReady: () => { readyCount.value++; },
+            nextMessage: nextMessageMock,
+        });
+
+        // Give SDK time to start
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        // Send first message to get the ball rolling
+        resolveFirstMessage({
+            message: 'Hello',
+            mode: { permissionMode: 'default' },
+        });
+
+        // Wait for everything to process
+        await remoteDone;
+
+        // Should have received ALL messages including autonomous turn
+        expect(receivedMessages).toContain('assistant');
+        expect(readyCount.value).toBe(2); // Two result messages
     });
 });

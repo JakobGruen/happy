@@ -18,6 +18,9 @@ export type ClaudeSessionProtocolState = {
     hiddenParentToolCalls?: Set<string>;
     startedSubagents?: Set<string>;
     activeSubagents?: Set<string>;
+    backgroundTaskMap?: Map<string, string>;  // backgroundTaskId → tool_use_id
+    hasUserMessageInCurrentTurn?: boolean;
+    hasToolCallInCurrentTurn?: boolean;
 };
 
 type ClaudeMapperResult = {
@@ -132,6 +135,13 @@ function getActiveSubagents(state: ClaudeSessionProtocolState): Set<string> {
         state.activeSubagents = new Set<string>();
     }
     return state.activeSubagents;
+}
+
+function getBackgroundTaskMap(state: ClaudeSessionProtocolState): Map<string, string> {
+    if (!state.backgroundTaskMap) {
+        state.backgroundTaskMap = new Map<string, string>();
+    }
+    return state.backgroundTaskMap;
 }
 
 function pickUuid(message: RawJSONLines): string | undefined {
@@ -405,8 +415,30 @@ function closeTurn(
         return;
     }
 
+    // When closing an autonomous turn (no user message, no tool calls) that follows a backgrounded
+    // task, emit background-complete for the oldest pending background task. The turn with the
+    // backgrounded tool-call-end is excluded (hasToolCallInCurrentTurn) so we only fire on the
+    // subsequent pure-response turn that signals the task actually finished.
+    const bgMap = getBackgroundTaskMap(state);
+    if (!state.hasUserMessageInCurrentTurn && !state.hasToolCallInCurrentTurn && bgMap.size > 0) {
+        const firstEntry = bgMap.entries().next().value;
+        if (firstEntry) {
+            const [backgroundTaskId, toolCallId] = firstEntry;
+            envelopes.push(createEnvelope('agent', {
+                t: 'background-complete',
+                call: toolCallId,
+            }, { turn: state.currentTurnId }));
+            bgMap.delete(backgroundTaskId);
+        }
+    }
+
     envelopes.push(createEnvelope('agent', { t: 'turn-end', status, ...stats }, { turn: state.currentTurnId }));
     state.currentTurnId = null;
+
+    // Reset per-turn flags before clearing subagent tracking
+    state.hasUserMessageInCurrentTurn = false;
+    state.hasToolCallInCurrentTurn = false;
+
     clearSubagentTracking(state);
 }
 
@@ -500,6 +532,7 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
             }
 
             if (block.type === 'tool_use') {
+                state.hasToolCallInCurrentTurn = true;
                 const call = typeof block.id === 'string' && block.id.length > 0 ? block.id : createId();
                 const name = typeof block.name === 'string' && block.name.length > 0 ? block.name : 'unknown';
                 const args = toToolArgs(block.input);
@@ -554,6 +587,8 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
             } else {
                 closeTurn(state, 'completed', envelopes);
                 envelopes.push(createEnvelope('user', { t: 'text', text: message.message.content }));
+                // Flag next turn as user-initiated (set AFTER closeTurn so it applies to the next turn)
+                state.hasUserMessageInCurrentTurn = true;
             }
 
             return {
@@ -607,11 +642,29 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                         .map((b: any) => b.text)
                         .join('\n') || undefined;
                 }
+                // Check if this tool result is backgrounded
+                const backgroundTaskId = (message as any)._backgroundTaskId as string | undefined;
+                const isBackgrounded = !!backgroundTaskId;
+
+                if (backgroundTaskId) {
+                    // Track for later correlation when the async turn completes
+                    const bgMap = getBackgroundTaskMap(state);
+                    bgMap.set(backgroundTaskId, block.tool_use_id);
+                    // Cap at 50 entries
+                    if (bgMap.size > 50) {
+                        const oldest = bgMap.keys().next().value;
+                        if (oldest) {
+                            bgMap.delete(oldest);
+                        }
+                    }
+                }
+
                 envelopes.push(createEnvelope('agent', {
                     t: 'tool-call-end',
                     call: block.tool_use_id,
                     ...(resultText !== undefined && { result: resultText }),
                     ...(block.is_error === true && { isError: true }),
+                    ...(isBackgrounded && { backgrounded: true }),
                 }, { turn: turnId, subagent }));
                 continue;
             }

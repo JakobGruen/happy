@@ -22,6 +22,8 @@ function StatusIndicator({ state }: { state: ToolCall['state'] }) {
             return <Ionicons name="checkmark-circle" size={22} color="#34C759" />;
         case 'error':
             return <Ionicons name="close-circle" size={22} color="#FF3B30" />;
+        case 'backgrounded':
+            return <ActivityIndicator size="small" color="#AF52DE" />;
         default:
             return null;
     }

@@ -112,6 +112,34 @@ describe('session protocol schemas', () => {
   });
 });
 
+describe('background task events', () => {
+    it('accepts tool-call-end with backgrounded flag', () => {
+        const event = {
+            t: 'tool-call-end',
+            call: 'toolu_abc',
+            result: 'Command running in background with ID: b_123',
+            backgrounded: true,
+        }
+        expect(sessionEventSchema.parse(event)).toEqual(event)
+    })
+
+    it('accepts background-complete event', () => {
+        const event = {
+            t: 'background-complete',
+            call: 'toolu_abc',
+            result: 'done',
+        }
+        expect(sessionEventSchema.parse(event)).toEqual(event)
+    })
+
+    it('rejects background-complete without call', () => {
+        expect(() => sessionEventSchema.parse({
+            t: 'background-complete',
+            result: 'done',
+        })).toThrow()
+    })
+})
+
 describe('createEnvelope', () => {
   it('creates id by default', () => {
     const envelope = createEnvelope('agent', { t: 'turn-start' });

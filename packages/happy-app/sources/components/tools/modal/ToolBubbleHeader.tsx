@@ -143,6 +143,11 @@ export const ToolBubbleHeader = React.memo<ToolBubbleHeaderProps>(({
             case 'error':
                 statusIcon = <Ionicons name="alert-circle-outline" size={20} color={theme.colors.warning} />;
                 break;
+            case 'backgrounded':
+                if (!noStatus) {
+                    statusIcon = <ActivityIndicator size="small" color="#AF52DE" style={ACTIVITY_INDICATOR_STYLE} />;
+                }
+                break;
         }
     }
 
@@ -165,7 +170,7 @@ export const ToolBubbleHeader = React.memo<ToolBubbleHeaderProps>(({
                     <ContentPreview tool={tool} />
                 )}
             </View>
-            {tool.state === 'running' && (
+            {(tool.state === 'running' || tool.state === 'backgrounded') && (
                 <View style={styles.elapsedContainer}>
                     <ElapsedView from={tool.createdAt} />
                 </View>

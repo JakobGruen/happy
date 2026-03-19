@@ -200,83 +200,108 @@ export async function claudeRemote(opts: {
     try {
         logger.debug(`[claudeRemote] Starting to iterate over response`);
 
-        for await (const message of response) {
-            logger.debugLargeJson(`[claudeRemote] Message ${message.type}`, message);
-
-            // Handle messages
-            opts.onMessage(message);
-
-            // Handle special system messages
-            if (message.type === 'system' && message.subtype === 'init') {
-                // Start thinking when session initializes
-                updateThinking(true);
-
-                const systemInit = message as SDKSystemMessage;
-
-                // Notify active model from SDK init
-                if (systemInit.model && opts.onModelDetected) {
-                    opts.onModelDetected(systemInit.model);
-                }
-
-                // Session id is still in memory, wait until session file is written to disk
-                // Start a watcher for to detect the session id
-                if (systemInit.session_id) {
-                    logger.debug(`[claudeRemote] Waiting for session file to be written to disk: ${systemInit.session_id}`);
-                    const projectDir = getProjectPath(opts.path);
-                    const found = await awaitFileExist(join(projectDir, `${systemInit.session_id}.jsonl`));
-                    logger.debug(`[claudeRemote] Session file found: ${systemInit.session_id} ${found}`);
-                    opts.onSessionFound(systemInit.session_id);
-                }
-            }
-
-            // Handle result messages
-            if (message.type === 'result') {
-                updateThinking(false);
-                logger.debug('[claudeRemote] Result received, exiting claudeRemote');
-
-                // Send completion messages
-                if (isCompactCommand) {
-                    logger.debug('[claudeRemote] Compaction completed');
-                    if (opts.onCompletionEvent) {
-                        opts.onCompletionEvent('Compaction completed');
+        // Producer: independently pushes user messages to CC stdin
+        const shutdown = new AbortController();
+        const producerDone = (async () => {
+            try {
+                // Handle subsequent messages (first message already handled by the eager init IIFE above)
+                while (!shutdown.signal.aborted) {
+                    // Race nextMessage against shutdown signal
+                    const next = await Promise.race([
+                        opts.nextMessage(),
+                        new Promise<null>((resolve) => {
+                            shutdown.signal.addEventListener('abort', () => resolve(null), { once: true });
+                        }),
+                    ]);
+                    if (shutdown.signal.aborted) return;  // Clean shutdown
+                    if (!next) {
+                        messages.end();
+                        return;
                     }
-                    isCompactCommand = false;
+                    mode = next.mode;
+                    if (!messages.done) {
+                        messages.push({ type: 'user', message: { role: 'user', content: next.message } });
+                    }
                 }
-
-                // Send ready event with result stats
-                const resultMsg = message as SDKResultMessage;
-                opts.onReady({
-                    durationMs: resultMsg.duration_ms,
-                    numTurns: resultMsg.num_turns,
-                    costUsd: resultMsg.total_cost_usd,
-                });
-
-                // Push next message
-                const next = await opts.nextMessage();
-                if (!next) {
-                    messages.end();
-                    return;
-                }
-                mode = next.mode;
-                // Only push if stream is still open (it might have been ended by /clear command)
-                if (!messages.done) {
-                    messages.push({ type: 'user', message: { role: 'user', content: next.message } });
-                }
+            } catch {
+                // Producer errors are non-fatal — CC process exit handles cleanup
             }
+        })();
 
-            // Handle tool result
-            if (message.type === 'user') {
-                const msg = message as SDKUserMessage;
-                if (msg.message.role === 'user' && Array.isArray(msg.message.content)) {
-                    for (let c of msg.message.content) {
-                        if (c.type === 'tool_result' && c.tool_use_id && opts.isAborted(c.tool_use_id)) {
-                            logger.debug('[claudeRemote] Tool aborted, exiting claudeRemote');
-                            return;
+        // Consumer: always processes CC stdout, never blocks
+        try {
+            for await (const message of response) {
+                logger.debugLargeJson(`[claudeRemote] Message ${message.type}`, message);
+
+                // Handle messages
+                opts.onMessage(message);
+
+                // Handle special system messages
+                if (message.type === 'system' && message.subtype === 'init') {
+                    // Start thinking when session initializes
+                    updateThinking(true);
+
+                    const systemInit = message as SDKSystemMessage;
+
+                    // Notify active model from SDK init
+                    if (systemInit.model && opts.onModelDetected) {
+                        opts.onModelDetected(systemInit.model);
+                    }
+
+                    // Session id is still in memory, wait until session file is written to disk
+                    // Start a watcher for to detect the session id
+                    if (systemInit.session_id) {
+                        logger.debug(`[claudeRemote] Waiting for session file to be written to disk: ${systemInit.session_id}`);
+                        const projectDir = getProjectPath(opts.path);
+                        const found = await awaitFileExist(join(projectDir, `${systemInit.session_id}.jsonl`));
+                        logger.debug(`[claudeRemote] Session file found: ${systemInit.session_id} ${found}`);
+                        opts.onSessionFound(systemInit.session_id);
+                    }
+                }
+
+                // Handle result messages
+                if (message.type === 'result') {
+                    updateThinking(false);
+                    logger.debug('[claudeRemote] Result received');
+
+                    // Send completion messages
+                    if (isCompactCommand) {
+                        logger.debug('[claudeRemote] Compaction completed');
+                        if (opts.onCompletionEvent) {
+                            opts.onCompletionEvent('Compaction completed');
+                        }
+                        isCompactCommand = false;
+                    }
+
+                    // Send ready event with result stats
+                    const resultMsg = message as SDKResultMessage;
+                    opts.onReady({
+                        durationMs: resultMsg.duration_ms,
+                        numTurns: resultMsg.num_turns,
+                        costUsd: resultMsg.total_cost_usd,
+                    });
+                    // Don't block — consumer continues processing next messages
+                }
+
+                // Handle tool result
+                if (message.type === 'user') {
+                    const msg = message as SDKUserMessage;
+                    if (msg.message.role === 'user' && Array.isArray(msg.message.content)) {
+                        for (let c of msg.message.content) {
+                            if (c.type === 'tool_result' && c.tool_use_id && opts.isAborted(c.tool_use_id)) {
+                                logger.debug('[claudeRemote] Tool aborted');
+                                shutdown.abort();
+                                return;
+                            }
                         }
                     }
                 }
             }
+        } finally {
+            shutdown.abort(); // CC process exited — stop producer
         }
+
+        await producerDone;
     } catch (e) {
         if (e instanceof AbortError) {
             logger.debug(`[claudeRemote] Aborted`);
