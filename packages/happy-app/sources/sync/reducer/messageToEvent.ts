@@ -28,7 +28,7 @@ function formatTodoDelta(currentTodos: TodoItem[], prevTodos?: TodoItem[]): stri
 
     const completed = currentTodos.filter(t => t.status === 'completed').length;
     const total = currentTodos.length;
-    const progress = `☑ ${completed}/${total}`;
+    const progress = `💡 ${completed}/${total}`;
 
     // First creation — no previous state
     if (!prevTodos || prevTodos.length === 0) {

@@ -41,7 +41,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg);
         expect(event).toEqual({
             type: 'message',
-            message: '☑ 0/2 tasks created',
+            message: '💡 0/2 tasks created',
         });
     });
 
@@ -57,7 +57,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '☑ 1/2 · Completed: Task A',
+            message: '💡 1/2 · Completed: Task A',
         });
     });
 
@@ -71,7 +71,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '☑ 0/1 · Started: Task A',
+            message: '💡 0/1 · Started: Task A',
         });
     });
 
@@ -86,7 +86,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '☑ 1/2 · Added: Task B',
+            message: '💡 1/2 · Added: Task B',
         });
     });
 
@@ -104,7 +104,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '☑ 2/3 · Completed 2 tasks',
+            message: '💡 2/3 · Completed 2 tasks',
         });
     });
 
@@ -119,7 +119,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '☑ 0/1 · Removed: Task B',
+            message: '💡 0/1 · Removed: Task B',
         });
     });
 
@@ -146,7 +146,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '☑ 1/1 · Completed: Task A',
+            message: '💡 1/1 · Completed: Task A',
         });
     });
 
@@ -163,7 +163,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '☑ 1/3 · Completed: Task A',
+            message: '💡 1/3 · Completed: Task A',
         });
     });
 });
