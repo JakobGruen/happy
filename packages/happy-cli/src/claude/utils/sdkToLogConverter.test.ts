@@ -283,6 +283,76 @@ describe('SDKToLogConverter', () => {
         })
     })
 
+    describe('background task detection', () => {
+        it('detects backgroundTaskId from bash tool result text', () => {
+            const result = converter.convert({
+                type: 'user',
+                message: {
+                    role: 'user',
+                    content: [{
+                        type: 'tool_result',
+                        tool_use_id: 'toolu_abc',
+                        content: 'Command running in background with ID: b_abc123. Output is being written to: /tmp/output',
+                    }],
+                },
+            } as any)
+
+            expect(result).not.toBeNull()
+            expect((result as any)._backgroundTaskId).toBe('b_abc123')
+        })
+
+        it('detects backgrounded agent from tool result text', () => {
+            const result = converter.convert({
+                type: 'user',
+                message: {
+                    role: 'user',
+                    content: [{
+                        type: 'tool_result',
+                        tool_use_id: 'toolu_xyz',
+                        content: 'Backgrounded agent',
+                    }],
+                },
+            } as any)
+
+            expect(result).not.toBeNull()
+            expect((result as any)._backgroundTaskId).toBe('agent:toolu_xyz')
+        })
+
+        it('does not detect background for normal tool results', () => {
+            const result = converter.convert({
+                type: 'user',
+                message: {
+                    role: 'user',
+                    content: [{
+                        type: 'tool_result',
+                        tool_use_id: 'toolu_normal',
+                        content: 'File written successfully',
+                    }],
+                },
+            } as any)
+
+            expect(result).not.toBeNull()
+            expect((result as any)._backgroundTaskId).toBeUndefined()
+        })
+
+        it('detects manually backgrounded bash command', () => {
+            const result = converter.convert({
+                type: 'user',
+                message: {
+                    role: 'user',
+                    content: [{
+                        type: 'tool_result',
+                        tool_use_id: 'toolu_manual',
+                        content: 'Command was manually backgrounded by user with ID: b_manual456. Output is being written to: /tmp/out',
+                    }],
+                },
+            } as any)
+
+            expect(result).not.toBeNull()
+            expect((result as any)._backgroundTaskId).toBe('b_manual456')
+        })
+    })
+
     describe('Tool results with mode', () => {
         it('should add mode to tool result when available in responses', () => {
             const responses = new Map<string, { approved: boolean, mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan', reason?: string }>()
