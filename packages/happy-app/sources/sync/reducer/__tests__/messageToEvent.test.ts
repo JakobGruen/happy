@@ -103,7 +103,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '📋 Todo updated:\n✅ Task A\n🔄 Task B\n📋 Added: "Task C"',
+            message: '📋 Todo updated:\n✅ Completed: "Task A"\n🔄 Started: "Task B"\n📋 Added: "Task C"',
         });
     });
 
@@ -146,6 +146,20 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         expect(event).toEqual({
             type: 'message',
             message: '📝 Updated: "New text"',
+        });
+    });
+
+    it('handles task content with double quotes', () => {
+        const prevTodos = [
+            { content: 'Fix "this" bug', status: 'pending', id: '1' },
+        ];
+        const msg = makeTodoMsg([
+            { content: 'Fix "this" bug', status: 'completed', id: '1' },
+        ]);
+        const event = parseMessageAsEvent(msg, { prevTodos });
+        expect(event).toEqual({
+            type: 'message',
+            message: '✅ Completed: "Fix "this" bug"',
         });
     });
 

@@ -54,9 +54,9 @@ function formatTodoDelta(currentTodos: TodoItem[], prevTodos?: TodoItem[]): stri
                 changes.push(`${STATUS_ICONS[curr.status] || '☐'} ${curr.content}`);
             } else if (curr.status !== prev.status) {
                 if (curr.status === 'completed') {
-                    changes.push(`✅ ${curr.content}`);
+                    changes.push(`✅ Completed: "${curr.content}"`);
                 } else if (curr.status === 'in_progress') {
-                    changes.push(`🔄 ${curr.content}`);
+                    changes.push(`🔄 Started: "${curr.content}"`);
                 } else {
                     changes.push(`${STATUS_ICONS[curr.status] || '☐'} ${curr.content}`);
                 }
@@ -78,16 +78,7 @@ function formatTodoDelta(currentTodos: TodoItem[], prevTodos?: TodoItem[]): stri
     if (changes.length === 0) return null;
 
     if (changes.length === 1) {
-        const change = changes[0];
-        if (change.startsWith('✅ ') && !change.includes('"')) {
-            const content = change.slice('✅ '.length);
-            return `✅ Completed: "${content}"`;
-        }
-        if (change.startsWith('🔄 ') && !change.includes('"')) {
-            const content = change.slice('🔄 '.length);
-            return `🔄 Started: "${content}"`;
-        }
-        return change;
+        return changes[0];
     }
 
     return `📋 Todo updated:\n${changes.join('\n')}`;
