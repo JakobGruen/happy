@@ -115,7 +115,7 @@ import { AgentEvent, NormalizedMessage, UsageData } from "../typesRaw";
 import { createTracer, traceMessages, TracerState } from "./reducerTracer";
 import { AgentState } from "../storageTypes";
 import { MessageMeta } from "../typesMessageMeta";
-import { parseMessageAsEvent } from "./messageToEvent";
+import { parseMessageAsEvent, TodoEventContext } from "./messageToEvent";
 import { parseCommandMessage } from "@/utils/parseCommandMessage";
 
 type ImageAttachment = {
@@ -265,6 +265,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
 
     const messagesToProcess: NormalizedMessage[] = [];
     const convertedEvents: { message: NormalizedMessage, event: AgentEvent }[] = [];
+    let prevTodosForEvent: TodoEventContext['prevTodos'] = state.latestTodos?.todos;
 
     for (const msg of nonSidechainMessages) {
         // Check if we've already processed this message
@@ -359,9 +360,44 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             // Don't continue - let the event be processed normally to create a message
         }
 
+        // Build context for TodoWrite diff computation
+        let todoContext: TodoEventContext | undefined;
+        if (msg.role === 'agent') {
+            for (const content of msg.content) {
+                if (content.type === 'tool-call' && content.name === 'TodoWrite') {
+                    const todos = content.input?.todos;
+                    if (Array.isArray(todos)) {
+                        // Update latestTodos BEFORE event conversion (preserves status bar modal)
+                        if (!state.latestTodos || msg.createdAt > state.latestTodos.timestamp) {
+                            state.latestTodos = {
+                                todos,
+                                timestamp: msg.createdAt,
+                            };
+                        }
+                        todoContext = { prevTodos: prevTodosForEvent };
+                    }
+                    break;
+                }
+            }
+        }
+
         // Try to parse message as event
-        const event = parseMessageAsEvent(msg);
+        const event = parseMessageAsEvent(msg, todoContext);
         if (event) {
+            // Update prevTodos tracking for next TodoWrite
+            if (todoContext) {
+                prevTodosForEvent = state.latestTodos?.todos;
+            }
+
+            // Skip empty events (no-change TodoWrite) — suppress bubble without creating message
+            if (event.type === 'message' && !(event as any).message) {
+                state.messageIds.set(msg.id, msg.id);
+                if (msg.role === 'user' && msg.localId) {
+                    state.localIds.set(msg.localId, msg.id);
+                }
+                continue;
+            }
+
             if (ENABLE_LOGGING) {
                 console.log(`[REDUCER] Converting message ${msg.id} to event:`, event);
             }
@@ -791,17 +827,6 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                                 message.tool.result = undefined;
                             }
                             changed.add(existingMessageId);
-
-                            // Track TodoWrite tool inputs when updating existing messages
-                            if (message.tool.name === 'TodoWrite' && message.tool.state === 'running' && Array.isArray(message.tool.input?.todos)) {
-                                // Only update if this is newer than existing todos
-                                if (!state.latestTodos || message.tool.createdAt > state.latestTodos.timestamp) {
-                                    state.latestTodos = {
-                                        todos: message.tool.input.todos,
-                                        timestamp: message.tool.createdAt
-                                    };
-                                }
-                            }
                         }
                     } else {
                         if (ENABLE_LOGGING) {
@@ -913,16 +938,6 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             ((state as any)._unmatchedTasks as Array<{ internalId: string }>).push({ internalId: mid });
                         }
 
-                        // Track TodoWrite tool inputs
-                        if (toolCall.name === 'TodoWrite' && toolCall.state === 'running' && Array.isArray(toolCall.input?.todos)) {
-                            // Only update if this is newer than existing todos
-                            if (!state.latestTodos || toolCall.createdAt > state.latestTodos.timestamp) {
-                                state.latestTodos = {
-                                    todos: toolCall.input.todos,
-                                    timestamp: toolCall.createdAt
-                                };
-                            }
-                        }
                     }
                 }
             }
