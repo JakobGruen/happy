@@ -3,6 +3,9 @@ export interface VoiceSessionConfig {
     initialContext?: string;
     initialState?: string;
     pipecatUrl?: string;
+    voiceAssistantName?: string;
+    voiceAssistantBio?: string;
+    voiceAssistantSetup?: string;
 }
 
 export interface VoiceSession {

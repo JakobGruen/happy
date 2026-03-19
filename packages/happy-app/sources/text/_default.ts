@@ -621,6 +621,18 @@ export const en = {
         progressUpdatesEnabledSubtitle: 'Voice updates during active sessions',
         progressInterval: 'Update Interval',
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
+        // Voice personalization
+        personalizationTitle: 'Personalization',
+        personalizationDescription: 'Customize your voice assistant. These settings apply to both live voice sessions and voice messages.',
+        assistantName: 'Assistant Name',
+        assistantNamePlaceholder: 'Happy',
+        assistantNameSubtitle: 'Name used in introductions and greetings',
+        assistantBio: 'About You',
+        assistantBioPlaceholder: 'Tell the assistant about yourself...',
+        assistantBioSubtitle: 'Personal context for more relevant responses',
+        assistantSetup: 'Your CC Setup',
+        assistantSetupPlaceholder: 'Describe your Claude Code setup...',
+        assistantSetupSubtitle: 'Tools, workflows, and common use cases',
     },
 
     voiceMessage: {

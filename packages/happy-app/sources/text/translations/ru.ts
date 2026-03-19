@@ -632,6 +632,19 @@ export const ru: TranslationStructure = {
         progressUpdatesEnabledSubtitle: 'Голосовые обновления во время активных сессий',
         progressInterval: 'Интервал обновлений',
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
+
+        // Voice personalization
+        personalizationTitle: 'Персонализация',
+        personalizationDescription: 'Настройте голосового ассистента. Эти настройки применяются к голосовым сеансам и голосовым сообщениям.',
+        assistantName: 'Имя ассистента',
+        assistantNamePlaceholder: 'Happy',
+        assistantNameSubtitle: 'Имя, используемое в приветствиях и представлениях',
+        assistantBio: 'О вас',
+        assistantBioPlaceholder: 'Расскажите ассистенту о себе...',
+        assistantBioSubtitle: 'Личный контекст для более релевантных ответов',
+        assistantSetup: 'Ваша настройка CC',
+        assistantSetupPlaceholder: 'Опишите вашу настройку Claude Code...',
+        assistantSetupSubtitle: 'Инструменты, рабочие процессы и типичные сценарии использования',
     },
 
     voiceMessage: {

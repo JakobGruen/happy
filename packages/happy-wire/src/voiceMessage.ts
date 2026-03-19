@@ -22,6 +22,10 @@ export const voiceMessageContextSchema = z.object({
         toolName: z.string(),
         toolArgs: z.string(),
     }).optional(),
+    // Voice assistant personalization (sent from app settings)
+    voiceAssistantName: z.string().optional(),
+    voiceAssistantBio: z.string().optional(),
+    voiceAssistantSetup: z.string().optional(),
 });
 
 export type VoiceMessageContext = z.infer<typeof voiceMessageContextSchema>;

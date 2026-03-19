@@ -52,11 +52,15 @@ export async function startRealtimeSession(sessionId: string, initialContext?: s
         voiceSessionStarted = true;
         storage.getState().setRealtimeSessionId(sessionId);
 
+        const settings = storage.getState().settings;
         await voiceSession.startSession({
             sessionId,
             initialContext,
             initialState,
             pipecatUrl: offerUrl,
+            voiceAssistantName: settings.voiceAssistantName ?? undefined,
+            voiceAssistantBio: settings.voiceAssistantBio ?? undefined,
+            voiceAssistantSetup: settings.voiceAssistantSetup ?? undefined,
         });
     } catch (error) {
         console.error('Failed to start Pipecat session:', error);

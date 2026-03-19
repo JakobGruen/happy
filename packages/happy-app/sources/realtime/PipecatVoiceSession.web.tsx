@@ -242,6 +242,9 @@ class PipecatVoiceSessionImpl implements VoiceSession {
                     requestData: {
                         ...(config.initialContext && { initialContext: config.initialContext }),
                         ...(config.initialState && { initialState: config.initialState }),
+                        ...(config.voiceAssistantName && { voiceAssistantName: config.voiceAssistantName }),
+                        ...(config.voiceAssistantBio && { voiceAssistantBio: config.voiceAssistantBio }),
+                        ...(config.voiceAssistantSetup && { voiceAssistantSetup: config.voiceAssistantSetup }),
                     },
                 },
             });

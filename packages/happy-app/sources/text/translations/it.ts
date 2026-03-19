@@ -651,6 +651,19 @@ export const it: TranslationStructure = {
         progressUpdatesEnabledSubtitle: 'Aggiornamenti vocali durante le sessioni attive',
         progressInterval: 'Intervallo di aggiornamento',
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
+
+        // Voice personalization
+        personalizationTitle: 'Personalizzazione',
+        personalizationDescription: 'Personalizza il tuo assistente vocale. Queste impostazioni si applicano sia alle sessioni vocali in diretta che ai messaggi vocali.',
+        assistantName: 'Nome dell\'assistente',
+        assistantNamePlaceholder: 'Happy',
+        assistantNameSubtitle: 'Nome usato nelle presentazioni e nei saluti',
+        assistantBio: 'Su di te',
+        assistantBioPlaceholder: 'Racconta all\'assistente di te...',
+        assistantBioSubtitle: 'Contesto personale per risposte più pertinenti',
+        assistantSetup: 'La tua configurazione CC',
+        assistantSetupPlaceholder: 'Descrivi la tua configurazione di Claude Code...',
+        assistantSetupSubtitle: 'Strumenti, flussi di lavoro e casi d\'uso comuni',
     },
 
     voiceMessage: {

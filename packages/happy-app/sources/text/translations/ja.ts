@@ -654,6 +654,19 @@ export const ja: TranslationStructure = {
         progressUpdatesEnabledSubtitle: 'アクティブなセッション中の音声アップデート',
         progressInterval: 'アップデート間隔',
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
+
+        // Voice personalization
+        personalizationTitle: 'パーソナライズ',
+        personalizationDescription: '音声アシスタントをカスタマイズします。これらの設定はライブ音声セッションと音声メッセージの両方に適用されます。',
+        assistantName: 'アシスタント名',
+        assistantNamePlaceholder: 'Happy',
+        assistantNameSubtitle: '自己紹介や挨拶で使用される名前',
+        assistantBio: 'あなたについて',
+        assistantBioPlaceholder: 'アシスタントにあなたのことを教えてください...',
+        assistantBioSubtitle: 'より適切な応答のための個人的なコンテキスト',
+        assistantSetup: 'あなたのCC設定',
+        assistantSetupPlaceholder: 'Claude Codeの設定を説明してください...',
+        assistantSetupSubtitle: 'ツール、ワークフロー、一般的なユースケース',
     },
 
     voiceMessage: {

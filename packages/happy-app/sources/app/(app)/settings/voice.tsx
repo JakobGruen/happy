@@ -21,6 +21,9 @@ export default memo(function VoiceSettingsScreen() {
     const [pipecatUrl, setPipecatUrl] = useLocalSettingMutable('pipecatUrl');
     const [pipecatAuthSecret, setPipecatAuthSecret] = useLocalSettingMutable('pipecatAuthSecret');
     const [progressInterval, setProgressInterval] = useSettingMutable('voiceProgressUpdateInterval');
+    const [assistantName, setAssistantName] = useSettingMutable('voiceAssistantName');
+    const [assistantBio, setAssistantBio] = useSettingMutable('voiceAssistantBio');
+    const [assistantSetup, setAssistantSetup] = useSettingMutable('voiceAssistantSetup');
 
     const currentLanguage = findLanguageByCode(voiceAssistantLanguage) || LANGUAGES[0];
     const isProgressEnabled = progressInterval > 0;
@@ -58,8 +61,86 @@ export default memo(function VoiceSettingsScreen() {
         setProgressInterval(snapped);
     }, [progressInterval, setProgressInterval]);
 
+    // Trim and null-ify empty strings on end editing
+    const handleNameEndEditing = useCallback((e: { nativeEvent: { text: string } }) => {
+        const trimmed = e.nativeEvent.text.trim();
+        setAssistantName(trimmed || null);
+    }, [setAssistantName]);
+
+    const handleBioEndEditing = useCallback((e: { nativeEvent: { text: string } }) => {
+        const trimmed = e.nativeEvent.text.trim();
+        setAssistantBio(trimmed || null);
+    }, [setAssistantBio]);
+
+    const handleSetupEndEditing = useCallback((e: { nativeEvent: { text: string } }) => {
+        const trimmed = e.nativeEvent.text.trim();
+        setAssistantSetup(trimmed || null);
+    }, [setAssistantSetup]);
+
     return (
         <ItemList style={{ paddingTop: 0 }}>
+            {/* Personalization */}
+            <ItemGroup
+                title={t('settingsVoice.personalizationTitle')}
+                footer={t('settingsVoice.personalizationDescription')}
+            >
+                <View style={styles.credentialsForm}>
+                    <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>
+                        {t('settingsVoice.assistantName')}
+                    </Text>
+                    <TextInput
+                        style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.textSecondary, backgroundColor: theme.colors.surface }]}
+                        value={assistantName ?? ''}
+                        onChangeText={(text) => setAssistantName(text || null)}
+                        onEndEditing={handleNameEndEditing}
+                        placeholder={t('settingsVoice.assistantNamePlaceholder')}
+                        placeholderTextColor={theme.colors.textSecondary}
+                        autoCapitalize="words"
+                        autoCorrect={false}
+                        returnKeyType="done"
+                    />
+                    <Text style={[styles.inputHint, { color: theme.colors.textSecondary }]}>
+                        {t('settingsVoice.assistantNameSubtitle')}
+                    </Text>
+
+                    <Text style={[styles.inputLabel, { color: theme.colors.textSecondary, marginTop: 16 }]}>
+                        {t('settingsVoice.assistantBio')}
+                    </Text>
+                    <TextInput
+                        style={[styles.input, styles.multilineInput, { color: theme.colors.text, borderColor: theme.colors.textSecondary, backgroundColor: theme.colors.surface }]}
+                        value={assistantBio ?? ''}
+                        onChangeText={(text) => setAssistantBio(text || null)}
+                        onEndEditing={handleBioEndEditing}
+                        placeholder={t('settingsVoice.assistantBioPlaceholder')}
+                        placeholderTextColor={theme.colors.textSecondary}
+                        multiline
+                        maxLength={500}
+                        textAlignVertical="top"
+                    />
+                    <Text style={[styles.inputHint, { color: theme.colors.textSecondary }]}>
+                        {t('settingsVoice.assistantBioSubtitle')}
+                    </Text>
+
+                    <Text style={[styles.inputLabel, { color: theme.colors.textSecondary, marginTop: 16 }]}>
+                        {t('settingsVoice.assistantSetup')}
+                    </Text>
+                    <TextInput
+                        style={[styles.input, styles.multilineInput, { color: theme.colors.text, borderColor: theme.colors.textSecondary, backgroundColor: theme.colors.surface }]}
+                        value={assistantSetup ?? ''}
+                        onChangeText={(text) => setAssistantSetup(text || null)}
+                        onEndEditing={handleSetupEndEditing}
+                        placeholder={t('settingsVoice.assistantSetupPlaceholder')}
+                        placeholderTextColor={theme.colors.textSecondary}
+                        multiline
+                        maxLength={500}
+                        textAlignVertical="top"
+                    />
+                    <Text style={[styles.inputHint, { color: theme.colors.textSecondary }]}>
+                        {t('settingsVoice.assistantSetupSubtitle')}
+                    </Text>
+                </View>
+            </ItemGroup>
+
             {/* Language Settings */}
             <ItemGroup
                 title={t('settingsVoice.languageTitle')}
@@ -180,6 +261,14 @@ const styles = StyleSheet.create((theme) => ({
         borderWidth: 1,
         borderRadius: 8,
         padding: 10,
+        marginBottom: 4,
+    },
+    multilineInput: {
+        minHeight: 80,
+        paddingTop: 10,
+    },
+    inputHint: {
+        fontSize: 12,
         marginBottom: 4,
     },
     sliderContainer: {
