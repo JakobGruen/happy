@@ -33,7 +33,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         });
     });
 
-    it('formats first creation with all items', () => {
+    it('formats first creation as single-line summary', () => {
         const msg = makeTodoMsg([
             { content: 'Task A', status: 'pending', id: '1' },
             { content: 'Task B', status: 'pending', id: '2' },
@@ -41,11 +41,11 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg);
         expect(event).toEqual({
             type: 'message',
-            message: '📋 Todo created:\n☐ Task A\n☐ Task B',
+            message: '☑ 0/2 tasks created',
         });
     });
 
-    it('formats single status change to completed', () => {
+    it('formats single completion', () => {
         const prevTodos = [
             { content: 'Task A', status: 'in_progress', id: '1' },
             { content: 'Task B', status: 'pending', id: '2' },
@@ -57,11 +57,11 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '✅ Completed: "Task A"',
+            message: '☑ 1/2 · Completed: Task A',
         });
     });
 
-    it('formats single status change to in_progress', () => {
+    it('formats single start', () => {
         const prevTodos = [
             { content: 'Task A', status: 'pending', id: '1' },
         ];
@@ -71,7 +71,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '🔄 Started: "Task A"',
+            message: '☑ 0/1 · Started: Task A',
         });
     });
 
@@ -86,24 +86,25 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '📋 Added: "Task B"',
+            message: '☑ 1/2 · Added: Task B',
         });
     });
 
-    it('formats multiple changes as compact list', () => {
+    it('formats multiple completions as count', () => {
         const prevTodos = [
             { content: 'Task A', status: 'in_progress', id: '1' },
             { content: 'Task B', status: 'pending', id: '2' },
+            { content: 'Task C', status: 'pending', id: '3' },
         ];
         const msg = makeTodoMsg([
             { content: 'Task A', status: 'completed', id: '1' },
-            { content: 'Task B', status: 'in_progress', id: '2' },
+            { content: 'Task B', status: 'completed', id: '2' },
             { content: 'Task C', status: 'pending', id: '3' },
         ]);
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '📋 Todo updated:\n✅ Completed: "Task A"\n🔄 Started: "Task B"\n📋 Added: "Task C"',
+            message: '☑ 2/3 · Completed 2 tasks',
         });
     });
 
@@ -118,7 +119,7 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '❌ Removed: "Task B"',
+            message: '☑ 0/1 · Removed: Task B',
         });
     });
 
@@ -135,34 +136,6 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         });
     });
 
-    it('formats content update', () => {
-        const prevTodos = [
-            { content: 'Old text', status: 'pending', id: '1' },
-        ];
-        const msg = makeTodoMsg([
-            { content: 'New text', status: 'pending', id: '1' },
-        ]);
-        const event = parseMessageAsEvent(msg, { prevTodos });
-        expect(event).toEqual({
-            type: 'message',
-            message: '📝 Updated: "New text"',
-        });
-    });
-
-    it('handles task content with double quotes', () => {
-        const prevTodos = [
-            { content: 'Fix "this" bug', status: 'pending', id: '1' },
-        ];
-        const msg = makeTodoMsg([
-            { content: 'Fix "this" bug', status: 'completed', id: '1' },
-        ]);
-        const event = parseMessageAsEvent(msg, { prevTodos });
-        expect(event).toEqual({
-            type: 'message',
-            message: '✅ Completed: "Fix "this" bug"',
-        });
-    });
-
     it('matches by content when no id', () => {
         const prevTodos = [
             { content: 'Task A', status: 'pending' },
@@ -173,7 +146,24 @@ describe('parseMessageAsEvent - TodoWrite', () => {
         const event = parseMessageAsEvent(msg, { prevTodos });
         expect(event).toEqual({
             type: 'message',
-            message: '✅ Completed: "Task A"',
+            message: '☑ 1/1 · Completed: Task A',
+        });
+    });
+
+    it('prioritizes completions over other changes', () => {
+        const prevTodos = [
+            { content: 'Task A', status: 'in_progress', id: '1' },
+            { content: 'Task B', status: 'pending', id: '2' },
+        ];
+        const msg = makeTodoMsg([
+            { content: 'Task A', status: 'completed', id: '1' },
+            { content: 'Task B', status: 'in_progress', id: '2' },
+            { content: 'Task C', status: 'pending', id: '3' },
+        ]);
+        const event = parseMessageAsEvent(msg, { prevTodos });
+        expect(event).toEqual({
+            type: 'message',
+            message: '☑ 1/3 · Completed: Task A',
         });
     });
 });

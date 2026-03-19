@@ -19,20 +19,23 @@ export interface TodoEventContext {
     prevTodos?: TodoItem[];
 }
 
-const STATUS_ICONS: Record<string, string> = {
-    pending: '☐',
-    in_progress: '🔄',
-    completed: '✅',
-};
-
+/**
+ * Formats a single-line todo summary: "☑ 3/7 · Completed: Fix auth bug"
+ * Always one line — the full list lives in the status bar modal.
+ */
 function formatTodoDelta(currentTodos: TodoItem[], prevTodos?: TodoItem[]): string | null {
     if (currentTodos.length === 0) return null;
 
+    const completed = currentTodos.filter(t => t.status === 'completed').length;
+    const total = currentTodos.length;
+    const progress = `☑ ${completed}/${total}`;
+
+    // First creation — no previous state
     if (!prevTodos || prevTodos.length === 0) {
-        const lines = currentTodos.map(t => `${STATUS_ICONS[t.status] || '☐'} ${t.content}`);
-        return `📋 Todo created:\n${lines.join('\n')}`;
+        return `${progress} tasks created`;
     }
 
+    // Build lookup for matching
     const prevById = new Map<string, TodoItem>();
     const prevByContent = new Map<string, TodoItem>();
     for (const t of prevTodos) {
@@ -40,48 +43,59 @@ function formatTodoDelta(currentTodos: TodoItem[], prevTodos?: TodoItem[]): stri
         prevByContent.set(t.content, t);
     }
 
-    const changes: string[] = [];
-    const matchedPrevIds = new Set<string>();
-    const matchedPrevContents = new Set<string>();
+    // Find the most notable change for the suffix
+    const completedItems: string[] = [];
+    const startedItems: string[] = [];
+    const addedItems: string[] = [];
+    const removedItems: string[] = [];
+    const matchedPrevKeys = new Set<string>();
 
     for (const curr of currentTodos) {
         const prev = (curr.id ? prevById.get(curr.id) : undefined) || prevByContent.get(curr.content);
         if (prev) {
-            if (prev.id) matchedPrevIds.add(prev.id);
-            matchedPrevContents.add(prev.content);
+            if (prev.id) matchedPrevKeys.add(prev.id);
+            matchedPrevKeys.add(prev.content);
 
-            if (curr.status !== prev.status && curr.content !== prev.content) {
-                changes.push(`${STATUS_ICONS[curr.status] || '☐'} ${curr.content}`);
-            } else if (curr.status !== prev.status) {
-                if (curr.status === 'completed') {
-                    changes.push(`✅ Completed: "${curr.content}"`);
-                } else if (curr.status === 'in_progress') {
-                    changes.push(`🔄 Started: "${curr.content}"`);
-                } else {
-                    changes.push(`${STATUS_ICONS[curr.status] || '☐'} ${curr.content}`);
-                }
-            } else if (curr.content !== prev.content) {
-                changes.push(`📝 Updated: "${curr.content}"`);
+            if (curr.status !== prev.status) {
+                if (curr.status === 'completed') completedItems.push(curr.content);
+                else if (curr.status === 'in_progress') startedItems.push(curr.content);
             }
         } else {
-            changes.push(`📋 Added: "${curr.content}"`);
+            addedItems.push(curr.content);
         }
     }
 
     for (const prev of prevTodos) {
-        const wasMatched = (prev.id && matchedPrevIds.has(prev.id)) || matchedPrevContents.has(prev.content);
-        if (!wasMatched) {
-            changes.push(`❌ Removed: "${prev.content}"`);
-        }
+        const wasMatched = (prev.id && matchedPrevKeys.has(prev.id)) || matchedPrevKeys.has(prev.content);
+        if (!wasMatched) removedItems.push(prev.content);
     }
 
-    if (changes.length === 0) return null;
-
-    if (changes.length === 1) {
-        return changes[0];
+    // No changes at all
+    if (completedItems.length === 0 && startedItems.length === 0 && addedItems.length === 0 && removedItems.length === 0) {
+        return null;
     }
 
-    return `📋 Todo updated:\n${changes.join('\n')}`;
+    // Build suffix — pick the most notable single change
+    let suffix = '';
+    if (completedItems.length === 1) {
+        suffix = `Completed: ${completedItems[0]}`;
+    } else if (completedItems.length > 1) {
+        suffix = `Completed ${completedItems.length} tasks`;
+    } else if (startedItems.length === 1) {
+        suffix = `Started: ${startedItems[0]}`;
+    } else if (startedItems.length > 1) {
+        suffix = `Started ${startedItems.length} tasks`;
+    } else if (addedItems.length === 1) {
+        suffix = `Added: ${addedItems[0]}`;
+    } else if (addedItems.length > 1) {
+        suffix = `Added ${addedItems.length} tasks`;
+    } else if (removedItems.length === 1) {
+        suffix = `Removed: ${removedItems[0]}`;
+    } else if (removedItems.length > 1) {
+        suffix = `Removed ${removedItems.length} tasks`;
+    }
+
+    return suffix ? `${progress} · ${suffix}` : progress;
 }
 
 /**

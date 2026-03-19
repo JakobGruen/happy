@@ -61,7 +61,7 @@ describe('reducer Phase 0.5 - TodoWrite events', () => {
         const events = result.messages.filter(m => m.kind === 'agent-event');
 
         expect(events).toHaveLength(2);
-        expect((events[0] as any).event.message).toContain('Todo created');
+        expect((events[0] as any).event.message).toContain('tasks created');
         expect((events[1] as any).event.message).toContain('Completed');
     });
 });
