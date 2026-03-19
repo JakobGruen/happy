@@ -333,3 +333,57 @@ describe('closeClaudeTurnWithStatus', () => {
         expect(result.envelopes[0].ev).toEqual({ t: 'turn-end', status: 'cancelled' });
     });
 });
+
+describe('background task mapping', () => {
+    it('emits tool-call-end with backgrounded:true when tool result has _backgroundTaskId', () => {
+        const state: any = { currentTurnId: null }
+
+        // First: assistant sends tool_use
+        mapClaudeLogMessageToSessionEnvelopes({
+            type: 'assistant',
+            uuid: 'a-1',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            message: {
+                role: 'assistant',
+                content: [{ type: 'tool_use', id: 'toolu_abc', name: 'Bash', input: { command: 'sleep 60' } }],
+            },
+        } as any, state)
+
+        // Then: tool result with backgroundTaskId
+        const userResult = mapClaudeLogMessageToSessionEnvelopes({
+            type: 'user',
+            uuid: 'u-1',
+            timestamp: '2025-01-01T00:00:01.000Z',
+            _backgroundTaskId: 'b_abc123',
+            message: {
+                role: 'user',
+                content: [{ type: 'tool_result', tool_use_id: 'toolu_abc', content: 'Command running in background with ID: b_abc123' }],
+            },
+        } as any, state)
+
+        const toolEndEnvelope = userResult.envelopes.find(e => e.ev.t === 'tool-call-end')
+        expect(toolEndEnvelope).toBeDefined()
+        expect(toolEndEnvelope!.ev).toMatchObject({
+            t: 'tool-call-end',
+            call: 'toolu_abc',
+            backgrounded: true,
+        })
+    })
+
+    it('tracks backgroundTaskId in state for later correlation', () => {
+        const state: any = { currentTurnId: null }
+
+        mapClaudeLogMessageToSessionEnvelopes({
+            type: 'user',
+            uuid: 'u-1',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            _backgroundTaskId: 'b_abc123',
+            message: {
+                role: 'user',
+                content: [{ type: 'tool_result', tool_use_id: 'toolu_abc', content: 'backgrounded' }],
+            },
+        } as any, state)
+
+        expect(state.backgroundTaskMap.get('b_abc123')).toBe('toolu_abc')
+    })
+})

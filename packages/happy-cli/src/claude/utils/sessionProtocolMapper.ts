@@ -18,6 +18,7 @@ export type ClaudeSessionProtocolState = {
     hiddenParentToolCalls?: Set<string>;
     startedSubagents?: Set<string>;
     activeSubagents?: Set<string>;
+    backgroundTaskMap?: Map<string, string>;  // backgroundTaskId → tool_use_id
 };
 
 type ClaudeMapperResult = {
@@ -132,6 +133,13 @@ function getActiveSubagents(state: ClaudeSessionProtocolState): Set<string> {
         state.activeSubagents = new Set<string>();
     }
     return state.activeSubagents;
+}
+
+function getBackgroundTaskMap(state: ClaudeSessionProtocolState): Map<string, string> {
+    if (!state.backgroundTaskMap) {
+        state.backgroundTaskMap = new Map<string, string>();
+    }
+    return state.backgroundTaskMap;
 }
 
 function pickUuid(message: RawJSONLines): string | undefined {
@@ -607,11 +615,29 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                         .map((b: any) => b.text)
                         .join('\n') || undefined;
                 }
+                // Check if this tool result is backgrounded
+                const backgroundTaskId = (message as any)._backgroundTaskId as string | undefined;
+                const isBackgrounded = !!backgroundTaskId;
+
+                if (backgroundTaskId) {
+                    // Track for later correlation when the async turn completes
+                    const bgMap = getBackgroundTaskMap(state);
+                    bgMap.set(backgroundTaskId, block.tool_use_id);
+                    // Cap at 50 entries
+                    if (bgMap.size > 50) {
+                        const oldest = bgMap.keys().next().value;
+                        if (oldest) {
+                            bgMap.delete(oldest);
+                        }
+                    }
+                }
+
                 envelopes.push(createEnvelope('agent', {
                     t: 'tool-call-end',
                     call: block.tool_use_id,
                     ...(resultText !== undefined && { result: resultText }),
                     ...(block.is_error === true && { isError: true }),
+                    ...(isBackgrounded && { backgrounded: true }),
                 }, { turn: turnId, subagent }));
                 continue;
             }
