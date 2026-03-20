@@ -26,6 +26,12 @@ import { FeedItem } from "./feedTypes";
 let realtimeModeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const REALTIME_MODE_DEBOUNCE_MS = 150;
 
+export interface PendingMessage {
+    localId: string;
+    text: string;
+    createdAt: number;
+}
+
 /**
  * Centralized session online state resolver
  * Returns either "online" (string) or a timestamp (number) for last seen
@@ -137,6 +143,12 @@ interface StorageState {
     updateArtifact: (artifact: DecryptedArtifact) => void;
     deleteArtifact: (artifactId: string) => void;
     deleteSession: (sessionId: string) => void;
+    // Pending messages — shown above input until CC processes them
+    pendingMessages: Record<string, PendingMessage[]>;
+    addPendingMessage: (sessionId: string, message: PendingMessage) => void;
+    shiftPendingMessages: (sessionId: string, count: number) => void;
+    removePendingMessage: (sessionId: string, localId: string) => void;
+    clearPendingMessages: (sessionId: string) => void;
     // Project management methods
     getProjects: () => import('./projectManager').Project[];
     getProject: (projectId: string) => import('./projectManager').Project | null;
@@ -286,6 +298,7 @@ export const storage = create<StorageState>()((set, get) => {
         sessionsData: null,  // Legacy - to be removed
         sessionListViewData: null,
         sessionMessages: {},
+        pendingMessages: {},
         sessionGitStatus: {},
         viewingSessionId: null,
         realtimeStatus: 'disconnected',
@@ -1041,7 +1054,10 @@ export const storage = create<StorageState>()((set, get) => {
             
             // Remove session messages if they exist
             const { [sessionId]: deletedMessages, ...remainingSessionMessages } = state.sessionMessages;
-            
+
+            // Remove pending messages if they exist
+            const { [sessionId]: deletedPending, ...remainingPendingMessages } = state.pendingMessages;
+
             // Remove session git status if it exists
             const { [sessionId]: deletedGitStatus, ...remainingGitStatus } = state.sessionGitStatus;
             
@@ -1073,9 +1089,46 @@ export const storage = create<StorageState>()((set, get) => {
                 ...state,
                 sessions: remainingSessions,
                 sessionMessages: remainingSessionMessages,
+                pendingMessages: remainingPendingMessages,
                 sessionGitStatus: remainingGitStatus,
                 sessionListViewData
             };
+        }),
+        // Pending message actions
+        addPendingMessage: (sessionId: string, message: PendingMessage) => set((state) => ({
+            ...state,
+            pendingMessages: {
+                ...state.pendingMessages,
+                [sessionId]: [...(state.pendingMessages[sessionId] ?? []), message]
+            }
+        })),
+        shiftPendingMessages: (sessionId: string, count: number) => set((state) => {
+            const current = state.pendingMessages[sessionId];
+            if (!current || current.length === 0 || count <= 0) return state;
+            return {
+                ...state,
+                pendingMessages: {
+                    ...state.pendingMessages,
+                    [sessionId]: current.slice(count)
+                }
+            };
+        }),
+        removePendingMessage: (sessionId: string, localId: string) => set((state) => {
+            const current = state.pendingMessages[sessionId];
+            if (!current) return state;
+            const filtered = current.filter(m => m.localId !== localId);
+            if (filtered.length === current.length) return state;
+            return {
+                ...state,
+                pendingMessages: {
+                    ...state.pendingMessages,
+                    [sessionId]: filtered
+                }
+            };
+        }),
+        clearPendingMessages: (sessionId: string) => set((state) => {
+            const { [sessionId]: _, ...rest } = state.pendingMessages;
+            return { ...state, pendingMessages: rest };
         }),
         // Friend management methods
         applyFriends: (friends: UserProfile[]) => set((state) => {
@@ -1243,6 +1296,10 @@ export function useSessionMessages(sessionId: string): { messages: Message[], is
     }, [raw.messages, raw.voiceMessages]);
 
     return { messages: merged, isLoaded: raw.isLoaded };
+}
+
+export function usePendingMessages(sessionId: string): PendingMessage[] {
+    return storage(useShallow((state) => state.pendingMessages[sessionId] ?? emptyArray)) as PendingMessage[];
 }
 
 export function useMessage(sessionId: string, messageId: string): Message | null {
