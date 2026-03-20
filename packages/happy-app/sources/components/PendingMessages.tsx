@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { StyleSheet } from 'react-native-unistyles';
-import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOutUp, Layout } from 'react-native-reanimated';
 import { usePendingMessages } from '@/sync/storage';
 import { ImageViewerManager } from '@/components/ImageViewer';
 
@@ -13,10 +13,10 @@ interface PendingMessagesProps {
 export const PendingMessages = React.memo(({ sessionId }: PendingMessagesProps) => {
     const pendingMessages = usePendingMessages(sessionId);
 
-    if (pendingMessages.length === 0) return null;
-
+    // Always render container so children's exiting animations can play.
+    // Empty container has no visual impact (zero children = zero height).
     return (
-        <View style={styles.container}>
+        <View style={pendingMessages.length > 0 ? styles.container : undefined}>
             {pendingMessages.map((msg) => {
                 const hasImages = msg.images && msg.images.length > 0;
                 const hasText = msg.text && msg.text !== '📷' && msg.text !== '...';
@@ -28,8 +28,8 @@ export const PendingMessages = React.memo(({ sessionId }: PendingMessagesProps) 
                 return (
                     <Animated.View
                         key={msg.localId}
-                        entering={FadeIn.duration(150)}
-                        exiting={FadeOut.duration(150)}
+                        entering={FadeIn.duration(500)}
+                        exiting={FadeOutUp.duration(500)}
                         layout={Layout.springify()}
                         style={styles.bubble}
                     >

@@ -40,6 +40,7 @@ import { fetchFeed } from './apiFeed';
 import { FeedItem } from './feedTypes';
 import { UserProfile } from './friendTypes';
 import { resolveMessageModeMeta } from './messageMeta';
+import { pauseForPendingExit } from '@/components/messageAnimationQueue';
 
 type V3GetSessionMessagesResponse = {
     messages: ApiMessage[];
@@ -2309,6 +2310,8 @@ class Sync {
         // FIFO remove pending messages — single state update for all echoed user messages.
         // Safe during session resume: shiftPendingMessages is a no-op when pending is empty.
         if (userMessageCount > 0) {
+            const hasPending = (storage.getState().pendingMessages[sessionId]?.length ?? 0) > 0;
+            if (hasPending) pauseForPendingExit();
             storage.getState().shiftPendingMessages(sessionId, userMessageCount);
         }
 

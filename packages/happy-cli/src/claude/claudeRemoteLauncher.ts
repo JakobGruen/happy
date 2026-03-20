@@ -221,7 +221,7 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     // Pending user messages — queued texts waiting for CC to start processing them.
     // If CC is idle: envelope sent immediately in nextMessage.
     // If CC is busy: queued here, flushed when CC emits 'result' (turn complete).
-    const pendingUserMessages: Array<{ text: string; time: number }> = [];
+    const pendingUserMessages: Array<{ text: string }> = [];
     let ccBusy = false;
 
     function extractUserText(content: UserContent): string {
@@ -247,8 +247,10 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
 
     function flushPendingUserEnvelopes() {
         while (pendingUserMessages.length > 0) {
-            const { text, time } = pendingUserMessages.shift()!;
-            sendUserEnvelope(text, time);
+            const { text } = pendingUserMessages.shift()!;
+            // Use current time (not original send time) so deferred messages
+            // appear after the previous turn's response in timeline order.
+            sendUserEnvelope(text);
         }
     }
 
@@ -549,7 +551,7 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                             // Send or queue user envelope for timeline
                             const text = extractUserText(p.message);
                             if (ccBusy) {
-                                pendingUserMessages.push({ text, time: Date.now() });
+                                pendingUserMessages.push({ text });
                             } else {
                                 sendUserEnvelope(text);
                             }
@@ -581,7 +583,7 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                             // Send or queue user envelope for timeline
                             const text = extractUserText(msg.message);
                             if (ccBusy) {
-                                pendingUserMessages.push({ text, time: Date.now() });
+                                pendingUserMessages.push({ text });
                             } else {
                                 sendUserEnvelope(text);
                             }
