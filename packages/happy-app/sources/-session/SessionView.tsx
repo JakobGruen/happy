@@ -15,6 +15,7 @@ import type { EffortMode } from '@/components/modelModeOptions';
 import { getSuggestions } from '@/components/autocomplete/suggestions';
 import { ChatHeaderView } from '@/components/ChatHeaderView';
 import { ChatList } from '@/components/ChatList';
+import { PendingMessages } from '@/components/PendingMessages';
 import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
 import { VoiceAssistantStatusBar } from '@/components/VoiceAssistantStatusBar';
@@ -537,6 +538,8 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
                     <VoiceMessageBubble isProcessing={true} />
                 </View>
             )}
+            {/* Pending messages — shown until CC processes them */}
+            <PendingMessages sessionId={sessionId} />
             <AgentInput
                 placeholder={t('session.inputPlaceholder')}
                 value={message}
