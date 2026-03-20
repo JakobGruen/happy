@@ -17,6 +17,9 @@ export class PushableAsyncIterable<T> implements AsyncIterableIterator<T> {
     private error: Error | null = null
     private started = false
 
+    /** Fired when a value is consumed by the iterator (CC pulls it) */
+    onConsumed?: (value: T) => void
+
     constructor() {}
 
     /**
@@ -35,6 +38,7 @@ export class PushableAsyncIterable<T> implements AsyncIterableIterator<T> {
         const waiter = this.waiters.shift()
         if (waiter) {
             waiter.resolve({ done: false, value })
+            this.onConsumed?.(value)
         } else {
             // Otherwise queue the value
             this.queue.push(value)
@@ -87,7 +91,9 @@ export class PushableAsyncIterable<T> implements AsyncIterableIterator<T> {
     async next(): Promise<IteratorResult<T>> {
         // Return queued items first
         if (this.queue.length > 0) {
-            return { done: false, value: this.queue.shift()! }
+            const value = this.queue.shift()!
+            this.onConsumed?.(value)
+            return { done: false, value }
         }
 
         // Check if we're done or have an error

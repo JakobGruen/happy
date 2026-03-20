@@ -10,7 +10,7 @@ import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "./sdk";
 import { formatClaudeMessageForInk } from "@/ui/messageFormatterInk";
 import { logger } from "@/ui/logger";
 import { SDKToLogConverter, getGitBranchAsync } from "./utils/sdkToLogConverter";
-import { normalizeModelCode } from "@jakobgruen/happy-wire";
+import { normalizeModelCode, createEnvelope } from "@jakobgruen/happy-wire";
 import { PLAN_FAKE_REJECT } from "./sdk/prompts";
 import { EnhancedMode, PermissionMode } from "./loop";
 import type { UserContent } from "@/api/types";
@@ -561,6 +561,27 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                     claudeEnvVars: session.claudeEnvVars,
                     claudeArgs: session.claudeArgs,
                     onMessage,
+                    onUserMessageConsumed: (content) => {
+                        // CC has pulled the user message — send a user envelope so the app
+                        // can place it in the timeline at the correct position.
+                        let text: string;
+                        if (typeof content === 'string') {
+                            text = content;
+                        } else if (Array.isArray(content)) {
+                            // Multimodal: extract text blocks
+                            text = content
+                                .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+                                .map(b => b.text)
+                                .join('\n');
+                        } else {
+                            text = '';
+                        }
+                        if (text) {
+                            session.client.sendSessionProtocolMessage(
+                                createEnvelope('user', { t: 'text', text })
+                            );
+                        }
+                    },
                     onCompletionEvent: (message: string) => {
                         logger.debug(`[remote]: Completion event: ${message}`);
                         session.client.sendSessionEvent({ type: 'message', message });
