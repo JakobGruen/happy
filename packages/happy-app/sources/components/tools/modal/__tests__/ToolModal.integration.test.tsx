@@ -57,11 +57,55 @@ vi.mock('react-native', () => ({
     Modal,
     SafeAreaView,
     ScrollView,
+    Platform: { OS: 'ios' },
+    Keyboard: { dismiss: () => {}, addListener: () => ({ remove: () => {} }) },
+    useWindowDimensions: () => ({ width: 390, height: 844 }),
+    StyleSheet: { create: (s: any) => s, flatten: (s: any) => s },
+}));
+
+// RN ecosystem packages used by ToolModal.tsx
+vi.mock('react-native-reanimated', () => {
+    const AnimView = ({ children, style }: any) => ({ type: 'Animated.View', props: { children, style } });
+    return {
+        default: { View: AnimView, ScrollView: AnimView },
+        useSharedValue: (init: any) => ({ value: init }),
+        useAnimatedStyle: (fn: any) => fn(),
+        withSpring: (v: any) => v,
+        runOnJS: (fn: any) => fn,
+        runOnUI: (fn: any) => fn,
+        cancelAnimation: () => {},
+        interpolate: (v: any) => v,
+        Extrapolation: { CLAMP: 'clamp' },
+    };
+});
+
+vi.mock('react-native-gesture-handler', () => {
+    const noop = () => builder;
+    const builder: Record<string, any> = {};
+    ['onStart', 'onUpdate', 'onEnd', 'onFinalize', 'minDistance', 'activeOffsetY', 'failOffsetX', 'enabled'].forEach(m => { builder[m] = noop; });
+    return {
+        Gesture: { Pan: () => builder },
+        GestureDetector: ({ children }: any) => children,
+        GestureHandlerRootView: ({ children }: any) => children,
+    };
+});
+
+vi.mock('react-native-safe-area-context', () => ({
+    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
 vi.mock('@/components/layout', () => ({
     layout: { maxWidth: 375, headerMaxWidth: 375 },
 }));
+
+// Mock child components not under test to avoid deep transitive RN imports
+vi.mock('../DiffModalContent', () => ({ DiffModalContent: () => null }));
+vi.mock('../AgentModalContent', () => ({ AgentModalContent: () => null }));
+vi.mock('../FileViewModalContent', () => ({ FileViewModalContent: () => null }));
+vi.mock('../ToolBubbleHeader', () => ({ ToolBubbleHeader: () => null }));
+vi.mock('../PermissionActionBar', () => ({ PermissionActionBar: () => null }));
+vi.mock('../../QuestionSheetContent', () => ({ QuestionSheetContent: () => null }));
+vi.mock('../../PlanSheetContent', () => ({ PlanSheetContent: () => null }));
 
 // ============================================================================
 // Mock Unistyles

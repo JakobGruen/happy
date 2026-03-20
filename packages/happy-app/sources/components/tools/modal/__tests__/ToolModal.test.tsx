@@ -36,17 +36,52 @@ const SafeAreaView = ({ children, style, testID }: any) => ({
     props: { children, style, testID }
 });
 
+// ============================================================================
 // Setup mocks BEFORE importing component
+// ============================================================================
+
+// React Native core
 vi.mock('react-native', () => ({
     View,
     Text,
     Pressable,
     Modal,
     SafeAreaView,
+    Platform: { OS: 'ios' },
+    Keyboard: { dismiss: () => {}, addListener: () => ({ remove: () => {} }) },
+    useWindowDimensions: () => ({ width: 390, height: 844 }),
+    StyleSheet: { create: (s: any) => s, flatten: (s: any) => s },
 }));
 
-vi.mock('@/components/layout', () => ({
-    layout: { maxWidth: 375, headerMaxWidth: 375 },
+// RN ecosystem packages
+vi.mock('react-native-reanimated', () => {
+    const Animated = { View, ScrollView: View };
+    return {
+        default: Animated,
+        useSharedValue: (init: any) => ({ value: init }),
+        useAnimatedStyle: (fn: any) => fn(),
+        withSpring: (v: any) => v,
+        runOnJS: (fn: any) => fn,
+        runOnUI: (fn: any) => fn,
+        cancelAnimation: () => {},
+        interpolate: (v: any) => v,
+        Extrapolation: { CLAMP: 'clamp' },
+    };
+});
+
+vi.mock('react-native-gesture-handler', () => {
+    const noop = () => builder;
+    const builder: Record<string, any> = {};
+    ['onStart', 'onUpdate', 'onEnd', 'onFinalize', 'minDistance', 'activeOffsetY', 'failOffsetX', 'enabled'].forEach(m => { builder[m] = noop; });
+    return {
+        Gesture: { Pan: () => builder },
+        GestureDetector: ({ children }: any) => children,
+        GestureHandlerRootView: ({ children }: any) => children,
+    };
+});
+
+vi.mock('react-native-safe-area-context', () => ({
+    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
 vi.mock('react-native-unistyles', () => ({
@@ -86,13 +121,24 @@ vi.mock('@expo/vector-icons', () => ({
     })
 }));
 
-// Mock ToolModalTabs component
+vi.mock('@/components/layout', () => ({
+    layout: { maxWidth: 375, headerMaxWidth: 375 },
+}));
+
+// Mock all child components to avoid deep transitive RN imports
 vi.mock('../ToolModalTabs', () => ({
     ToolModalTabs: ({ tool, hideOutput }: any) => ({
         type: 'ToolModalTabs',
         props: { tool, hideOutput }
     })
 }));
+vi.mock('../DiffModalContent', () => ({ DiffModalContent: () => null }));
+vi.mock('../AgentModalContent', () => ({ AgentModalContent: () => null }));
+vi.mock('../FileViewModalContent', () => ({ FileViewModalContent: () => null }));
+vi.mock('../ToolBubbleHeader', () => ({ ToolBubbleHeader: () => null }));
+vi.mock('../PermissionActionBar', () => ({ PermissionActionBar: () => null }));
+vi.mock('../../QuestionSheetContent', () => ({ QuestionSheetContent: () => null }));
+vi.mock('../../PlanSheetContent', () => ({ PlanSheetContent: () => null }));
 
 describe('ToolModal', () => {
     let ToolModal: any;
