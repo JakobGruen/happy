@@ -58,3 +58,10 @@ notes/
 progress*.txt
 .claude/worktrees/
 .worktrees/
+
+# Build artifacts
+*.ipa
+*.cer
+
+# Local toolchain
+mise.toml
