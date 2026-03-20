@@ -547,10 +547,6 @@ class Sync {
                 text: pendingText,
                 createdAt,
             });
-            // Timeout: remove stale pending message if CC never processes it (crash, error, etc.)
-            setTimeout(() => {
-                storage.getState().removePendingMessage(sessionId, localId);
-            }, 60_000);
         }
 
         let pending = this.pendingOutbox.get(sessionId);
