@@ -541,11 +541,17 @@ class Sync {
         const pendingText = c.type === 'text' ? c.text
             : c.type === 'multimodal' ? (c.blocks.find((b: any) => b.type === 'text') as any)?.text ?? ''
             : '';
-        const hasImages = c.type === 'multimodal' && c.blocks.some((b: any) => b.type === 'image');
+        // Extract image data for pending bubble thumbnails
+        const pendingImages = c.type === 'multimodal'
+            ? c.blocks
+                .filter((b: any) => b.type === 'image')
+                .map((b: any) => ({ mediaType: b.source.media_type, data: b.source.data }))
+            : undefined;
         storage.getState().addPendingMessage(sessionId, {
             localId,
-            text: pendingText || (hasImages ? '📷' : '...'),
+            text: pendingText || (pendingImages?.length ? '📷' : '...'),
             createdAt,
+            ...(pendingImages?.length ? { images: pendingImages } : {}),
         });
 
         let pending = this.pendingOutbox.get(sessionId);
@@ -2270,6 +2276,33 @@ class Sync {
     private applyMessages = (sessionId: string, messages: NormalizedMessage[]) => {
         // Count incoming user messages (CC echoes — source of truth for user message display)
         const userMessageCount = messages.filter(m => m.role === 'user').length;
+
+        // Enrich user messages with image data from pending queue.
+        // Session envelopes only carry text — images live in the pending store.
+        if (userMessageCount > 0) {
+            const pending = storage.getState().pendingMessages[sessionId] ?? [];
+            let pendingIdx = 0;
+            for (const msg of messages) {
+                if (msg.role === 'user' && pendingIdx < pending.length) {
+                    const p = pending[pendingIdx];
+                    pendingIdx++;
+                    if (p.images && p.images.length > 0 && msg.content.type === 'text') {
+                        // Upgrade text → multimodal with images from pending
+                        const blocks: Array<
+                            | { type: 'text'; text: string }
+                            | { type: 'image'; source: { type: 'base64'; data: string; media_type: string } }
+                        > = p.images.map(img => ({
+                            type: 'image' as const,
+                            source: { type: 'base64' as const, data: img.data, media_type: img.mediaType },
+                        }));
+                        if (msg.content.text) {
+                            blocks.push({ type: 'text', text: msg.content.text });
+                        }
+                        (msg as any).content = { type: 'multimodal', blocks };
+                    }
+                }
+            }
+        }
 
         const result = storage.getState().applyMessages(sessionId, messages);
 

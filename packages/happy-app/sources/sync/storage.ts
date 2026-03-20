@@ -30,6 +30,7 @@ export interface PendingMessage {
     localId: string;
     text: string;
     createdAt: number;
+    images?: Array<{ mediaType: string; data: string }>;
 }
 
 /**
