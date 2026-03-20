@@ -219,18 +219,22 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     }
 
     // Pending user messages — queued texts waiting for CC to start processing them.
-    // Flushed as session envelopes when CC emits 'result' (turn complete) or first 'assistant'.
+    // If CC is idle: envelope sent immediately in nextMessage.
+    // If CC is busy: queued here, flushed when CC emits 'result' (turn complete).
     const pendingUserTexts: string[] = [];
-    let hasSeenResult = false; // Track if CC has completed at least one turn
+    let ccBusy = false;
+
+    function sendUserEnvelope(text: string) {
+        if (text) {
+            session.client.sendSessionProtocolMessage(
+                createEnvelope('user', { t: 'text', text })
+            );
+        }
+    }
 
     function flushPendingUserEnvelopes() {
         while (pendingUserTexts.length > 0) {
-            const text = pendingUserTexts.shift()!;
-            if (text) {
-                session.client.sendSessionProtocolMessage(
-                    createEnvelope('user', { t: 'text', text })
-                );
-            }
+            sendUserEnvelope(pendingUserTexts.shift()!);
         }
     }
 
@@ -242,17 +246,10 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
             logger.debug(`[remote] Reactivation: system.init received — forwarding enabled (skipped ${reactivationSkippedCount} history messages)`);
         }
 
-        // Flush pending user envelopes when CC starts a new turn.
-        // 'result' = turn complete → next output is from a new turn processing queued messages.
-        // First 'assistant' without prior 'result' = first turn responding to initial message.
+        // CC finished a turn — flush any queued user messages and mark idle.
         if (message.type === 'result') {
-            hasSeenResult = true;
-            // CC finished a turn. If there are queued user messages, they'll be processed next.
-            // Flush them now so they appear before CC's next response.
             flushPendingUserEnvelopes();
-        } else if (message.type === 'assistant' && !hasSeenResult && pendingUserTexts.length > 0) {
-            // First turn — no prior 'result'. CC is responding to the initial message.
-            flushPendingUserEnvelopes();
+            ccBusy = false;
         }
 
         // Write to message log
@@ -531,9 +528,14 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                             let p = pending;
                             pending = null;
                             permissionHandler.handleModeChange(p.mode.permissionMode);
-                            // Track pending user text for timeline insertion
+                            // Send or queue user envelope for timeline
                             const text = typeof p.message === 'string' ? p.message : '';
-                            if (text) pendingUserTexts.push(text);
+                            if (ccBusy) {
+                                if (text) pendingUserTexts.push(text);
+                            } else {
+                                sendUserEnvelope(text);
+                            }
+                            ccBusy = true;
                             return p;
                         }
 
@@ -558,9 +560,14 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                                 logger.debug(`[remote]: Synced autoApproveTools=${metaAutoApprove} from metadata`);
                             }
 
-                            // Track pending user text for timeline insertion
+                            // Send or queue user envelope for timeline
                             const text = typeof msg.message === 'string' ? msg.message : '';
-                            if (text) pendingUserTexts.push(text);
+                            if (ccBusy) {
+                                if (text) pendingUserTexts.push(text);
+                            } else {
+                                sendUserEnvelope(text);
+                            }
+                            ccBusy = true;
 
                             return {
                                 message: msg.message,
