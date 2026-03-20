@@ -1,10 +1,13 @@
 import { defineConfig } from 'vitest/config'
-import { resolve } from 'node:path'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import dotenv from 'dotenv'
 
+const __dir = dirname(fileURLToPath(import.meta.url))
+
 const testEnv = dotenv.config({
-    path: '.env.integration-test'
+    path: resolve(__dir, '.env.integration-test')
 }).parsed
 
 export default defineConfig({
@@ -31,7 +34,7 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            '@': resolve('./src'),
+            '@': resolve(__dir, 'src'),
         },
     },
 })

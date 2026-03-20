@@ -1,5 +1,9 @@
 import { defineConfig } from 'vitest/config'
-import { resolve } from 'node:path'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dir = dirname(fileURLToPath(import.meta.url))
+const src = (...parts: string[]) => resolve(__dir, ...parts)
 
 export default defineConfig({
     define: {
@@ -22,14 +26,14 @@ export default defineConfig({
         },
         // Stub React Native and related packages that can't run in Node.js
         alias: [
-            { find: 'react-native', replacement: resolve('./sources/__mocks__/react-native.ts') },
-            { find: 'react-native-gesture-handler', replacement: resolve('./sources/__mocks__/react-native-gesture-handler.ts') },
-            { find: 'react-native-reanimated', replacement: resolve('./sources/__mocks__/react-native-reanimated.ts') },
+            { find: 'react-native', replacement: src('sources/__mocks__/react-native.ts') },
+            { find: 'react-native-gesture-handler', replacement: src('sources/__mocks__/react-native-gesture-handler.ts') },
+            { find: 'react-native-reanimated', replacement: src('sources/__mocks__/react-native-reanimated.ts') },
         ],
     },
     resolve: {
         alias: {
-            '@': resolve('./sources'),
+            '@': src('sources'),
         },
     },
 })
