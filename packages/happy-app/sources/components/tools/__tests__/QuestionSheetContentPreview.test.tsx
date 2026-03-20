@@ -11,6 +11,7 @@ import React from 'react';
 const sharedFormStub = vi.hoisted(() => ({
     selections: new Map(),
     otherTexts: new Map(),
+    noteTexts: new Map(),
     activeTab: 0,
     setActiveTab: vi.fn(),
     isSubmitting: false,

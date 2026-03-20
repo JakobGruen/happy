@@ -100,6 +100,16 @@ function setupActiveVoiceSession() {
     mocks.getCurrentRealtimeSessionId.mockReturnValue(VOICE_SESSION_ID);
     mocks.isVoiceSessionStarted.mockReturnValue(true);
     mocks.getVoiceSession.mockReturnValue(mocks.mockVoiceSession);
+    // Re-set return values wiped by clearAllMocks
+    mocks.formatSessionFull.mockReturnValue('formatted-full');
+    mocks.formatNewMessages.mockReturnValue('formatted-messages');
+    mocks.formatNewSingleMessage.mockReturnValue('formatted-single');
+    mocks.formatPermissionRequest.mockReturnValue('formatted-permission');
+    mocks.formatReadyEvent.mockReturnValue('formatted-ready');
+    mocks.formatSessionFocus.mockReturnValue('formatted-focus');
+    mocks.formatSessionOffline.mockReturnValue('formatted-offline');
+    mocks.formatSessionOnline.mockReturnValue('formatted-online');
+    mocks.startFlow.mockReturnValue('question-text');
     mocks.storageGetState.mockReturnValue({
         sessions: {
             [VOICE_SESSION_ID]: { id: VOICE_SESSION_ID, name: 'Voice Chat' },
@@ -324,7 +334,7 @@ describe('voiceHooks session isolation', () => {
 
             const prompt = mod.voiceHooks.onVoiceStarted(VOICE_SESSION_ID);
 
-            expect(prompt).toContain('THIS IS AN ACTIVE SESSION');
+            expect(prompt).toContain('formatted-full');
             expect(mocks.formatSessionFull).toHaveBeenCalled();
         });
     });

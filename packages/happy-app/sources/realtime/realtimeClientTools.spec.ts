@@ -126,17 +126,17 @@ describe('realtimeClientTools', () => {
     describe('processPermissionRequest', () => {
         it('returns error string when parameters is undefined', async () => {
             const result = await realtimeClientTools.processPermissionRequest(undefined);
-            expect(result).toBe("error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions')");
+            expect(result).toBe("error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions'|'plan')");
         });
 
         it('returns error string when decision is missing', async () => {
             const result = await realtimeClientTools.processPermissionRequest({});
-            expect(result).toBe("error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions')");
+            expect(result).toBe("error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions'|'plan')");
         });
 
         it('returns error string when decision is not allow or deny', async () => {
             const result = await realtimeClientTools.processPermissionRequest({ decision: 'maybe' });
-            expect(result).toBe("error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions')");
+            expect(result).toBe("error (invalid parameter, expected decision: 'allow'|'deny', optional mode: 'default'|'acceptEdits'|'bypassPermissions'|'plan')");
         });
 
         it('returns error string when no active session', async () => {
@@ -367,7 +367,11 @@ describe('realtimeClientTools', () => {
                 answers: [{ questionIndex: 0, header: 'DB', selectedLabels: ['Postgres'] }],
             });
 
-            expect(mocks.sessionAllow).toHaveBeenCalledWith('session-123', 'req-ask');
+            expect(mocks.sessionAllow).toHaveBeenCalledWith(
+                'session-123', 'req-ask',
+                undefined, undefined, undefined,
+                expect.any(Object),
+            );
         });
 
         it('calls sessionAllow and sendMessage with correct format', async () => {
@@ -388,8 +392,11 @@ describe('realtimeClientTools', () => {
                 answers: [{ questionIndex: 0, header: 'Database', selectedLabels: ['PostgreSQL'] }],
             });
 
-            expect(mocks.sessionAllow).toHaveBeenCalledWith('session-123', 'req-ask');
-            expect(mocks.sendMessage).toHaveBeenCalledWith('session-123', 'Database: PostgreSQL');
+            expect(mocks.sessionAllow).toHaveBeenCalledWith(
+                'session-123', 'req-ask',
+                undefined, undefined, undefined,
+                expect.objectContaining({ 'Database': 'PostgreSQL' }),
+            );
             expect(mocks.trackPermissionResponse).toHaveBeenCalledWith(true);
             expect(result).toContain('Answer submitted');
         });
@@ -415,7 +422,11 @@ describe('realtimeClientTools', () => {
                 ],
             });
 
-            expect(mocks.sendMessage).toHaveBeenCalledWith('session-123', 'DB: Postgres\nCache: Redis, Memcached');
+            expect(mocks.sessionAllow).toHaveBeenCalledWith(
+                'session-123', 'req-ask',
+                undefined, undefined, undefined,
+                expect.objectContaining({ 'DB': 'Postgres', 'Cache': 'Redis, Memcached' }),
+            );
         });
 
         it('returns error when sessionAllow throws', async () => {

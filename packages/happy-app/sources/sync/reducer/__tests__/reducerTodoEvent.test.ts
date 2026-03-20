@@ -14,8 +14,9 @@ function makeTodoMsg(id: string, todos: Array<{ content: string; status: string;
             id: `tc-${id}`,
             name: 'TodoWrite',
             input: { todos },
-            state: 'running',
-            createdAt,
+            description: null,
+            uuid: `uuid-${id}`,
+            parentUUID: null,
         }],
     } as NormalizedMessage;
 }

@@ -122,7 +122,7 @@ describe('RealtimeSession', () => {
         it('requests microphone permission before anything else', async () => {
             mod.registerVoiceSession(mockSession);
             mocks.fetchPipecatSession.mockResolvedValue({
-                url: 'https://voice.example.com/api/offer?session_id=session-1&token=abc',
+                url: 'https://voice.example.com/api/room?session_id=session-1&token=abc',
             });
             await mod.startRealtimeSession('session-1');
 
@@ -170,7 +170,7 @@ describe('RealtimeSession', () => {
 
         it('fetches credentials and Pipecat session URL', async () => {
             mocks.fetchPipecatSession.mockResolvedValue({
-                url: 'https://voice.example.com/api/offer?session_id=session-pc&token=abc',
+                url: 'https://voice.example.com/api/room?session_id=session-pc&token=abc',
             });
 
             await mod.startRealtimeSession('session-pc');
@@ -184,7 +184,7 @@ describe('RealtimeSession', () => {
 
         it('calls voiceSession.startSession with pipecatUrl', async () => {
             mocks.fetchPipecatSession.mockResolvedValue({
-                url: 'https://voice.example.com/api/offer?session_id=session-pc&token=abc',
+                url: 'https://voice.example.com/api/room?session_id=session-pc&token=abc',
             });
 
             await mod.startRealtimeSession('session-pc', 'some context');
@@ -192,7 +192,7 @@ describe('RealtimeSession', () => {
             expect(mockSession.startSession).toHaveBeenCalledWith({
                 sessionId: 'session-pc',
                 initialContext: 'some context',
-                pipecatUrl: 'https://voice.example.com/api/offer?session_id=session-pc&token=abc',
+                pipecatUrl: 'https://voice.example.com/api/room?session_id=session-pc&token=abc',
             });
         });
 
@@ -221,7 +221,7 @@ describe('RealtimeSession', () => {
 
         it('sets currentSessionId and voiceSessionStarted on success', async () => {
             mocks.fetchPipecatSession.mockResolvedValue({
-                url: 'https://voice.example.com/api/offer?session_id=session-pc&token=abc',
+                url: 'https://voice.example.com/api/room?session_id=session-pc&token=abc',
             });
 
             await mod.startRealtimeSession('session-pc');
@@ -254,7 +254,7 @@ describe('RealtimeSession', () => {
             expect(mockSession.startSession).toHaveBeenCalledWith({
                 sessionId: 'session-direct',
                 initialContext: 'ctx',
-                pipecatUrl: 'https://my-pipecat.local:8080/api/offer?session_id=session-direct',
+                pipecatUrl: 'https://my-pipecat.local:8080/api/room?session_id=session-direct',
             });
         });
 
@@ -272,7 +272,7 @@ describe('RealtimeSession', () => {
 
             expect(mockSession.startSession).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    pipecatUrl: 'https://my-pipecat.local:8080/api/offer?session_id=session-secret&secret=my-secret',
+                    pipecatUrl: 'https://my-pipecat.local:8080/api/room?session_id=session-secret&secret=my-secret',
                 })
             );
         });
@@ -285,7 +285,7 @@ describe('RealtimeSession', () => {
         it('calls endSession on registered session', async () => {
             mod.registerVoiceSession(mockSession);
             mocks.fetchPipecatSession.mockResolvedValue({
-                url: 'https://voice.example.com/api/offer?session_id=session-stop&token=abc',
+                url: 'https://voice.example.com/api/room?session_id=session-stop&token=abc',
             });
             await mod.startRealtimeSession('session-stop');
 
@@ -297,7 +297,7 @@ describe('RealtimeSession', () => {
         it('clears session ID and started flag after stopping', async () => {
             mod.registerVoiceSession(mockSession);
             mocks.fetchPipecatSession.mockResolvedValue({
-                url: 'https://voice.example.com/api/offer?session_id=session-stop&token=abc',
+                url: 'https://voice.example.com/api/room?session_id=session-stop&token=abc',
             });
             await mod.startRealtimeSession('session-stop');
             expect(mod.getCurrentRealtimeSessionId()).toBe('session-stop');
@@ -351,7 +351,7 @@ describe('RealtimeSession', () => {
         it('returns true after a session is started', async () => {
             mod.registerVoiceSession(mockSession);
             mocks.fetchPipecatSession.mockResolvedValue({
-                url: 'https://voice.example.com/api/offer',
+                url: 'https://voice.example.com/api/room',
             });
             await mod.startRealtimeSession('session-flag');
 
@@ -361,7 +361,7 @@ describe('RealtimeSession', () => {
         it('returns false after a session is stopped', async () => {
             mod.registerVoiceSession(mockSession);
             mocks.fetchPipecatSession.mockResolvedValue({
-                url: 'https://voice.example.com/api/offer',
+                url: 'https://voice.example.com/api/room',
             });
             await mod.startRealtimeSession('session-flag');
             await mod.stopRealtimeSession();
@@ -378,7 +378,7 @@ describe('RealtimeSession', () => {
         it('returns the active session ID after starting', async () => {
             mod.registerVoiceSession(mockSession);
             mocks.fetchPipecatSession.mockResolvedValue({
-                url: 'https://voice.example.com/api/offer',
+                url: 'https://voice.example.com/api/room',
             });
             await mod.startRealtimeSession('my-session-id');
 
@@ -388,7 +388,7 @@ describe('RealtimeSession', () => {
         it('returns null after stopping', async () => {
             mod.registerVoiceSession(mockSession);
             mocks.fetchPipecatSession.mockResolvedValue({
-                url: 'https://voice.example.com/api/offer',
+                url: 'https://voice.example.com/api/room',
             });
             await mod.startRealtimeSession('my-session-id');
             await mod.stopRealtimeSession();

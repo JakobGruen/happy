@@ -75,7 +75,7 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
         expect(ended.envelopes).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
-                    ev: { t: 'tool-call-end', call: 'tool-1' },
+                    ev: expect.objectContaining({ t: 'tool-call-end', call: 'tool-1' }),
                 }),
             ]),
         );

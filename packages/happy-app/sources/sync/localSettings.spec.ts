@@ -28,6 +28,7 @@ describe('localSettings', () => {
             pipecatUrl: '',
             pipecatAuthSecret: '',
             acknowledgedCliVersions: {},
+            toolModalHeight: 0,
         };
 
         it('should accept valid settings', () => {
