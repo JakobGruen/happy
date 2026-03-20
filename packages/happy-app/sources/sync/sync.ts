@@ -534,11 +534,19 @@ class Sync {
         };
         const encryptedRawRecord = await encryption.encryptRawRecord(content);
 
-        // Add to messages - normalize the raw record
+        // Don't insert into timeline — CC echo will place it at the correct position.
+        // Show as pending above input until CC processes the message.
         const createdAt = Date.now();
-        const normalizedMessage = normalizeRawMessage(localId, localId, createdAt, content);
-        if (normalizedMessage) {
-            this.enqueueMessages(sessionId, [normalizedMessage]);
+        const c = content.content;
+        const pendingText = c.type === 'text' ? c.text
+            : c.type === 'multimodal' ? (c.blocks.find((b: any) => b.type === 'text') as any)?.text ?? ''
+            : '';
+        if (pendingText) {
+            storage.getState().addPendingMessage(sessionId, {
+                localId,
+                text: pendingText,
+                createdAt,
+            });
         }
 
         let pending = this.pendingOutbox.get(sessionId);
@@ -2261,7 +2269,17 @@ class Sync {
     //
 
     private applyMessages = (sessionId: string, messages: NormalizedMessage[]) => {
+        // Count incoming user messages (CC echoes — source of truth for user message display)
+        const userMessageCount = messages.filter(m => m.role === 'user').length;
+
         const result = storage.getState().applyMessages(sessionId, messages);
+
+        // FIFO remove pending messages — single state update for all echoed user messages.
+        // Safe during session resume: shiftPendingMessages is a no-op when pending is empty.
+        if (userMessageCount > 0) {
+            storage.getState().shiftPendingMessages(sessionId, userMessageCount);
+        }
+
         let m: Message[] = [];
         for (let messageId of result.changed) {
             const message = storage.getState().sessionMessages[sessionId].messagesMap[messageId];
