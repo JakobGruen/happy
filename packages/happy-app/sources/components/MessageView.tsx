@@ -47,18 +47,49 @@ export const MessageView = (props: {
 }) => {
   const ready = AnimQueue.isReady();
   const opacity = useSharedValue(ready ? 0 : 1);
-  const translateY = useSharedValue(ready ? 15 : 0);
+  const translateY = useSharedValue(ready ? 8 : 0);
+  // Height animation: -1 = auto (no constraint), >= 0 = explicit height
+  const animHeight = useSharedValue(ready ? 0 : -1);
+  const naturalHeight = useSharedValue(0);
 
-  const animStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
-  }));
+  const wrapperStyle = useAnimatedStyle(() => {
+    if (animHeight.value < 0) {
+      return {
+        opacity: opacity.value,
+        transform: [{ translateY: translateY.value }],
+      };
+    }
+    return {
+      opacity: opacity.value,
+      transform: [{ translateY: translateY.value }],
+      height: animHeight.value,
+      overflow: 'hidden' as const,
+      // flex-start prevents children from stretching to parent's 0 height,
+      // so they compute their natural content height for measurement
+      alignItems: 'flex-start' as const,
+    };
+  });
+
+  const handleContentLayout = React.useCallback((e: any) => {
+    if (!ready || naturalHeight.value > 0) return;
+    const h = e.nativeEvent.layout.height;
+    if (h > 0) {
+      naturalHeight.value = h;
+    }
+  }, [ready]);
 
   React.useEffect(() => {
     if (!ready) return;
 
     const id = props.message.id;
     AnimQueue.enqueue(id, () => {
+      if (naturalHeight.value > 0) {
+        animHeight.value = withTiming(naturalHeight.value, { duration: ANIM_DURATION }, (finished) => {
+          if (finished) animHeight.value = -1; // switch to auto for dynamic content
+        });
+      } else {
+        animHeight.value = -1; // measurement failed — show immediately
+      }
       opacity.value = withTiming(1, { duration: ANIM_DURATION });
       translateY.value = withTiming(0, { duration: ANIM_DURATION }, (finished) => {
         if (finished) {
@@ -72,10 +103,10 @@ export const MessageView = (props: {
 
   return (
     <Animated.View
-      style={[styles.messageContainer, animStyle]}
+      style={[styles.messageContainer, wrapperStyle]}
       renderToHardwareTextureAndroid={true}
     >
-      <View style={styles.messageContent}>
+      <View style={styles.messageContent} onLayout={handleContentLayout}>
         <RenderBlock
           message={props.message}
           metadata={props.metadata}

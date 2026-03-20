@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useSession, useSessionMessages } from "@/sync/storage";
-import { ActivityIndicator, FlatList, Platform, View } from 'react-native';
+import { Platform, View } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useCallback } from 'react';
 import { useHeaderHeight } from '@/utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,8 +40,7 @@ const ChatListInternal = React.memo((props: {
     sessionId: string,
     messages: Message[],
 }) => {
-    const listRef = React.useRef<FlatList>(null);
-    const prevCountRef = React.useRef(props.messages.length);
+    const listRef = React.useRef<Animated.FlatList<Message>>(null);
     const scrollOffsetRef = React.useRef(0);
 
     // Init animation queue synchronously (before children mount) so isReady() is
@@ -51,16 +51,6 @@ const ChatListInternal = React.memo((props: {
         initAnimationQueue();
     }
 
-    // Smooth scroll to bottom when new messages arrive, only if already near bottom
-    React.useEffect(() => {
-        if (props.messages.length > prevCountRef.current && scrollOffsetRef.current < 150) {
-            setTimeout(() => {
-                listRef.current?.scrollToOffset({ offset: 0, animated: true });
-            }, 50);
-        }
-        prevCountRef.current = props.messages.length;
-    }, [props.messages.length]);
-
     const handleScroll = useCallback((e: any) => {
         scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
     }, []);
@@ -70,15 +60,17 @@ const ChatListInternal = React.memo((props: {
         <MessageView message={item} metadata={props.metadata} sessionId={props.sessionId} />
     ), [props.metadata, props.sessionId]);
     return (
-        <FlatList
+        <Animated.FlatList
             ref={listRef}
             data={props.messages}
             inverted={true}
             keyExtractor={keyExtractor}
             onScroll={handleScroll}
             scrollEventThrottle={100}
+            itemLayoutAnimation={LinearTransition.duration(300)}
             maintainVisibleContentPosition={{
                 minIndexForVisible: 0,
+                autoscrollToTopThreshold: 150,
             }}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
