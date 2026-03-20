@@ -15,6 +15,7 @@ import type { EffortMode } from '@/components/modelModeOptions';
 import { getSuggestions } from '@/components/autocomplete/suggestions';
 import { ChatHeaderView } from '@/components/ChatHeaderView';
 import { ChatList } from '@/components/ChatList';
+import { setActive as setAnimQueueActive } from '@/components/messageAnimationQueue';
 import { PendingMessages } from '@/components/PendingMessages';
 import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
@@ -252,6 +253,11 @@ function SessionViewLoaded({ sessionId, session }: { sessionId: string, session:
     const sessionUsage = useSessionUsage(sessionId);
     const alwaysShowContextSize = useSetting('alwaysShowContextSize');
     const experiments = useSetting('experiments');
+
+    // Skip animation queue when CC is idle — messages render instantly
+    React.useEffect(() => {
+        setAnimQueueActive(session.thinking);
+    }, [session.thinking]);
 
     // Auto-reconnect voice when navigating to a different session while voice is active.
     // SessionViewLoaded has key={sessionId}, so this runs on mount for each new session.
