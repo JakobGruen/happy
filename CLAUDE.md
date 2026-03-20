@@ -171,7 +171,7 @@ Two message format generations coexist:
 - **Legacy**: `{ role: "user"/"agent", content: {...} }`
 - **Modern**: `{ role: "session", content: SessionEnvelope }` with 9 event types
 
-Feature flag `ENABLE_SESSION_PROTOCOL_SEND` controls which format clients emit. Defined in `@jakobgruen/happy-wire`'s `sessionProtocol.ts`.
+User messages always use session protocol envelopes (CC echo is the source of truth). Agent messages coexist in both formats during migration. The legacy `ENABLE_SESSION_PROTOCOL_SEND` feature flag has been removed.
 
 ### Optimistic Concurrency
 State updates (session metadata, agent state, machine daemon state) use `expectedVersion`. Version mismatch → client gets current version and can retry.
