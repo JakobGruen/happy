@@ -218,12 +218,41 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
         logger.debug('[remote] Reactivation mode — skipping message forwarding until system.init');
     }
 
+    // Pending user messages — queued texts waiting for CC to start processing them.
+    // Flushed as session envelopes when CC emits 'result' (turn complete) or first 'assistant'.
+    const pendingUserTexts: string[] = [];
+    let hasSeenResult = false; // Track if CC has completed at least one turn
+
+    function flushPendingUserEnvelopes() {
+        while (pendingUserTexts.length > 0) {
+            const text = pendingUserTexts.shift()!;
+            if (text) {
+                session.client.sendSessionProtocolMessage(
+                    createEnvelope('user', { t: 'text', text })
+                );
+            }
+        }
+    }
+
     function onMessage(message: SDKMessage) {
 
         // Reactivation: detect system.init to stop skipping history replay messages
         if (skipMessageForwarding && message.type === 'system' && (message as any).subtype === 'init') {
             skipMessageForwarding = false;
             logger.debug(`[remote] Reactivation: system.init received — forwarding enabled (skipped ${reactivationSkippedCount} history messages)`);
+        }
+
+        // Flush pending user envelopes when CC starts a new turn.
+        // 'result' = turn complete → next output is from a new turn processing queued messages.
+        // First 'assistant' without prior 'result' = first turn responding to initial message.
+        if (message.type === 'result') {
+            hasSeenResult = true;
+            // CC finished a turn. If there are queued user messages, they'll be processed next.
+            // Flush them now so they appear before CC's next response.
+            flushPendingUserEnvelopes();
+        } else if (message.type === 'assistant' && !hasSeenResult && pendingUserTexts.length > 0) {
+            // First turn — no prior 'result'. CC is responding to the initial message.
+            flushPendingUserEnvelopes();
         }
 
         // Write to message log
@@ -502,6 +531,9 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                             let p = pending;
                             pending = null;
                             permissionHandler.handleModeChange(p.mode.permissionMode);
+                            // Track pending user text for timeline insertion
+                            const text = typeof p.message === 'string' ? p.message : '';
+                            if (text) pendingUserTexts.push(text);
                             return p;
                         }
 
@@ -525,6 +557,10 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                                 permissionHandler.setAutoApproveTools(metaAutoApprove);
                                 logger.debug(`[remote]: Synced autoApproveTools=${metaAutoApprove} from metadata`);
                             }
+
+                            // Track pending user text for timeline insertion
+                            const text = typeof msg.message === 'string' ? msg.message : '';
+                            if (text) pendingUserTexts.push(text);
 
                             return {
                                 message: msg.message,
@@ -561,27 +597,6 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                     claudeEnvVars: session.claudeEnvVars,
                     claudeArgs: session.claudeArgs,
                     onMessage,
-                    onUserMessageConsumed: (content) => {
-                        // CC has pulled the user message — send a user envelope so the app
-                        // can place it in the timeline at the correct position.
-                        let text: string;
-                        if (typeof content === 'string') {
-                            text = content;
-                        } else if (Array.isArray(content)) {
-                            // Multimodal: extract text blocks
-                            text = content
-                                .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-                                .map(b => b.text)
-                                .join('\n');
-                        } else {
-                            text = '';
-                        }
-                        if (text) {
-                            session.client.sendSessionProtocolMessage(
-                                createEnvelope('user', { t: 'text', text })
-                            );
-                        }
-                    },
                     onCompletionEvent: (message: string) => {
                         logger.debug(`[remote]: Completion event: ${message}`);
                         session.client.sendSessionEvent({ type: 'message', message });

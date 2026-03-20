@@ -45,9 +45,7 @@ export async function claudeRemote(opts: {
     onThinkingChange?: (thinking: boolean) => void,
     onMessage: (message: SDKMessage) => void,
     onCompletionEvent?: (message: string) => void,
-    onSessionReset?: () => void,
-    /** Fired when CC consumes (pulls) a user message from the input queue */
-    onUserMessageConsumed?: (content: UserContent) => void
+    onSessionReset?: () => void
 }) {
 
     // Check if session is valid
@@ -131,14 +129,6 @@ export async function claudeRemote(opts: {
 
     // Create message stream for SDK (initially empty - will be filled as messages arrive)
     let messages = new PushableAsyncIterable<SDKUserMessage>();
-
-    // Fire onUserMessageConsumed when CC pulls a user message from the input queue
-    if (opts.onUserMessageConsumed) {
-        messages.onConsumed = (sdkMsg) => {
-            // Extract the original UserContent from the SDK message
-            opts.onUserMessageConsumed!(sdkMsg.message.content as UserContent);
-        };
-    }
 
     // Start Claude immediately (eager initialization - no need to wait for first message)
     logger.debug(`[claudeRemote] Starting Claude immediately without waiting for first message`);
