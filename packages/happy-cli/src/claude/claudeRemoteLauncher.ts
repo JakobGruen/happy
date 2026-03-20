@@ -221,20 +221,34 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     // Pending user messages — queued texts waiting for CC to start processing them.
     // If CC is idle: envelope sent immediately in nextMessage.
     // If CC is busy: queued here, flushed when CC emits 'result' (turn complete).
-    const pendingUserTexts: string[] = [];
+    const pendingUserMessages: Array<{ text: string; time: number }> = [];
     let ccBusy = false;
 
-    function sendUserEnvelope(text: string) {
+    function extractUserText(content: UserContent): string {
+        if (typeof content === 'string') return content;
+        if (Array.isArray(content)) {
+            const text = content
+                .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+                .map(b => b.text)
+                .join('\n');
+            // For image-only messages, use placeholder so the envelope still clears pending
+            return text || '[image]';
+        }
+        return '';
+    }
+
+    function sendUserEnvelope(text: string, time?: number) {
         if (text) {
             session.client.sendSessionProtocolMessage(
-                createEnvelope('user', { t: 'text', text })
+                createEnvelope('user', { t: 'text', text }, time ? { time } : {})
             );
         }
     }
 
     function flushPendingUserEnvelopes() {
-        while (pendingUserTexts.length > 0) {
-            sendUserEnvelope(pendingUserTexts.shift()!);
+        while (pendingUserMessages.length > 0) {
+            const { text, time } = pendingUserMessages.shift()!;
+            sendUserEnvelope(text, time);
         }
     }
 
@@ -247,9 +261,13 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
         }
 
         // CC finished a turn — flush any queued user messages and mark idle.
+        // Also flush on first assistant/system after result (CC is now processing the queued message).
         if (message.type === 'result') {
             flushPendingUserEnvelopes();
             ccBusy = false;
+        } else if ((message.type === 'assistant' || message.type === 'system') && pendingUserMessages.length > 0) {
+            // CC started processing — flush pending messages so they appear before the response
+            flushPendingUserEnvelopes();
         }
 
         // Write to message log
@@ -529,9 +547,9 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                             pending = null;
                             permissionHandler.handleModeChange(p.mode.permissionMode);
                             // Send or queue user envelope for timeline
-                            const text = typeof p.message === 'string' ? p.message : '';
+                            const text = extractUserText(p.message);
                             if (ccBusy) {
-                                if (text) pendingUserTexts.push(text);
+                                pendingUserMessages.push({ text, time: Date.now() });
                             } else {
                                 sendUserEnvelope(text);
                             }
@@ -561,9 +579,9 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                             }
 
                             // Send or queue user envelope for timeline
-                            const text = typeof msg.message === 'string' ? msg.message : '';
+                            const text = extractUserText(msg.message);
                             if (ccBusy) {
-                                if (text) pendingUserTexts.push(text);
+                                pendingUserMessages.push({ text, time: Date.now() });
                             } else {
                                 sendUserEnvelope(text);
                             }
