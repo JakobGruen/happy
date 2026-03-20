@@ -14,7 +14,6 @@ const ICON_READ = (size: number = 24, color: string = '#000') => <Octicons name=
 const ICON_EDIT = (size: number = 24, color: string = '#000') => <Octicons name="file-diff" size={size} color={color} />;
 const ICON_WEB = (size: number = 24, color: string = '#000') => <Ionicons name="globe-outline" size={size} color={color} />;
 const ICON_EXIT = (size: number = 24, color: string = '#000') => <Ionicons name="exit-outline" size={size} color={color} />;
-const ICON_TODO = (size: number = 24, color: string = '#000') => <Ionicons name="bulb-outline" size={size} color={color} />;
 const ICON_REASONING = (size: number = 24, color: string = '#000') => <Octicons name="light-bulb" size={size} color={color} />;
 const ICON_QUESTION = (size: number = 24, color: string = '#000') => <Ionicons name="help-circle-outline" size={size} color={color} />;
 const ICON_SKILL = (size: number = 24, color: string = '#000') => <Ionicons name="sparkles-outline" size={size} color={color} />;
@@ -368,53 +367,6 @@ export const knownTools = {
             }
             return t('tools.names.editNotebook');
         }
-    },
-    'TodoWrite': {
-        title: t('tools.names.todoList'),
-        icon: ICON_TODO,
-        noStatus: true,
-        minimal: (opts: { metadata: Metadata | null, tool: ToolCall, messages?: Message[] }) => {
-            // Check if there are todos in the input
-            if (opts.tool.input?.todos && Array.isArray(opts.tool.input.todos) && opts.tool.input.todos.length > 0) {
-                return false; // Has todos, show expanded
-            }
-            
-            // Check if there are todos in the result
-            if (opts.tool.result?.newTodos && Array.isArray(opts.tool.result.newTodos) && opts.tool.result.newTodos.length > 0) {
-                return false; // Has todos, show expanded
-            }
-            
-            return true; // No todos, render as minimal
-        },
-        input: z.object({
-            todos: z.array(z.object({
-                content: z.string().describe('The todo item content'),
-                status: z.enum(['pending', 'in_progress', 'completed']).describe('The status of the todo'),
-                priority: z.enum(['high', 'medium', 'low']).optional().describe('The priority of the todo'),
-                id: z.string().optional().describe('Unique identifier for the todo')
-            }).passthrough()).describe('The updated todo list')
-        }).partial().passthrough(),
-        result: z.object({
-            oldTodos: z.array(z.object({
-                content: z.string().describe('The todo item content'),
-                status: z.enum(['pending', 'in_progress', 'completed']).describe('The status of the todo'),
-                priority: z.enum(['high', 'medium', 'low']).optional().describe('The priority of the todo'),
-                id: z.string().describe('Unique identifier for the todo')
-            }).passthrough()).describe('The old todo list'),
-            newTodos: z.array(z.object({
-                content: z.string().describe('The todo item content'),
-                status: z.enum(['pending', 'in_progress', 'completed']).describe('The status of the todo'),
-                priority: z.enum(['high', 'medium', 'low']).optional().describe('The priority of the todo'),
-                id: z.string().describe('Unique identifier for the todo')
-            }).passthrough()).describe('The new todo list')
-        }).partial().passthrough(),
-        extractDescription: (opts: { metadata: Metadata | null, tool: ToolCall }) => {
-            if (Array.isArray(opts.tool.input.todos)) {
-                const count = opts.tool.input.todos.length;
-                return t('tools.desc.todoListCount', { count });
-            }
-            return t('tools.names.todoList');
-        },
     },
     'WebSearch': {
         title: (opts: { metadata: Metadata | null, tool: ToolCall }) => {

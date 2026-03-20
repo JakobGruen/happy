@@ -29,6 +29,7 @@ export const sessionToolCallEndEventSchema = z.object({
   call: z.string(),
   result: z.string().optional(),
   isError: z.boolean().optional(),
+  backgrounded: z.boolean().optional(),
 });
 
 export const sessionFileEventSchema = z.object({
@@ -77,6 +78,13 @@ export const sessionStopEventSchema = z.object({
   result: z.string().optional(),
 });
 
+export const sessionBackgroundCompleteEventSchema = z.object({
+  t: z.literal('background-complete'),
+  call: z.string(),
+  result: z.string().optional(),
+  isError: z.boolean().optional(),
+});
+
 export const sessionEventSchema = z.discriminatedUnion('t', [
   sessionTextEventSchema,
   sessionServiceMessageEventSchema,
@@ -87,6 +95,7 @@ export const sessionEventSchema = z.discriminatedUnion('t', [
   sessionStartEventSchema,
   sessionTurnEndEventSchema,
   sessionStopEventSchema,
+  sessionBackgroundCompleteEventSchema,
 ]);
 
 export type SessionEvent = z.infer<typeof sessionEventSchema>;

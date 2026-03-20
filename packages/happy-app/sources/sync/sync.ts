@@ -40,6 +40,7 @@ import { fetchFeed } from './apiFeed';
 import { FeedItem } from './feedTypes';
 import { UserProfile } from './friendTypes';
 import { resolveMessageModeMeta } from './messageMeta';
+import { pauseForPendingExit } from '@/components/messageAnimationQueue';
 
 type V3GetSessionMessagesResponse = {
     messages: ApiMessage[];
@@ -534,12 +535,25 @@ class Sync {
         };
         const encryptedRawRecord = await encryption.encryptRawRecord(content);
 
-        // Add to messages - normalize the raw record
+        // Don't insert into timeline — CC echo will place it at the correct position.
+        // Show as pending above input until CC processes the message.
         const createdAt = Date.now();
-        const normalizedMessage = normalizeRawMessage(localId, localId, createdAt, content);
-        if (normalizedMessage) {
-            this.enqueueMessages(sessionId, [normalizedMessage]);
-        }
+        const c = content.content;
+        const pendingText = c.type === 'text' ? c.text
+            : c.type === 'multimodal' ? (c.blocks.find((b: any) => b.type === 'text') as any)?.text ?? ''
+            : '';
+        // Extract image data for pending bubble thumbnails
+        const pendingImages = c.type === 'multimodal'
+            ? c.blocks
+                .filter((b: any) => b.type === 'image')
+                .map((b: any) => ({ mediaType: b.source.media_type, data: b.source.data }))
+            : undefined;
+        storage.getState().addPendingMessage(sessionId, {
+            localId,
+            text: pendingText || (pendingImages?.length ? '📷' : '...'),
+            createdAt,
+            ...(pendingImages?.length ? { images: pendingImages } : {}),
+        });
 
         let pending = this.pendingOutbox.get(sessionId);
         if (!pending) {
@@ -2261,7 +2275,46 @@ class Sync {
     //
 
     private applyMessages = (sessionId: string, messages: NormalizedMessage[]) => {
+        // Count incoming user messages (CC echoes — source of truth for user message display)
+        const userMessageCount = messages.filter(m => m.role === 'user').length;
+
+        // Enrich user messages with image data from pending queue.
+        // Session envelopes only carry text — images live in the pending store.
+        if (userMessageCount > 0) {
+            const pending = storage.getState().pendingMessages[sessionId] ?? [];
+            let pendingIdx = 0;
+            for (const msg of messages) {
+                if (msg.role === 'user' && pendingIdx < pending.length) {
+                    const p = pending[pendingIdx];
+                    pendingIdx++;
+                    if (p.images && p.images.length > 0 && msg.content.type === 'text') {
+                        // Upgrade text → multimodal with images from pending
+                        const blocks: Array<
+                            | { type: 'text'; text: string }
+                            | { type: 'image'; source: { type: 'base64'; data: string; media_type: string } }
+                        > = p.images.map(img => ({
+                            type: 'image' as const,
+                            source: { type: 'base64' as const, data: img.data, media_type: img.mediaType },
+                        }));
+                        if (msg.content.text) {
+                            blocks.push({ type: 'text', text: msg.content.text });
+                        }
+                        (msg as any).content = { type: 'multimodal', blocks };
+                    }
+                }
+            }
+        }
+
         const result = storage.getState().applyMessages(sessionId, messages);
+
+        // FIFO remove pending messages — single state update for all echoed user messages.
+        // Safe during session resume: shiftPendingMessages is a no-op when pending is empty.
+        if (userMessageCount > 0) {
+            const hasPending = (storage.getState().pendingMessages[sessionId]?.length ?? 0) > 0;
+            if (hasPending) pauseForPendingExit();
+            storage.getState().shiftPendingMessages(sessionId, userMessageCount);
+        }
+
         let m: Message[] = [];
         for (let messageId of result.changed) {
             const message = storage.getState().sessionMessages[sessionId].messagesMap[messageId];

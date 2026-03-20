@@ -10,7 +10,7 @@ import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "./sdk";
 import { formatClaudeMessageForInk } from "@/ui/messageFormatterInk";
 import { logger } from "@/ui/logger";
 import { SDKToLogConverter, getGitBranchAsync } from "./utils/sdkToLogConverter";
-import { normalizeModelCode } from "@jakobgruen/happy-wire";
+import { normalizeModelCode, createEnvelope } from "@jakobgruen/happy-wire";
 import { PLAN_FAKE_REJECT } from "./sdk/prompts";
 import { EnhancedMode, PermissionMode } from "./loop";
 import type { UserContent } from "@/api/types";
@@ -218,12 +218,58 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
         logger.debug('[remote] Reactivation mode — skipping message forwarding until system.init');
     }
 
+    // Pending user messages — queued texts waiting for CC to start processing them.
+    // If CC is idle: envelope sent immediately in nextMessage.
+    // If CC is busy: queued here, flushed when CC emits 'result' (turn complete).
+    const pendingUserMessages: Array<{ text: string }> = [];
+    let ccBusy = false;
+
+    function extractUserText(content: UserContent): string {
+        if (typeof content === 'string') return content;
+        if (Array.isArray(content)) {
+            const text = content
+                .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+                .map(b => b.text)
+                .join('\n');
+            // For image-only messages, use placeholder so the envelope still clears pending
+            return text || '[image]';
+        }
+        return '';
+    }
+
+    function sendUserEnvelope(text: string, time?: number) {
+        if (text) {
+            session.client.sendSessionProtocolMessage(
+                createEnvelope('user', { t: 'text', text }, time ? { time } : {})
+            );
+        }
+    }
+
+    function flushPendingUserEnvelopes() {
+        while (pendingUserMessages.length > 0) {
+            const { text } = pendingUserMessages.shift()!;
+            // Use current time (not original send time) so deferred messages
+            // appear after the previous turn's response in timeline order.
+            sendUserEnvelope(text);
+        }
+    }
+
     function onMessage(message: SDKMessage) {
 
         // Reactivation: detect system.init to stop skipping history replay messages
         if (skipMessageForwarding && message.type === 'system' && (message as any).subtype === 'init') {
             skipMessageForwarding = false;
             logger.debug(`[remote] Reactivation: system.init received — forwarding enabled (skipped ${reactivationSkippedCount} history messages)`);
+        }
+
+        // CC finished a turn — flush any queued user messages and mark idle.
+        // Also flush on first assistant/system after result (CC is now processing the queued message).
+        if (message.type === 'result') {
+            flushPendingUserEnvelopes();
+            ccBusy = false;
+        } else if ((message.type === 'assistant' || message.type === 'system') && pendingUserMessages.length > 0) {
+            // CC started processing — flush pending messages so they appear before the response
+            flushPendingUserEnvelopes();
         }
 
         // Write to message log
@@ -502,6 +548,14 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                             let p = pending;
                             pending = null;
                             permissionHandler.handleModeChange(p.mode.permissionMode);
+                            // Send or queue user envelope for timeline
+                            const text = extractUserText(p.message);
+                            if (ccBusy) {
+                                pendingUserMessages.push({ text });
+                            } else {
+                                sendUserEnvelope(text);
+                            }
+                            ccBusy = true;
                             return p;
                         }
 
@@ -525,6 +579,15 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                                 permissionHandler.setAutoApproveTools(metaAutoApprove);
                                 logger.debug(`[remote]: Synced autoApproveTools=${metaAutoApprove} from metadata`);
                             }
+
+                            // Send or queue user envelope for timeline
+                            const text = extractUserText(msg.message);
+                            if (ccBusy) {
+                                pendingUserMessages.push({ text });
+                            } else {
+                                sendUserEnvelope(text);
+                            }
+                            ccBusy = true;
 
                             return {
                                 message: msg.message,

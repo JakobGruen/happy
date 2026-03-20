@@ -291,7 +291,7 @@ export function query(config: {
     }
 
     // Build command arguments
-    const args = ['--output-format', 'stream-json', '--verbose']
+    const args = ['--output-format', 'stream-json', '--verbose', '--include-partial-messages']
 
     if (customSystemPrompt) args.push('--system-prompt', customSystemPrompt)
     if (appendSystemPrompt) args.push('--append-system-prompt', appendSystemPrompt)

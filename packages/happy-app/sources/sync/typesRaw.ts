@@ -17,14 +17,6 @@ const usageDataSchema = z.object({
 
 export type UsageData = z.infer<typeof usageDataSchema>;
 
-function isSessionProtocolSendEnabled(): boolean {
-    const raw = (
-        process.env.EXPO_PUBLIC_ENABLE_SESSION_PROTOCOL_SEND
-        ?? process.env.ENABLE_SESSION_PROTOCOL_SEND
-        ?? ''
-    ).toLowerCase();
-    return raw === '1' || raw === 'true' || raw === 'yes';
-}
 
 const agentEventSchema = z.discriminatedUnion('type', [z.object({
     type: z.literal('switch'),
@@ -77,6 +69,14 @@ const sessionToolCallEndEventSchema = z.object({
     call: z.string(),
     result: z.string().optional(),
     isError: z.boolean().optional(),
+    backgrounded: z.boolean().optional(),
+});
+
+const sessionBackgroundCompleteEventSchema = z.object({
+    t: z.literal('background-complete'),
+    call: z.string(),
+    result: z.string().optional(),
+    isError: z.boolean().optional(),
 });
 
 const sessionFileEventSchema = z.object({
@@ -120,6 +120,7 @@ const sessionEventSchema = z.discriminatedUnion('t', [
     sessionServiceMessageEventSchema,
     sessionToolCallStartEventSchema,
     sessionToolCallEndEventSchema,
+    sessionBackgroundCompleteEventSchema,
     sessionFileEventSchema,
     sessionTurnStartEventSchema,
     sessionStartEventSchema,
@@ -699,10 +700,6 @@ function normalizeSessionEnvelope(
 
     if (envelope.ev.t === 'text') {
         if (envelope.role === 'user') {
-            if (!isSessionProtocolSendEnabled()) {
-                return null;
-            }
-
             return {
                 id: messageId,
                 localId,
@@ -760,6 +757,26 @@ function normalizeSessionEnvelope(
         } satisfies NormalizedMessage;
     }
 
+    if (envelope.ev.t === 'background-complete') {
+        return {
+            id: messageId,
+            localId,
+            createdAt: messageCreatedAt,
+            role: 'agent',
+            isSidechain,
+            content: [{
+                type: 'tool-result',
+                tool_use_id: envelope.ev.call,
+                content: envelope.ev.result ?? '',
+                is_error: envelope.ev.isError ?? false,
+                uuid: contentUUID,
+                parentUUID,
+                _backgroundComplete: true,
+            } as any],
+            meta
+        } satisfies NormalizedMessage;
+    }
+
     if (envelope.ev.t === 'tool-call-end') {
         return {
             id: messageId,
@@ -773,8 +790,9 @@ function normalizeSessionEnvelope(
                 content: envelope.ev.result ?? null,
                 is_error: envelope.ev.isError ?? false,
                 uuid: contentUUID,
-                parentUUID
-            }],
+                parentUUID,
+                ...(envelope.ev.backgrounded ? { _backgrounded: true } : {}),
+            } as any],
             meta
         } satisfies NormalizedMessage;
     }
@@ -831,19 +849,9 @@ export function normalizeRawMessage(id: string, localId: string | null, createdA
     }
     raw = parsed.data;
     if (raw.role === 'user') {
-        if (isSessionProtocolSendEnabled()) {
-            return null;
-        }
-
-        return {
-            id,
-            localId,
-            createdAt,
-            role: 'user',
-            content: raw.content,
-            isSidechain: false,
-            meta: raw.meta,
-        };
+        // User messages come from CC echo via session protocol envelopes.
+        // Legacy path dropped — session protocol is the source of truth.
+        return null;
     }
     if (raw.role === 'session') {
         return normalizeSessionEnvelope(

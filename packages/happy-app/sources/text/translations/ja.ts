@@ -586,7 +586,6 @@ export const ja: TranslationStructure = {
             fetchUrl: 'URL取得',
             readNotebook: 'ノートブック読み取り',
             editNotebook: 'ノートブック編集',
-            todoList: 'Todoリスト',
             webSearch: 'Web検索',
             reasoning: '推論',
             applyChanges: 'ファイルを更新',
@@ -600,7 +599,6 @@ export const ja: TranslationStructure = {
             searchPath: ({ basename }: { basename: string }) => `検索(path: ${basename})`,
             fetchUrlHost: ({ host }: { host: string }) => `URL取得(url: ${host})`,
             editNotebookMode: ({ path, mode }: { path: string; mode: string }) => `ノートブック編集(file: ${path}, mode: ${mode})`,
-            todoListCount: ({ count }: { count: number }) => `Todoリスト(count: ${count})`,
             webSearchQuery: ({ query }: { query: string }) => `Web検索(query: ${query})`,
             grepPattern: ({ pattern }: { pattern: string }) => `grep(pattern: ${pattern})`,
             multiEditEdits: ({ path, count }: { path: string; count: number }) => `${path} (${count}件の編集)`,
@@ -656,6 +654,19 @@ export const ja: TranslationStructure = {
         progressUpdatesEnabledSubtitle: 'アクティブなセッション中の音声アップデート',
         progressInterval: 'アップデート間隔',
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
+
+        // Voice personalization
+        personalizationTitle: 'パーソナライズ',
+        personalizationDescription: '音声アシスタントをカスタマイズします。これらの設定はライブ音声セッションと音声メッセージの両方に適用されます。',
+        assistantName: 'アシスタント名',
+        assistantNamePlaceholder: 'Happy',
+        assistantNameSubtitle: '自己紹介や挨拶で使用される名前',
+        assistantBio: 'あなたについて',
+        assistantBioPlaceholder: 'アシスタントにあなたのことを教えてください...',
+        assistantBioSubtitle: 'より適切な応答のための個人的なコンテキスト',
+        assistantSetup: 'あなたのCC設定',
+        assistantSetupPlaceholder: 'Claude Codeの設定を説明してください...',
+        assistantSetupSubtitle: 'ツール、ワークフロー、一般的なユースケース',
     },
 
     voiceMessage: {

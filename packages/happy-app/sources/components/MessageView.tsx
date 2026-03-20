@@ -1,5 +1,6 @@
 import * as React from "react";
 import { View, Text, Pressable, Platform } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { StyleSheet } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +17,7 @@ import { Option } from './markdown/MarkdownView';
 import { useSetting } from "@/sync/storage";
 import { useRouter } from 'expo-router';
 import { ImageViewerManager } from './ImageViewer';
+import * as AnimQueue from './messageAnimationQueue';
 
 /**
  * Detects if an agent message contains skill expansion content.
@@ -35,14 +37,44 @@ function isSkillExpansionMessage(text: string): boolean {
     );
 }
 
+const ANIM_DURATION = 300;
+
 export const MessageView = (props: {
   message: Message;
   metadata: Metadata | null;
   sessionId: string;
   getMessageById?: (id: string) => Message | null;
 }) => {
+  const ready = AnimQueue.isReady();
+  const opacity = useSharedValue(ready ? 0 : 1);
+  const translateY = useSharedValue(ready ? 15 : 0);
+
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  React.useEffect(() => {
+    if (!ready) return;
+
+    const id = props.message.id;
+    AnimQueue.enqueue(id, () => {
+      opacity.value = withTiming(1, { duration: ANIM_DURATION });
+      translateY.value = withTiming(0, { duration: ANIM_DURATION }, (finished) => {
+        if (finished) {
+          runOnJS(AnimQueue.complete)(id);
+        }
+      });
+    });
+
+    return () => { AnimQueue.dequeue(id); };
+  }, []); // mount-only
+
   return (
-    <View style={styles.messageContainer} renderToHardwareTextureAndroid={true}>
+    <Animated.View
+      style={[styles.messageContainer, animStyle]}
+      renderToHardwareTextureAndroid={true}
+    >
       <View style={styles.messageContent}>
         <RenderBlock
           message={props.message}
@@ -51,7 +83,7 @@ export const MessageView = (props: {
           getMessageById={props.getMessageById}
         />
       </View>
-    </View>
+    </Animated.View>
   );
 };
 

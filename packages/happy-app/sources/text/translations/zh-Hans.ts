@@ -547,7 +547,6 @@ export const zhHans: TranslationStructure = {
             fetchUrl: '获取 URL',
             readNotebook: '读取 Notebook',
             editNotebook: '编辑 Notebook',
-            todoList: '待办列表',
             webSearch: 'Web 搜索',
             reasoning: '推理',
             applyChanges: '更新文件',
@@ -561,7 +560,6 @@ export const zhHans: TranslationStructure = {
             searchPath: ({ basename }: { basename: string }) => `搜索(路径: ${basename})`,
             fetchUrlHost: ({ host }: { host: string }) => `获取 URL(网址: ${host})`,
             editNotebookMode: ({ path, mode }: { path: string; mode: string }) => `编辑 Notebook(文件: ${path}, 模式: ${mode})`,
-            todoListCount: ({ count }: { count: number }) => `待办列表(数量: ${count})`,
             webSearchQuery: ({ query }: { query: string }) => `Web 搜索(查询: ${query})`,
             grepPattern: ({ pattern }: { pattern: string }) => `grep(模式: ${pattern})`,
             multiEditEdits: ({ path, count }: { path: string; count: number }) => `${path} (${count} 处编辑)`,
@@ -626,6 +624,19 @@ export const zhHans: TranslationStructure = {
         progressUpdatesEnabledSubtitle: '活跃会话期间的语音更新',
         progressInterval: '更新间隔',
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
+
+        // Voice personalization
+        personalizationTitle: '个性化',
+        personalizationDescription: '自定义你的语音助手。这些设置适用于实时语音会话和语音消息。',
+        assistantName: '助手名称',
+        assistantNamePlaceholder: 'Happy',
+        assistantNameSubtitle: '在介绍和问候中使用的名称',
+        assistantBio: '关于你',
+        assistantBioPlaceholder: '告诉助手关于你的信息...',
+        assistantBioSubtitle: '个人背景信息，用于更相关的回复',
+        assistantSetup: '你的 CC 设置',
+        assistantSetupPlaceholder: '描述你的 Claude Code 设置...',
+        assistantSetupSubtitle: '工具、工作流程和常见使用场景',
     },
 
     voiceMessage: {

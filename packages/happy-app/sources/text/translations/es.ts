@@ -545,7 +545,6 @@ export const es: TranslationStructure = {
             fetchUrl: 'Obtener URL',
             readNotebook: 'Leer cuaderno',
             editNotebook: 'Editar cuaderno',
-            todoList: 'Lista de tareas',
             webSearch: 'Búsqueda web',
             reasoning: 'Razonamiento',
             applyChanges: 'Actualizar archivo',
@@ -559,7 +558,6 @@ export const es: TranslationStructure = {
             searchPath: ({ basename }: { basename: string }) => `Buscar(ruta: ${basename})`,
             fetchUrlHost: ({ host }: { host: string }) => `Obtener URL(url: ${host})`,
             editNotebookMode: ({ path, mode }: { path: string; mode: string }) => `Editar cuaderno(archivo: ${path}, modo: ${mode})`,
-            todoListCount: ({ count }: { count: number }) => `Lista de tareas(cantidad: ${count})`,
             webSearchQuery: ({ query }: { query: string }) => `Búsqueda web(consulta: ${query})`,
             grepPattern: ({ pattern }: { pattern: string }) => `grep(patrón: ${pattern})`,
             multiEditEdits: ({ path, count }: { path: string; count: number }) => `${path} (${count} ediciones)`,
@@ -624,6 +622,19 @@ export const es: TranslationStructure = {
         progressUpdatesEnabledSubtitle: 'Actualizaciones de voz durante sesiones activas',
         progressInterval: 'Intervalo de actualización',
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
+
+        // Voice personalization
+        personalizationTitle: 'Personalización',
+        personalizationDescription: 'Personaliza tu asistente de voz. Estos ajustes se aplican tanto a las sesiones de voz en vivo como a los mensajes de voz.',
+        assistantName: 'Nombre del asistente',
+        assistantNamePlaceholder: 'Happy',
+        assistantNameSubtitle: 'Nombre usado en presentaciones y saludos',
+        assistantBio: 'Sobre ti',
+        assistantBioPlaceholder: 'Cuéntale al asistente sobre ti...',
+        assistantBioSubtitle: 'Contexto personal para respuestas más relevantes',
+        assistantSetup: 'Tu configuración de CC',
+        assistantSetupPlaceholder: 'Describe tu configuración de Claude Code...',
+        assistantSetupSubtitle: 'Herramientas, flujos de trabajo y casos de uso comunes',
     },
 
     voiceMessage: {

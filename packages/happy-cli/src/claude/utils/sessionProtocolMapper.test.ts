@@ -333,3 +333,138 @@ describe('closeClaudeTurnWithStatus', () => {
         expect(result.envelopes[0].ev).toEqual({ t: 'turn-end', status: 'cancelled' });
     });
 });
+
+describe('background task mapping', () => {
+    it('emits tool-call-end with backgrounded:true when tool result has _backgroundTaskId', () => {
+        const state: any = { currentTurnId: null }
+
+        // First: assistant sends tool_use
+        mapClaudeLogMessageToSessionEnvelopes({
+            type: 'assistant',
+            uuid: 'a-1',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            message: {
+                role: 'assistant',
+                content: [{ type: 'tool_use', id: 'toolu_abc', name: 'Bash', input: { command: 'sleep 60' } }],
+            },
+        } as any, state)
+
+        // Then: tool result with backgroundTaskId
+        const userResult = mapClaudeLogMessageToSessionEnvelopes({
+            type: 'user',
+            uuid: 'u-1',
+            timestamp: '2025-01-01T00:00:01.000Z',
+            _backgroundTaskId: 'b_abc123',
+            message: {
+                role: 'user',
+                content: [{ type: 'tool_result', tool_use_id: 'toolu_abc', content: 'Command running in background with ID: b_abc123' }],
+            },
+        } as any, state)
+
+        const toolEndEnvelope = userResult.envelopes.find(e => e.ev.t === 'tool-call-end')
+        expect(toolEndEnvelope).toBeDefined()
+        expect(toolEndEnvelope!.ev).toMatchObject({
+            t: 'tool-call-end',
+            call: 'toolu_abc',
+            backgrounded: true,
+        })
+    })
+
+    it('tracks backgroundTaskId in state for later correlation', () => {
+        const state: any = { currentTurnId: null }
+
+        mapClaudeLogMessageToSessionEnvelopes({
+            type: 'user',
+            uuid: 'u-1',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            _backgroundTaskId: 'b_abc123',
+            message: {
+                role: 'user',
+                content: [{ type: 'tool_result', tool_use_id: 'toolu_abc', content: 'backgrounded' }],
+            },
+        } as any, state)
+
+        expect(state.backgroundTaskMap.get('b_abc123')).toBe('toolu_abc')
+    })
+})
+
+describe('background-complete emission', () => {
+    it('emits background-complete when autonomous turn ends with pending background tasks', () => {
+        const state: any = { currentTurnId: null }
+
+        // Simulate: assistant calls Bash, tool result is backgrounded
+        mapClaudeLogMessageToSessionEnvelopes({
+            type: 'assistant',
+            uuid: 'a-1',
+            timestamp: '2025-01-01T00:00:00.000Z',
+            message: {
+                role: 'assistant',
+                content: [{ type: 'tool_use', id: 'toolu_abc', name: 'Bash', input: { command: 'sleep 60' } }],
+            },
+        } as any, state)
+
+        mapClaudeLogMessageToSessionEnvelopes({
+            type: 'user',
+            uuid: 'u-1',
+            timestamp: '2025-01-01T00:00:01.000Z',
+            _backgroundTaskId: 'b_abc123',
+            message: {
+                role: 'user',
+                content: [{ type: 'tool_result', tool_use_id: 'toolu_abc', content: 'Command running in background with ID: b_abc123' }],
+            },
+        } as any, state)
+
+        // Close the current turn
+        closeClaudeTurnWithStatus(state, 'completed')
+
+        // Then CC starts new autonomous turn with completion text
+        mapClaudeLogMessageToSessionEnvelopes({
+            type: 'assistant',
+            uuid: 'a-2',
+            timestamp: '2025-01-01T00:01:00.000Z',
+            message: {
+                role: 'assistant',
+                content: [{ type: 'text', text: 'The background bash command completed. Output: done' }],
+            },
+        } as any, state)
+
+        // Close the autonomous turn — this should trigger background-complete
+        const turnClose = closeClaudeTurnWithStatus(state, 'completed')
+        const bgComplete = turnClose.envelopes.find(e => e.ev.t === 'background-complete')
+        expect(bgComplete).toBeDefined()
+        expect(bgComplete!.ev).toMatchObject({
+            t: 'background-complete',
+            call: 'toolu_abc',
+        })
+        // backgroundTaskMap should be cleaned up
+        expect(state.backgroundTaskMap?.size ?? 0).toBe(0)
+    })
+
+    it('does not emit background-complete when turn has a preceding user message', () => {
+        const state: any = { currentTurnId: null }
+
+        // Setup backgrounded task directly in state
+        state.backgroundTaskMap = new Map([['b_abc123', 'toolu_abc']])
+
+        // User sends a message first (not autonomous)
+        mapClaudeLogMessageToSessionEnvelopes({
+            type: 'user',
+            uuid: 'u-2',
+            timestamp: '2025-01-01T00:01:00.000Z',
+            message: { role: 'user', content: 'Do something else' },
+        } as any, state)
+
+        // Start a turn for the response (the user message closed the previous turn and started none)
+        mapClaudeLogMessageToSessionEnvelopes({
+            type: 'assistant',
+            uuid: 'a-3',
+            timestamp: '2025-01-01T00:01:01.000Z',
+            message: { role: 'assistant', content: [{ type: 'text', text: 'Doing something' }] },
+        } as any, state)
+
+        // Turn ends — should NOT emit background-complete (user-initiated turn)
+        const turnClose = closeClaudeTurnWithStatus(state, 'completed')
+        const bgComplete = turnClose.envelopes.find(e => e.ev.t === 'background-complete')
+        expect(bgComplete).toBeUndefined()
+    })
+})

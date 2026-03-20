@@ -560,7 +560,6 @@ export const en: TranslationStructure = {
             fetchUrl: 'Fetch URL',
             readNotebook: 'Read Notebook',
             editNotebook: 'Edit Notebook',
-            todoList: 'Todo List',
             webSearch: 'Web Search',
             reasoning: 'Reasoning',
             applyChanges: 'Update file',
@@ -583,7 +582,6 @@ export const en: TranslationStructure = {
             searchPath: ({ basename }: { basename: string }) => `Search(path: ${basename})`,
             fetchUrlHost: ({ host }: { host: string }) => `Fetch URL(url: ${host})`,
             editNotebookMode: ({ path, mode }: { path: string; mode: string }) => `Edit Notebook(file: ${path}, mode: ${mode})`,
-            todoListCount: ({ count }: { count: number }) => `Todo List(count: ${count})`,
             webSearchQuery: ({ query }: { query: string }) => `Web Search(query: ${query})`,
             grepPattern: ({ pattern }: { pattern: string }) => `grep(pattern: ${pattern})`,
             multiEditEdits: ({ path, count }: { path: string; count: number }) => `${path} (${count} edits)`,
@@ -639,6 +637,19 @@ export const en: TranslationStructure = {
         progressUpdatesEnabledSubtitle: 'Voice updates during active sessions',
         progressInterval: 'Update Interval',
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
+
+        // Voice personalization
+        personalizationTitle: 'Personalization',
+        personalizationDescription: 'Customize your voice assistant. These settings apply to both live voice sessions and voice messages.',
+        assistantName: 'Assistant Name',
+        assistantNamePlaceholder: 'Happy',
+        assistantNameSubtitle: 'Name used in introductions and greetings',
+        assistantBio: 'About You',
+        assistantBioPlaceholder: 'Tell the assistant about yourself...',
+        assistantBioSubtitle: 'Personal context for more relevant responses',
+        assistantSetup: 'Your CC Setup',
+        assistantSetupPlaceholder: 'Describe your Claude Code setup...',
+        assistantSetupSubtitle: 'Tools, workflows, and common use cases',
     },
 
     voiceMessage: {

@@ -1,5 +1,6 @@
 import type { Session } from '@/sync/storageTypes';
 import type { VoiceMessageContext } from '@jakobgruen/happy-wire';
+import { storage } from '@/sync/storage';
 
 export function buildVoiceMessageContext(session: Session): VoiceMessageContext {
     const metadata = session.metadata;
@@ -27,6 +28,8 @@ export function buildVoiceMessageContext(session: Session): VoiceMessageContext 
         }
         : undefined;
 
+    const settings = storage.getState().settings;
+
     return {
         sessionId: session.id,
         logSteps,
@@ -38,5 +41,8 @@ export function buildVoiceMessageContext(session: Session): VoiceMessageContext 
             autoApproveTools: metadata?.autoApproveTools ?? session.autoApproveTools ?? false,
         },
         pendingPermission,
+        voiceAssistantName: settings.voiceAssistantName ?? undefined,
+        voiceAssistantBio: settings.voiceAssistantBio ?? undefined,
+        voiceAssistantSetup: settings.voiceAssistantSetup ?? undefined,
     };
 }

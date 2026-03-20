@@ -546,7 +546,6 @@ export const zhHant: TranslationStructure = {
             fetchUrl: '獲取 URL',
             readNotebook: '讀取 Notebook',
             editNotebook: '編輯 Notebook',
-            todoList: '待辦清單',
             webSearch: 'Web 搜尋',
             reasoning: '推理',
             applyChanges: '更新檔案',
@@ -569,7 +568,6 @@ export const zhHant: TranslationStructure = {
             searchPath: ({ basename }: { basename: string }) => `搜尋(路徑: ${basename})`,
             fetchUrlHost: ({ host }: { host: string }) => `獲取 URL(網址: ${host})`,
             editNotebookMode: ({ path, mode }: { path: string; mode: string }) => `編輯 Notebook(檔案: ${path}, 模式: ${mode})`,
-            todoListCount: ({ count }: { count: number }) => `待辦清單(數量: ${count})`,
             webSearchQuery: ({ query }: { query: string }) => `Web 搜尋(查詢: ${query})`,
             grepPattern: ({ pattern }: { pattern: string }) => `grep(模式: ${pattern})`,
             multiEditEdits: ({ path, count }: { path: string; count: number }) => `${path} (${count} 處編輯)`,
@@ -625,6 +623,19 @@ export const zhHant: TranslationStructure = {
         progressUpdatesEnabledSubtitle: '活躍工作階段期間的語音更新',
         progressInterval: '更新間隔',
         progressIntervalValue: ({ seconds }: { seconds: number }) => `${seconds}s`,
+
+        // Voice personalization
+        personalizationTitle: '個人化',
+        personalizationDescription: '自訂你的語音助手。這些設定適用於即時語音工作階段和語音訊息。',
+        assistantName: '助手名稱',
+        assistantNamePlaceholder: 'Happy',
+        assistantNameSubtitle: '在介紹和問候中使用的名稱',
+        assistantBio: '關於你',
+        assistantBioPlaceholder: '告訴助手關於你的資訊...',
+        assistantBioSubtitle: '個人背景資訊，用於更相關的回覆',
+        assistantSetup: '你的 CC 設定',
+        assistantSetupPlaceholder: '描述你的 Claude Code 設定...',
+        assistantSetupSubtitle: '工具、工作流程和常見使用場景',
     },
 
     voiceMessage: {

@@ -1,21 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 import { registerVoiceSession } from './RealtimeSession';
 import { realtimeClientTools } from './realtimeClientTools';
+import { LiveKitVoiceClient } from './LiveKitVoiceClient';
 import { storage } from '@/sync/storage';
 import { VOICE_CONFIG } from './voiceConfig';
 import type { VoiceSession, VoiceSessionConfig } from './types';
 
-// Pipecat client types — dynamically imported to avoid bundling when not used
-type PipecatClientType = any;
-
-let pcClient: PipecatClientType | null = null;
+let client: LiveKitVoiceClient | null = null;
 let botAudioElement: HTMLAudioElement | null = null;
 
 // Circuit breaker for send failures
 let consecutiveSendFailures = 0;
 
-// Suppress errors fired during intentional disconnect (Safari throws InvalidStateError
-// when closing WebRTC transceivers / pausing dead audio elements)
+// Suppress errors fired during intentional disconnect
 let isDisconnecting = false;
 
 /**
@@ -49,170 +46,107 @@ function cleanupBotAudio(): void {
     }
 }
 
-const DEFAULT_ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
-
-async function fetchIceServers(pipecatUrl: string): Promise<RTCIceServer[]> {
-    try {
-        // Extract base URL and secret from the offer URL
-        const url = new URL(pipecatUrl);
-        const secret = url.searchParams.get('secret') || '';
-        const configUrl = `${url.origin}/config${secret ? `?secret=${encodeURIComponent(secret)}` : ''}`;
-        const res = await fetch(configUrl);
-        if (!res.ok) {
-            console.warn('[Pipecat] /config returned', res.status, '— using default ICE servers');
-            return DEFAULT_ICE_SERVERS;
-        }
-        const data = await res.json();
-        return data.iceServers || DEFAULT_ICE_SERVERS;
-    } catch (err) {
-        console.warn('[Pipecat] Failed to fetch ICE config, using defaults:', err);
-        return DEFAULT_ICE_SERVERS;
-    }
-}
-
-async function createPipecatClient(config: VoiceSessionConfig): Promise<PipecatClientType> {
-    const { PipecatClient } = await import('@pipecat-ai/client-js');
-    const { SmallWebRTCTransport } = await import('@pipecat-ai/small-webrtc-transport');
-
-    // Request microphone permission (web) — stop tracks immediately to avoid
-    // holding an orphan mic stream that can interfere with the transport's stream.
-    try {
-        const permStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        permStream.getTracks().forEach(t => t.stop());
-    } catch (error) {
-        console.error('[Pipecat] Failed to get microphone permission:', error);
-        storage.getState().setRealtimeStatus('error');
-        throw error;
-    }
-
-    const iceServers = config.pipecatUrl
-        ? await fetchIceServers(config.pipecatUrl)
-        : DEFAULT_ICE_SERVERS;
-
-    const transport = new SmallWebRTCTransport({
-        iceServers,
-    });
-    // Patch: DailyMediaManager._startRecording calls _userAudioCallback without null
-    // check (bug in @pipecat-ai/small-webrtc-transport). Set a no-op to prevent
-    // TypeError until setUserAudioCallback() is called during connect().
-    (transport as any).mediaManager._userAudioCallback = () => {};
-
-    const client = new PipecatClient({
-        transport,
-        enableCam: false,
-        enableMic: true,
-        callbacks: {
-            onConnected: () => {
-                console.log('[Pipecat] Connected');
-                storage.getState().setRealtimeStatus('connected');
-                storage.getState().setRealtimeMode('idle');
-            },
-            onBotReady: () => {
-                console.log('[Pipecat] Bot ready');
-                // Initial context and state are sent in the offer body (requestData),
-                // so the bot has them before the pipeline starts. Only subsequent
-                // updates use the happy.context / happy.state data channels.
-            },
-            onDisconnected: () => {
-                console.log('[Pipecat] Disconnected');
-                try {
-                    cleanupBotAudio();
-                } catch (err) {
-                    console.warn('[Pipecat] Cleanup error on disconnect:', err);
+function createVoiceClient(): LiveKitVoiceClient {
+    const voiceClient = new LiveKitVoiceClient({
+        onConnected: () => {
+            console.log('[LiveKit] Connected');
+            storage.getState().setRealtimeStatus('connected');
+            storage.getState().setRealtimeMode('idle');
+        },
+        onBotReady: () => {
+            console.log('[LiveKit] Bot ready');
+        },
+        onDisconnected: () => {
+            console.log('[LiveKit] Disconnected');
+            try {
+                cleanupBotAudio();
+            } catch (err) {
+                console.warn('[LiveKit] Cleanup error on disconnect:', err);
+            }
+            storage.getState().setRealtimeStatus('disconnected');
+            storage.getState().setRealtimeMode('idle', true);
+            storage.getState().clearRealtimeModeDebounce();
+        },
+        onBotStartedSpeaking: () => {
+            storage.getState().setRealtimeMode('speaking');
+        },
+        onBotStoppedSpeaking: () => {
+            storage.getState().setRealtimeMode('idle');
+        },
+        onBotAudioTrack: (track: MediaStreamTrack) => {
+            // Web: attach bot audio to an <audio> element for playback
+            if (botAudioElement?.srcObject) {
+                const existing = (botAudioElement.srcObject as MediaStream).getTracks();
+                if (existing.includes(track)) {
+                    console.log('[LiveKit] Same audio track — reusing element');
+                    return;
                 }
+            }
+            console.log('[LiveKit] Bot audio track —',
+                'state:', track.readyState, 'enabled:', track.enabled);
+            cleanupBotAudio();
+            botAudioElement = document.createElement('audio');
+            botAudioElement.srcObject = new MediaStream([track]);
+            botAudioElement.autoplay = true;
+            botAudioElement.volume = 1.0;
+            botAudioElement.style.display = 'none';
+            document.body.appendChild(botAudioElement);
+            botAudioElement.play().then(() => {
+                console.log('[LiveKit] Audio play() succeeded');
+            }).catch(err => {
+                if (err.name !== 'AbortError') {
+                    console.error('[LiveKit] Audio play failed:', err);
+                }
+            });
+        },
+        onError: (error: any) => {
+            if (isDisconnecting) return;
+
+            const errorData = error?.data || error;
+            const message = errorData?.message || String(error);
+            const isFatal = errorData?.fatal ?? true;
+
+            if (isFatal) {
+                console.error('[LiveKit] Fatal error:', message);
+                cleanupBotAudio();
                 storage.getState().setRealtimeStatus('disconnected');
                 storage.getState().setRealtimeMode('idle', true);
                 storage.getState().clearRealtimeModeDebounce();
-            },
-            onTrackStarted: (track: MediaStreamTrack, participant?: { local?: boolean }) => {
-                // Skip local tracks — only handle remote (bot) audio.
-                // DailyMediaManager fires onTrackStarted for local mic tracks too
-                // (e.g. after setLocalAudio(true) on unmute), which would replace
-                // the bot's audio element with the user's own mic → feedback loop.
-                if (participant?.local) return;
-
-                if (track.kind === 'audio') {
-                    // Skip if we already have an audio element playing this exact track
-                    if (botAudioElement?.srcObject) {
-                        const existing = (botAudioElement.srcObject as MediaStream).getTracks();
-                        if (existing.includes(track)) {
-                            console.log('[Pipecat] Same audio track — reusing element');
-                            return;
-                        }
-                    }
-                    console.log('[Pipecat] Audio track started —',
-                        'state:', track.readyState, 'enabled:', track.enabled, 'muted:', track.muted);
-                    cleanupBotAudio();
-                    botAudioElement = document.createElement('audio');
-                    botAudioElement.srcObject = new MediaStream([track]);
-                    botAudioElement.autoplay = true;
-                    botAudioElement.volume = 1.0;
-                    botAudioElement.style.display = 'none';
-                    document.body.appendChild(botAudioElement);
-                    botAudioElement.play().then(() => {
-                        console.log('[Pipecat] Audio play() succeeded — paused:', botAudioElement?.paused);
-                    }).catch(err => {
-                        if (err.name !== 'AbortError') {
-                            console.error('[Pipecat] Audio play failed:', err);
-                        }
-                    });
-                }
-            },
-            onBotStartedSpeaking: () => {
-                storage.getState().setRealtimeMode('speaking');
-            },
-            onBotStoppedSpeaking: () => {
-                storage.getState().setRealtimeMode('idle');
-            },
-            onError: (error: any) => {
-                if (isDisconnecting) return;
-
-                const errorData = error?.data || error;
-                const message = errorData?.message || String(error);
-                const isFatal = errorData?.fatal ?? true;
-
-                if (isFatal) {
-                    console.error('[Pipecat] Fatal error:', message);
-                    cleanupBotAudio();
-                    storage.getState().setRealtimeStatus('disconnected');
-                    storage.getState().setRealtimeMode('idle', true);
-                    storage.getState().clearRealtimeModeDebounce();
-                } else {
-                    console.warn('[Pipecat] Non-fatal error (pipeline continues):', message);
-                }
-            },
+            } else {
+                console.warn('[LiveKit] Non-fatal error (pipeline continues):', message);
+            }
         },
     });
 
+    // Register all tool handlers
     for (const [name, handler] of Object.entries(TOOL_HANDLERS)) {
-        client.registerFunctionCallHandler(name, async (params: any) => {
+        voiceClient.registerToolHandler(name, async (params) => {
             try {
-                const result = await handler(params);
-                return result;
+                return await handler(params);
             } catch (err) {
-                console.error(`[Pipecat] Tool ${name} failed:`, err);
+                console.error(`[LiveKit] Tool ${name} failed:`, err);
                 return `error (${name} failed)`;
             }
         });
     }
 
-    return client;
+    return voiceClient;
 }
 
 function sendClientMessage(topic: string, text: string): void {
-    if (!pcClient) {
-        console.warn('[Pipecat] Client not ready');
+    if (!client) {
+        console.warn('[LiveKit] Client not ready');
         return;
     }
     if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) return;
 
     try {
-        pcClient.sendClientMessage(topic, { text });
+        client.sendClientMessage(topic, { text });
         consecutiveSendFailures = 0;
     } catch (err) {
         consecutiveSendFailures++;
         if (consecutiveSendFailures >= VOICE_CONFIG.MAX_SEND_FAILURES) {
-            console.error('[Pipecat] sendClientMessage circuit breaker open after', consecutiveSendFailures, 'failures:', err);
+            console.error('[LiveKit] sendClientMessage circuit breaker open after', consecutiveSendFailures, 'failures:', err);
         }
     }
 }
@@ -221,33 +155,42 @@ class PipecatVoiceSessionImpl implements VoiceSession {
     async startSession(config: VoiceSessionConfig): Promise<void> {
         consecutiveSendFailures = 0;
         if (!config.pipecatUrl) {
-            console.error('[Pipecat] Missing URL');
+            console.error('[LiveKit] Missing URL');
             return;
         }
 
         // Kick out any existing connection before starting a new one
-        if (pcClient) {
-            console.log('[Pipecat] Replacing existing connection');
+        if (client) {
+            console.log('[LiveKit] Replacing existing connection');
             await this.endSession();
         }
 
         isDisconnecting = false;
         storage.getState().setRealtimeStatus('connecting');
 
+        // Request microphone permission — stop tracks immediately to avoid
+        // holding an orphan mic stream that can interfere with the transport's stream.
         try {
-            pcClient = await createPipecatClient(config);
-            await pcClient.connect({
-                webrtcRequestParams: {
-                    endpoint: config.pipecatUrl,
-                    requestData: {
-                        ...(config.initialContext && { initialContext: config.initialContext }),
-                        ...(config.initialState && { initialState: config.initialState }),
-                    },
-                },
+            const permStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            permStream.getTracks().forEach(t => t.stop());
+        } catch (error) {
+            console.error('[LiveKit] Failed to get microphone permission:', error);
+            storage.getState().setRealtimeStatus('error');
+            throw error;
+        }
+
+        try {
+            client = createVoiceClient();
+            await client.connect(config.pipecatUrl, {
+                ...(config.initialContext && { initialContext: config.initialContext }),
+                ...(config.initialState && { initialState: config.initialState }),
+                ...(config.voiceAssistantName && { voiceAssistantName: config.voiceAssistantName }),
+                ...(config.voiceAssistantBio && { voiceAssistantBio: config.voiceAssistantBio }),
+                ...(config.voiceAssistantSetup && { voiceAssistantSetup: config.voiceAssistantSetup }),
             });
         } catch (err) {
-            console.error('[Pipecat] Connection failed:', err);
-            pcClient = null;
+            console.error('[LiveKit] Connection failed:', err);
+            client = null;
             storage.getState().setRealtimeStatus('disconnected');
             storage.getState().setRealtimeMode('idle', true);
             throw err;
@@ -256,59 +199,28 @@ class PipecatVoiceSessionImpl implements VoiceSession {
 
     async endSession(): Promise<void> {
         isDisconnecting = true;
-
-        // Suppress InvalidStateError thrown asynchronously by the Pipecat SDK
-        // during WebRTC teardown (pipecat-client-web-transports#63).
-        // The SDK's keepAlive interval calls dc.send() after dc.close(), and
-        // closePeerConnection() calls transceiver.stop() without try-catch.
-        const suppress = (e: Event) => {
-            const err = (e as ErrorEvent).error ?? (e as PromiseRejectionEvent).reason;
-            if (err?.name === 'InvalidStateError' || err?.message?.includes?.('invalid state')) {
-                e.preventDefault();
-            }
-        };
-        window.addEventListener('error', suppress);
-        window.addEventListener('unhandledrejection', suppress);
-
-        const client = pcClient;
-        pcClient = null; // Prevent double-disconnect
-        if (client) {
-            // Pre-clean SDK internals before disconnect to avoid the keepAlive race
-            // condition (pipecat-client-web-transports#63): the SDK's dc "close" event
-            // handler clears the interval async, but the interval can fire first.
+        const c = client;
+        client = null;
+        if (c) {
             try {
-                const transport = (client as any)._transport;
-                if (transport?.keepAliveInterval) {
-                    clearInterval(transport.keepAliveInterval);
-                    transport.keepAliveInterval = null;
-                }
-            } catch (_) {
-                // Transport internals may not be accessible — fall through to disconnect()
-            }
-
-            try {
-                await client.disconnect();
+                await c.disconnect();
             } catch (err) {
-                // WebRTC throws InvalidStateError if peer connection already closed
-                console.warn('[Pipecat] Disconnect error (non-fatal):', err);
+                console.warn('[LiveKit] Disconnect error (non-fatal):', err);
             }
         }
         try {
             cleanupBotAudio();
         } catch (err) {
-            console.warn('[Pipecat] Cleanup error on endSession:', err);
+            console.warn('[LiveKit] Cleanup error on endSession:', err);
         }
         consecutiveSendFailures = 0;
         storage.getState().setRealtimeStatus('disconnected');
         storage.getState().setRealtimeMode('idle', true);
 
-        // Keep suppressors active briefly for any remaining async teardown events
-        // (ICE state change handlers, late interval ticks) then remove
+        // Keep suppressor active briefly for any remaining async teardown
         setTimeout(() => {
-            window.removeEventListener('error', suppress);
-            window.removeEventListener('unhandledrejection', suppress);
             isDisconnecting = false;
-        }, 5000);
+        }, 2000);
     }
 
     sendTextMessage(message: string): void {
@@ -328,11 +240,11 @@ class PipecatVoiceSessionImpl implements VoiceSession {
     }
 
     setMicEnabled(enabled: boolean): void {
-        if (pcClient) {
+        if (client) {
             try {
-                pcClient.enableMic(enabled);
+                client.enableMic(enabled);
             } catch (err) {
-                console.warn('[Pipecat] Failed to set mic enabled:', err);
+                console.warn('[LiveKit] Failed to set mic enabled:', err);
             }
         }
     }
