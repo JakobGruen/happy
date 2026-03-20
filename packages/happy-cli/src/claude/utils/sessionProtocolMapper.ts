@@ -579,14 +579,26 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
     }
 
     if (message.type === 'user') {
+        // Extract user text — CC may echo content as string or as array of text blocks
+        let userText: string | null = null;
         if (typeof message.message.content === 'string') {
+            userText = message.message.content;
+        } else if (Array.isArray(message.message.content)) {
+            const textBlocks = message.message.content.filter((b: any) => b.type === 'text' && typeof b.text === 'string');
+            const hasToolResults = message.message.content.some((b: any) => b.type === 'tool_result');
+            if (textBlocks.length > 0 && !hasToolResults) {
+                userText = textBlocks.map((b: any) => b.text).join('\n');
+            }
+        }
+
+        if (userText !== null) {
             if (message.isSidechain) {
                 const turnId = ensureTurn(state, envelopes);
                 maybeEmitSubagentStart(state, turnId, subagent, envelopes);
-                envelopes.push(createEnvelope('agent', { t: 'text', text: message.message.content }, { turn: turnId, subagent }));
+                envelopes.push(createEnvelope('agent', { t: 'text', text: userText }, { turn: turnId, subagent }));
             } else {
                 closeTurn(state, 'completed', envelopes);
-                envelopes.push(createEnvelope('user', { t: 'text', text: message.message.content }));
+                envelopes.push(createEnvelope('user', { t: 'text', text: userText }));
                 // Flag next turn as user-initiated (set AFTER closeTurn so it applies to the next turn)
                 state.hasUserMessageInCurrentTurn = true;
             }

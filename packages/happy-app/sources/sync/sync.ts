@@ -541,13 +541,12 @@ class Sync {
         const pendingText = c.type === 'text' ? c.text
             : c.type === 'multimodal' ? (c.blocks.find((b: any) => b.type === 'text') as any)?.text ?? ''
             : '';
-        if (pendingText) {
-            storage.getState().addPendingMessage(sessionId, {
-                localId,
-                text: pendingText,
-                createdAt,
-            });
-        }
+        const hasImages = c.type === 'multimodal' && c.blocks.some((b: any) => b.type === 'image');
+        storage.getState().addPendingMessage(sessionId, {
+            localId,
+            text: pendingText || (hasImages ? '📷' : '...'),
+            createdAt,
+        });
 
         let pending = this.pendingOutbox.get(sessionId);
         if (!pending) {
