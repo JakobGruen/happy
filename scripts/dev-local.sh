@@ -110,7 +110,7 @@ do_up() {
     SERVER_LOG="/tmp/happy-server-dev-$$.log"
     DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
     HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
-    REDIS_URL=redis://localhost:6379 \
+    REDIS_URL=redis://localhost:6380 \
         nohup bun run --filter happy-server dev > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     sleep 3
@@ -178,7 +178,7 @@ do_restart_server() {
     SERVER_LOG="/tmp/happy-server-dev-$$.log"
     DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
     HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
-    REDIS_URL=redis://localhost:6379 \
+    REDIS_URL=redis://localhost:6380 \
         nohup bun run --filter happy-server dev > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     sleep 3
