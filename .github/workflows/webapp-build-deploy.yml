@@ -69,3 +69,16 @@ jobs:
           echo "All 5 integration tests passed! ✅"
 
           docker rm -f webapp-test
+
+  deploy:
+    needs: webapp-build-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy webapp to Coolify
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          response=$(curl -s -f "https://coolify.green-wald.de/api/v1/deploy?uuid=vk44owocw04w4g0o4oww08ok&force=false" \
+            -H "Authorization: Bearer $COOLIFY_TOKEN")
+          echo "Deploy triggered: $response"

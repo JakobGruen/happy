@@ -51,3 +51,16 @@ jobs:
           # Use the local test script to run integration tests
           # This ensures CI and local testing use identical test logic
           IMAGE_TAG="happy-server:test" bash scripts/test-docker-integration.sh --skip-build
+
+  deploy:
+    needs: docker-build-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy happy-server to Coolify
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          response=$(curl -s -f "https://coolify.green-wald.de/api/v1/deploy?uuid=e84kg4wg8kgc84cs0wc8go00&force=false" \
+            -H "Authorization: Bearer $COOLIFY_TOKEN")
+          echo "Deploy triggered: $response"
