@@ -250,7 +250,7 @@ const ActivityMessage = React.memo<{
 });
 
 // Lerp factor matching ChatList for consistent feel.
-const LERP_FACTOR = 0.03;
+const LERP_FACTOR = 0.08;
 const NEAR_BOTTOM_THRESHOLD = 80;
 
 /**

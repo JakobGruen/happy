@@ -36,7 +36,7 @@ const ListFooter = React.memo((props: { sessionId: string }) => {
 
 // Lerp factor: each frame covers this portion of remaining distance.
 // Higher = faster animation, lower = smoother.
-const LERP_FACTOR = 0.03;
+const LERP_FACTOR = 0.08;
 
 const ChatListInternal = React.memo((props: {
     metadata: Metadata | null,
@@ -48,6 +48,7 @@ const ChatListInternal = React.memo((props: {
     const scrollAnimRef = React.useRef(0);
     const webScrollNodeRef = React.useRef<HTMLElement | null>(null);
     const initialSnapDoneRef = React.useRef(false);
+    const mountTimeRef = React.useRef(Date.now());
 
     // Capture scrollHeight DURING render (before React commits new DOM).
     // Only trigger on actual new agent messages (length increase), not content
@@ -60,10 +61,13 @@ const ChatListInternal = React.memo((props: {
         const curLen = props.messages.length;
         prevMessageLenRef.current = curLen;
 
+        // Skip animation during initial load window (mount / reopen).
+        // Messages may arrive in batches from sync — don't animate those.
+        const isInitialLoad = Date.now() - mountTimeRef.current < 500;
+
         if (!settledRef.current) {
-            // Skip initial batch load (mount / reopen) — no animation
             settledRef.current = prevLen > 0 || curLen > 0;
-        } else if (curLen > prevLen) {
+        } else if (curLen > prevLen && !isInitialLoad) {
             // Check if newest message is from the agent (inverted: index 0 = newest)
             const newest = props.messages[0];
             const isAgentMessage = newest && newest.kind !== 'user-text';
@@ -82,6 +86,7 @@ const ChatListInternal = React.memo((props: {
 
     // Grab the DOM scroll element, disable browser scroll anchoring,
     // and snap to bottom (scrollTop=0 in inverted list = newest messages).
+    // Also mark initial snap as done so new messages don't trigger a visible scroll.
     React.useEffect(() => {
         if (Platform.OS !== 'web') return;
         const node = (listRef.current as any)?.getScrollableNode?.() ?? null;
@@ -89,6 +94,7 @@ const ChatListInternal = React.memo((props: {
             node.style.overflowAnchor = 'none';
             node.scrollTop = 0; // Snap to newest messages immediately
             webScrollNodeRef.current = node;
+            initialSnapDoneRef.current = true;
         }
         return () => {
             if (scrollAnimRef.current) {
