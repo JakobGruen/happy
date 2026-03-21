@@ -13,6 +13,8 @@ import { render } from 'ink';
 import React from 'react';
 import { randomUUID } from 'node:crypto';
 import { logger } from './logger';
+import { DEV_AUTH_SECRET_HEX, DEV_MACHINE_ID } from '@/dev/devConstants';
+import { authGetToken } from '@/api/auth';
 
 export async function doAuth(): Promise<Credentials | null> {
     console.clear();
@@ -247,6 +249,23 @@ export async function authAndSetupMachineIfNeeded(): Promise<{
     machineId: string;
 }> {
     logger.debug('[AUTH] Starting auth and machine setup...');
+
+    // Dev auto-auth: skip interactive flow when DEV_AUTH_SECRET is set
+    if (process.env.DEV_AUTH_SECRET) {
+        logger.debug('[AUTH] DEV_AUTH_SECRET detected, using dev auto-auth');
+        const secretBytes = Buffer.from(DEV_AUTH_SECRET_HEX, 'hex');
+        const token = await authGetToken(secretBytes);
+        await writeCredentialsLegacy({ secret: secretBytes, token });
+        await updateSettings(async s => ({ ...s, machineId: DEV_MACHINE_ID }));
+
+        return {
+            credentials: {
+                token,
+                encryption: { type: 'legacy', secret: secretBytes },
+            },
+            machineId: DEV_MACHINE_ID,
+        };
+    }
 
     // Step 1: Handle authentication
     let credentials = await readCredentials();
