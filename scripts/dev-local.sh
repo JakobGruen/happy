@@ -30,11 +30,11 @@ do_down() {
     ok "Daemon stopped"
 
     # Kill server
-    fuser -k 3005/tcp 2>/dev/null || true
+    fuser -TERM -k 3005/tcp 2>/dev/null || true
     ok "Server stopped"
 
     # Kill Metro/Expo
-    fuser -k 8081/tcp 2>/dev/null || true
+    fuser -TERM -k 8081/tcp 2>/dev/null || true
     ok "Metro stopped"
 
     # Stop Docker services
@@ -56,18 +56,17 @@ do_reset() {
     ok "Database dropped and recreated"
 
     # Re-run migrations
-    cd packages/happy-server
-    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
-        bunx prisma migrate deploy
+    (cd packages/happy-server && \
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
+        bunx prisma migrate deploy)
     ok "Migrations applied"
 
     # Re-seed
-    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
-    HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
-        bun run seed:dev
+    (cd packages/happy-server && \
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
+        HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
+        bun run seed:dev)
     ok "Dev account seeded"
-
-    cd "$REPO_ROOT"
     echo -e "\n${GREEN}${BOLD}Database reset complete.${NC}"
 }
 
@@ -78,17 +77,17 @@ do_up() {
     ok "Docker services healthy"
 
     step "Running database migrations"
-    cd packages/happy-server
-    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
-        bunx prisma migrate deploy
+    (cd packages/happy-server && \
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
+        bunx prisma migrate deploy)
     ok "Migrations applied"
 
     step "Seeding dev account"
-    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
-    HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
-        bun run seed:dev
+    (cd packages/happy-server && \
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
+        HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
+        bun run seed:dev)
     ok "Dev account ready"
-    cd "$REPO_ROOT"
 
     step "Building wire + CLI"
     bun run --filter @jakobgruen/happy-wire build
@@ -109,13 +108,11 @@ do_up() {
 
     step "Starting server (port 3005)"
     SERVER_LOG="/tmp/happy-server-dev-$$.log"
-    cd packages/happy-server
-    nohup bash -c "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
-        HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
-        REDIS_URL=redis://localhost:6379 \
-        bun run dev" > "$SERVER_LOG" 2>&1 &
+    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
+    HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
+    REDIS_URL=redis://localhost:6379 \
+        nohup bun run --filter happy-server dev > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
-    cd "$REPO_ROOT"
     sleep 3
     if kill -0 "$SERVER_PID" 2>/dev/null; then
         ok "Server started (PID $SERVER_PID, log: $SERVER_LOG)"
@@ -154,7 +151,7 @@ do_up() {
     echo "  bun dev:restart:server  Restart server"
     echo "  bun dev:restart:app     Restart Expo web"
     echo "  bun dev:down            Stop everything"
-    echo "  bun dev:reset           Wipe DB + re-seed"
+    echo "  bun dev:db:reset        Wipe DB + re-seed"
 }
 
 # --- Restart: CLI ---
@@ -176,16 +173,14 @@ do_restart_cli() {
 # --- Restart: Server ---
 do_restart_server() {
     step "Restarting server"
-    fuser -k 3005/tcp 2>/dev/null || true
+    fuser -TERM -k 3005/tcp 2>/dev/null || true
     sleep 1
     SERVER_LOG="/tmp/happy-server-dev-$$.log"
-    cd packages/happy-server
-    nohup bash -c "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
-        HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
-        REDIS_URL=redis://localhost:6379 \
-        bun run dev" > "$SERVER_LOG" 2>&1 &
+    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
+    HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
+    REDIS_URL=redis://localhost:6379 \
+        nohup bun run --filter happy-server dev > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
-    cd "$REPO_ROOT"
     sleep 3
     if kill -0 "$SERVER_PID" 2>/dev/null; then
         ok "Server restarted (PID $SERVER_PID, log: $SERVER_LOG)"
@@ -198,7 +193,7 @@ do_restart_server() {
 # --- Restart: App ---
 do_restart_app() {
     step "Restarting Expo web"
-    fuser -k 8081/tcp 2>/dev/null || true
+    fuser -TERM -k 8081/tcp 2>/dev/null || true
     sleep 1
     METRO_LOG="/tmp/happy-metro-dev-$$.log"
     EXPO_PUBLIC_HAPPY_SERVER_URL=http://localhost:3005 \

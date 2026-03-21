@@ -1,5 +1,3 @@
-// packages/happy-app/sources/dev/devConstants.ts
-
 /**
  * Deterministic dev secret for auto-login in development.
  * Must match the server's DEV_AUTH_SECRET_HEX exactly.
