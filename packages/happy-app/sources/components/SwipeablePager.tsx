@@ -106,7 +106,7 @@ export const SwipeablePager = React.memo(function SwipeablePager({
                     style={[
                         { flexDirection: 'row', flex: 1 },
                         // Web: compositor-level scroll discrimination (same pattern as SwipeableRow)
-                        Platform.OS === 'web' ? { touchAction: 'pan-y' } : undefined,
+                        Platform.OS === 'web' ? { touchAction: 'pan-y' } as any : undefined,
                         animatedStyle,
                     ]}
                 >
