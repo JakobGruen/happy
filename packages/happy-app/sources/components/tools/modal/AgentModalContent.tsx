@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, Platform, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { ToolCall, Message } from '@/sync/typesMessage';
 import { Metadata } from '@/sync/storageTypes';
@@ -146,7 +146,7 @@ export const AgentModalContent = React.memo<AgentModalContentProps>(
                     )}
 
                     {activeTab === 'activity' && (
-                        <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.activityContent}>
+                        <AutoScrollView style={styles.scrollContainer} contentContainerStyle={styles.activityContent}>
                             {activityMessages.length === 0 && isRunning ? (
                                 <View style={styles.emptyContainer}>
                                     <ActivityIndicator size="small" color={theme.colors.textSecondary} />
@@ -165,7 +165,7 @@ export const AgentModalContent = React.memo<AgentModalContentProps>(
                                     />
                                 ))
                             )}
-                        </ScrollView>
+                        </AutoScrollView>
                     )}
 
                     {activeTab === 'output' && (
@@ -247,6 +247,85 @@ const ActivityMessage = React.memo<{
     }
 
     return null;
+});
+
+// Lerp factor matching ChatList for consistent feel.
+const LERP_FACTOR = 0.03;
+const NEAR_BOTTOM_THRESHOLD = 80;
+
+/**
+ * ScrollView that auto-scrolls to bottom with smooth lerp animation
+ * when content grows, but only if user is already near the bottom.
+ */
+const AutoScrollView = React.memo<{
+    style?: any;
+    contentContainerStyle?: any;
+    children: React.ReactNode;
+}>(({ style, contentContainerStyle, children }) => {
+    const scrollRef = React.useRef<ScrollView>(null);
+    const isNearBottomRef = React.useRef(true);
+    const scrollAnimRef = React.useRef(0);
+    const webNodeRef = React.useRef<HTMLElement | null>(null);
+
+    // Grab the DOM node on mount (web only).
+    React.useEffect(() => {
+        if (Platform.OS !== 'web') return;
+        const node = (scrollRef.current as any)?.getScrollableNode?.() ?? null;
+        webNodeRef.current = node;
+        return () => {
+            if (scrollAnimRef.current) {
+                cancelAnimationFrame(scrollAnimRef.current);
+                scrollAnimRef.current = 0;
+            }
+        };
+    }, []);
+
+    const handleScroll = React.useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+        const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+        isNearBottomRef.current = distanceFromBottom < NEAR_BOTTOM_THRESHOLD;
+    }, []);
+
+    // Lerp scrollTop toward bottom (web only).
+    const ensureAnimating = React.useCallback(() => {
+        if (scrollAnimRef.current) return;
+        const step = () => {
+            const node = webNodeRef.current;
+            if (!node) { scrollAnimRef.current = 0; return; }
+            const target = node.scrollHeight - node.clientHeight;
+            const remaining = target - node.scrollTop;
+            if (remaining <= 1) {
+                node.scrollTop = target;
+                scrollAnimRef.current = 0;
+                return;
+            }
+            node.scrollTop += remaining * LERP_FACTOR;
+            scrollAnimRef.current = requestAnimationFrame(step);
+        };
+        scrollAnimRef.current = requestAnimationFrame(step);
+    }, []);
+
+    const handleContentSizeChange = React.useCallback((_w: number, _h: number) => {
+        if (!isNearBottomRef.current && scrollAnimRef.current === 0) return;
+        if (Platform.OS === 'web') {
+            ensureAnimating();
+        } else {
+            scrollRef.current?.scrollToEnd({ animated: true });
+        }
+    }, [ensureAnimating]);
+
+    return (
+        <ScrollView
+            ref={scrollRef}
+            style={style}
+            contentContainerStyle={contentContainerStyle}
+            onScroll={handleScroll}
+            onContentSizeChange={handleContentSizeChange}
+            scrollEventThrottle={100}
+        >
+            {children}
+        </ScrollView>
+    );
 });
 
 const styles = StyleSheet.create((theme) => ({

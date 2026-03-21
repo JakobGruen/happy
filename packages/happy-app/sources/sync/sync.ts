@@ -40,7 +40,6 @@ import { fetchFeed } from './apiFeed';
 import { FeedItem } from './feedTypes';
 import { UserProfile } from './friendTypes';
 import { resolveMessageModeMeta } from './messageMeta';
-import { enqueuePendingExit } from '@/components/messageAnimationQueue';
 
 type V3GetSessionMessagesResponse = {
     messages: ApiMessage[];
@@ -2310,16 +2309,7 @@ class Sync {
         // FIFO remove pending messages — single state update for all echoed user messages.
         // Safe during session resume: shiftPendingMessages is a no-op when pending is empty.
         if (userMessageCount > 0) {
-            const hasPending = (storage.getState().pendingMessages[sessionId]?.length ?? 0) > 0;
-            if (hasPending) {
-                // Enqueue the exit as a queue step — the shift (which triggers FadeOutUp)
-                // only fires when it's this step's turn, then entrance animations follow.
-                enqueuePendingExit(() => {
-                    storage.getState().shiftPendingMessages(sessionId, userMessageCount);
-                });
-            } else {
-                storage.getState().shiftPendingMessages(sessionId, userMessageCount);
-            }
+            storage.getState().shiftPendingMessages(sessionId, userMessageCount);
         }
 
         let m: Message[] = [];

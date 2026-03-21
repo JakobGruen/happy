@@ -1,6 +1,6 @@
 import * as React from "react";
 import { View, Text, Pressable, Platform } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
+
 import { Image } from 'expo-image';
 import { StyleSheet } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,8 +17,6 @@ import { Option } from './markdown/MarkdownView';
 import { useSetting } from "@/sync/storage";
 import { useRouter } from 'expo-router';
 import { ImageViewerManager } from './ImageViewer';
-import * as AnimQueue from './messageAnimationQueue';
-
 /**
  * Detects if an agent message contains skill expansion content.
  * Skill expansion messages typically contain markers like:
@@ -37,76 +35,15 @@ function isSkillExpansionMessage(text: string): boolean {
     );
 }
 
-const ANIM_DURATION = 300;
-
 export const MessageView = (props: {
   message: Message;
   metadata: Metadata | null;
   sessionId: string;
   getMessageById?: (id: string) => Message | null;
 }) => {
-  const ready = AnimQueue.isReady();
-  const opacity = useSharedValue(ready ? 0 : 1);
-  const translateY = useSharedValue(ready ? 8 : 0);
-  // Height animation: -1 = auto (no constraint), >= 0 = explicit height
-  const animHeight = useSharedValue(ready ? 0 : -1);
-  const naturalHeight = useSharedValue(0);
-
-  const wrapperStyle = useAnimatedStyle(() => {
-    if (animHeight.value < 0) {
-      return {
-        opacity: opacity.value,
-        transform: [{ translateY: translateY.value }],
-      };
-    }
-    return {
-      opacity: opacity.value,
-      transform: [{ translateY: translateY.value }],
-      height: animHeight.value,
-      overflow: 'hidden' as const,
-      // flex-start prevents children from stretching to parent's 0 height,
-      // so they compute their natural content height for measurement
-      alignItems: 'flex-start' as const,
-    };
-  });
-
-  const handleContentLayout = React.useCallback((e: any) => {
-    if (!ready || naturalHeight.value > 0) return;
-    const h = e.nativeEvent.layout.height;
-    if (h > 0) {
-      naturalHeight.value = h;
-    }
-  }, [ready]);
-
-  React.useEffect(() => {
-    if (!ready) return;
-
-    const id = props.message.id;
-    AnimQueue.enqueue(id, () => {
-      if (naturalHeight.value > 0) {
-        animHeight.value = withTiming(naturalHeight.value, { duration: ANIM_DURATION }, (finished) => {
-          if (finished) animHeight.value = -1; // switch to auto for dynamic content
-        });
-      } else {
-        animHeight.value = -1; // measurement failed — show immediately
-      }
-      opacity.value = withTiming(1, { duration: ANIM_DURATION });
-      translateY.value = withTiming(0, { duration: ANIM_DURATION }, (finished) => {
-        if (finished) {
-          runOnJS(AnimQueue.complete)(id);
-        }
-      });
-    });
-
-    return () => { AnimQueue.dequeue(id); };
-  }, []); // mount-only
-
   return (
-    <Animated.View
-      style={[styles.messageContainer, wrapperStyle]}
-      renderToHardwareTextureAndroid={true}
-    >
-      <View style={styles.messageContent} onLayout={handleContentLayout}>
+    <View style={styles.messageContainer}>
+      <View style={styles.messageContent}>
         <RenderBlock
           message={props.message}
           metadata={props.metadata}
@@ -114,7 +51,7 @@ export const MessageView = (props: {
           getMessageById={props.getMessageById}
         />
       </View>
-    </Animated.View>
+    </View>
   );
 };
 
