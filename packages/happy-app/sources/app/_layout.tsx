@@ -33,6 +33,7 @@ import { StatusBarProvider } from '@/components/StatusBarProvider';
 import { monkeyPatchConsoleForRemoteLoggingForFasterAiAutoDebuggingOnlyInLocalBuilds } from '@/utils/remoteLogger';
 import { useUnistyles } from 'react-native-unistyles';
 import { AsyncLock } from '@/utils/lock';
+import { usePreventMobileZoom } from '@/hooks/usePreventMobileZoom';
 
 // Configure notification handler — suppress OS alerts when app is in foreground
 Notifications.setNotificationHandler({
@@ -224,6 +225,9 @@ export default function RootLayout() {
 
     // Request and manage browser notification permissions (web only)
     useBrowserNotifications()
+
+    // Disable all zoom on mobile web (pinch, double-tap, input focus auto-zoom)
+    usePreventMobileZoom()
 
     //
     // Not inited

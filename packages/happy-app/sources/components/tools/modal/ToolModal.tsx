@@ -111,6 +111,20 @@ export const ToolModal = React.memo<ToolModalProps>(
         // Keyboard height — shrinks card when keyboard is visible (for AskUserQuestion inputs)
         const keyboardHeight = useSharedValue(0);
         useEffect(() => {
+            if (Platform.OS === 'web') {
+                // Mobile web doesn't fire keyboardDidShow/Hide events.
+                // Use visualViewport API to detect keyboard by measuring viewport shrinkage.
+                const vv = window.visualViewport;
+                if (!vv) return;
+                const onResize = () => {
+                    // When keyboard opens, visualViewport.height shrinks below window.innerHeight
+                    const kbHeight = window.innerHeight - vv.height;
+                    keyboardHeight.value = kbHeight > 50 ? kbHeight : 0;
+                };
+                vv.addEventListener('resize', onResize);
+                return () => vv.removeEventListener('resize', onResize);
+            }
+
             const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
             const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
             const showSub = Keyboard.addListener(showEvent, (e) => {
@@ -323,8 +337,9 @@ export const ToolModal = React.memo<ToolModalProps>(
             // When keyboard is visible, bottom margin is keyboard height (replaces insets/input box)
             const effectiveBottomMargin = kb > 0 ? kb + 8 : bottomMargin;
             const maxHeight = screenHeight - effectiveBottomMargin - insets.top - 8;
+            // When keyboard is open on mobile web, use full available height (near full-screen)
             const finalHeight = kb > 0
-                ? Math.min(modalHeight.value, maxHeight)
+                ? maxHeight
                 : modalHeight.value;
             const finalY = screenHeight - finalHeight - effectiveBottomMargin;
 

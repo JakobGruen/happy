@@ -11,7 +11,7 @@ export default function Root({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no, interactive-widget=resizes-content" />
 
         {/* 
           Disable body scrolling on web. This makes ScrollView components work closer to how they do on native. 
@@ -22,6 +22,8 @@ export default function Root({ children }: { children: React.ReactNode }) {
         {/* Using raw CSS styles as an escape-hatch to ensure the background color never flickers in dark-mode. */}
         <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />
         {/* Add any additional <head> elements that you want globally available on web... */}
+
+        {/* Zoom prevention JS is handled by usePreventMobileZoom hook at runtime */}
       </head>
       <body>{children}</body>
     </html>
@@ -35,5 +37,16 @@ body {
 @media (prefers-color-scheme: dark) {
   body {
     background-color: #000;
+  }
+}
+/* Prevent double-tap zoom on all mobile browsers */
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+@media screen and (max-width: 1024px) {
+  input, textarea, select {
+    font-size: 16px !important;
   }
 }`;

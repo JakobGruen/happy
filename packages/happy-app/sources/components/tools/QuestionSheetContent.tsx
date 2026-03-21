@@ -39,6 +39,7 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
     });
 
     const [isCanceling, setIsCanceling] = React.useState(false);
+    const scrollViewRef = React.useRef<ScrollView>(null);
 
     // Tracks which option's preview content is shown in the preview pane.
     // Resets to 0 when the active question (tab) changes.
@@ -124,6 +125,12 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
             // Update preview when selecting a numbered option that has a preview
             if (oIndex !== OTHER_INDEX && question.options[oIndex]?.preview) {
                 setPreviewOptionIndex(oIndex);
+            }
+            // Scroll to bottom when "Other" is selected so text field is visible
+            if (oIndex === OTHER_INDEX) {
+                setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+                // Also scroll after keyboard opens (layout changes)
+                setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 400);
             }
         };
 
@@ -246,6 +253,10 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
                                         placeholderTextColor={theme.colors.textSecondary}
                                         value={form.otherTexts.get(qIndex) || ''}
                                         onChangeText={(text) => form.handleOtherTextChange(qIndex, text)}
+                                        onFocus={() => {
+                                            // Scroll to bottom when keyboard opens so text field + buttons stay visible
+                                            setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 300);
+                                        }}
                                         editable={form.canInteract}
                                         multiline
                                     />
@@ -261,6 +272,7 @@ export const QuestionSheetContent = React.memo<QuestionSheetContentProps>(({ per
     return (
         <View style={styles.container}>
             <ScrollView
+                ref={scrollViewRef}
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={true}
