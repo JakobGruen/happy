@@ -1,5 +1,6 @@
 import { RoundButton } from "@/components/RoundButton";
 import { useAuth } from "@/auth/AuthContext";
+import { useDevAutoLogin } from '@/hooks/useDevAutoLogin';
 import { Text, View, Image, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as React from 'react';
@@ -17,12 +18,12 @@ import { t } from '@/text';
 
 export default function Home() {
     const auth = useAuth();
+    useDevAutoLogin({ isAuthenticated: auth.isAuthenticated, login: auth.login });
+
     if (!auth.isAuthenticated) {
         return <NotAuthenticated />;
     }
-    return (
-        <Authenticated />
-    )
+    return <Authenticated />;
 }
 
 function Authenticated() {
