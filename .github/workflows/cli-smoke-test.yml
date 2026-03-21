@@ -41,7 +41,7 @@ jobs:
       run: bun run --filter happy-coder build
 
     - name: Pack package
-      run: bun run --filter happy-coder pack
+      run: cd packages/happy-cli && bun pack
 
     - name: Install packed package globally
       run: |
@@ -104,7 +104,7 @@ jobs:
       run: bun run --filter happy-coder build
 
     - name: Pack package
-      run: bun run --filter happy-coder pack
+      run: cd packages/happy-cli && bun pack
 
     - name: Install packed package globally
       shell: cmd
