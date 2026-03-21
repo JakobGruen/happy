@@ -16,8 +16,12 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as React from 'react';
-// import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { ToolCall } from '@/sync/typesMessage';
+
+// Stubbed — these tests are skipped (require @testing-library/react-native + jest-expo runtime)
+declare function render(element: React.ReactElement): any;
+declare const fireEvent: Record<string, (...args: any[]) => any>;
+declare function waitFor(cb: () => void): Promise<void>;
 
 // Helper to create mock tool objects matching actual ToolCall type
 function createMockTool(overrides: Partial<ToolCall> = {}): ToolCall {
