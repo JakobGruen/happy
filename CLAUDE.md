@@ -97,6 +97,7 @@ All three status checks must pass before merging to main:
   4. No fatal errors in logs
   5. Database migrations completed successfully
 - **Triggers:** Changes to `packages/happy-server/**`, `Dockerfile.server`, or workflow itself
+- **Deployment:** Auto-deploys to Coolify on push to main (after tests pass) → `happy-server.green-wald.de`
 - **Local equivalent:** `./scripts/test-docker-integration.sh` (run before pushing!)
 
 **2. typecheck** (`.github/workflows/typecheck.yml`)
@@ -121,7 +122,7 @@ All three status checks must pass before merging to main:
   4. Static assets (`_expo/`) accessible
   5. No critical nginx errors in logs
 - **Triggers:** Changes to `packages/happy-app/**`, `packages/happy-wire/**`, `Dockerfile.webapp`, or workflow itself
-- **Deployment:** Coolify builds from GitHub using `Dockerfile.webapp` → `happy.green-wald.de`
+- **Deployment:** Auto-deploys to Coolify on push to main (after tests pass) → `happy.green-wald.de`
 
 ### Local Testing Scripts
 
@@ -227,6 +228,7 @@ User speaks → LiveKit Room (self-hosted or Cloud)
 8. **CLI tests require build first**: Daemon integration tests spawn the actual compiled binary
 9. **No backward compatibility** in happy-app unless explicitly stated
 10. **Bun + Expo export hang**: `bunx expo export` never exits in pure-Bun Docker images — Expo's `ensureProcessExitsAfterDelay` uses `process.getActiveResourcesInfo()` which Bun only stubs. `Dockerfile.webapp` uses `imbios/bun-node` hybrid image (Bun for install, Node for runtime) to fix this
+11. **CLI wire dependency**: `@jakobgruen/happy-wire` must be in `devDependencies` (not `dependencies`) in `happy-cli/package.json` — pkgroll inlines devDeps but externalizes deps. Since wire is a private workspace package (not on npm), keeping it in deps breaks `npm install -g` from tarball
 
 ## App UI Components
 
