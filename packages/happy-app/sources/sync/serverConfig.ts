@@ -6,10 +6,24 @@ const serverConfigStorage = new MMKV({ id: 'server-config' });
 const SERVER_KEY = 'custom-server-url';
 const DEFAULT_SERVER_URL = 'https://happy-server.green-wald.de';
 
+// Maps external app hostnames to their corresponding API server URLs.
+// When the web app is served from a reverse proxy domain, EXPO_PUBLIC_* env vars
+// are baked into the bundle at build time (pointing to localhost), so we need
+// runtime detection to route API calls to the correct server.
+const EXTERNAL_SERVER_MAP: Record<string, string> = {
+    'happy-dev.green-wald.de': 'https://happy-server-dev.green-wald.de',
+};
+
 export function getServerUrl(): string {
-    return serverConfigStorage.getString(SERVER_KEY) || 
-           process.env.EXPO_PUBLIC_HAPPY_SERVER_URL || 
-           DEFAULT_SERVER_URL;
+    const custom = serverConfigStorage.getString(SERVER_KEY);
+    if (custom) return custom;
+
+    if (typeof window !== 'undefined' && window.location) {
+        const mapped = EXTERNAL_SERVER_MAP[window.location.hostname];
+        if (mapped) return mapped;
+    }
+
+    return process.env.EXPO_PUBLIC_HAPPY_SERVER_URL || DEFAULT_SERVER_URL;
 }
 
 export function setServerUrl(url: string | null): void {

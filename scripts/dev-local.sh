@@ -149,9 +149,9 @@ do_up() {
     echo "  Server log: $SERVER_LOG"
     echo "  Metro log:  $METRO_LOG"
     echo ""
-    echo "  bun dev:restart:cli     Rebuild CLI + restart daemon"
-    echo "  bun dev:restart:server  Restart server"
-    echo "  bun dev:restart:app     Restart Expo web"
+    echo "  bun dev:cli             Rebuild CLI + restart daemon"
+    echo "  bun dev:server          Restart server"
+    echo "  bun dev:app             Restart Expo web"
     echo "  bun dev:down            Stop everything"
     echo "  bun dev:db:reset        Wipe DB + re-seed"
 }
@@ -216,8 +216,8 @@ case "${1:-up}" in
     up)              do_up ;;
     down)            do_down ;;
     reset)           do_reset ;;
-    restart-cli)     do_restart_cli ;;
-    restart-server)  do_restart_server ;;
-    restart-app)     do_restart_app ;;
-    *)               echo "Usage: $0 [up|down|reset|restart-cli|restart-server|restart-app]"; exit 1 ;;
+    cli)             do_restart_cli ;;
+    server)          do_restart_server ;;
+    app)             do_restart_app ;;
+    *)               echo "Usage: $0 [up|down|reset|cli|server|app]"; exit 1 ;;
 esac
