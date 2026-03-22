@@ -61,10 +61,10 @@ if (!fs.existsSync(config.homeDir)) {
 // Visual feedback
 console.log(`${config.color}${config.label}\x1b[0m Happy CLI (data: ${config.homeDir})`);
 
-// Set environment and execute command
+// Set environment and execute command (respect existing env vars)
 const env = {
   ...process.env,
-  HAPPY_HOME_DIR: config.homeDir,
+  HAPPY_HOME_DIR: process.env.HAPPY_HOME_DIR || config.homeDir,
   HAPPY_SERVER_URL: config.serverUrl,
   HAPPY_VARIANT: variant, // For internal validation
 };

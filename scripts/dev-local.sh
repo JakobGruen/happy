@@ -95,17 +95,6 @@ do_up() {
     bun run --filter happy-coder build
     ok "CLI built"
 
-    step "Starting CLI daemon"
-    # Stop existing daemon if running
-    bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
-    sleep 1
-    # Start daemon with dev auth + local server
-    DEV_AUTH_SECRET=1 \
-    HAPPY_SERVER_URL=http://localhost:3005 \
-    HAPPY_HOME_DIR=~/.happy-dev-local \
-        bun run --filter happy-coder dev:daemon:start
-    ok "Daemon started"
-
     step "Starting server (port 3005)"
     SERVER_LOG="/tmp/happy-server-dev-$$.log"
     DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
@@ -121,6 +110,17 @@ do_up() {
         tail -10 "$SERVER_LOG" 2>/dev/null | sed 's/^/  /'
         exit 1
     fi
+
+    step "Starting CLI daemon"
+    # Stop existing daemon if running
+    bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
+    sleep 1
+    # Start daemon with dev auth + local server
+    DEV_AUTH_SECRET=1 \
+    HAPPY_SERVER_URL=http://localhost:3005 \
+    HAPPY_HOME_DIR=~/.happy-dev-local \
+        bun run --filter happy-coder dev:daemon:start
+    ok "Daemon started"
 
     step "Starting Expo web (port 8081)"
     METRO_LOG="/tmp/happy-metro-dev-$$.log"
