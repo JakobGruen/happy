@@ -25,8 +25,8 @@ warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
 do_down() {
     step "Stopping all dev services"
 
-    # Stop daemon
-    bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
+    # Stop dev daemon only (scoped by HAPPY_HOME_DIR)
+    HAPPY_HOME_DIR=~/.happy-dev-local bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
     ok "Daemon stopped"
 
     # Kill server
@@ -113,8 +113,8 @@ do_up() {
     fi
 
     step "Starting CLI daemon"
-    # Stop existing daemon if running
-    bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
+    # Stop existing dev daemon if running (scoped by HAPPY_HOME_DIR)
+    HAPPY_HOME_DIR=~/.happy-dev-local bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
     sleep 1
     # Start daemon with dev auth + local server
     DEV_AUTH_SECRET=1 \
@@ -163,7 +163,7 @@ do_restart_cli() {
     bun run --filter happy-coder build
     ok "Wire + CLI built"
 
-    bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
+    HAPPY_HOME_DIR=~/.happy-dev-local bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
     sleep 1
     DEV_AUTH_SECRET=1 \
     HAPPY_SERVER_URL=http://localhost:3005 \
