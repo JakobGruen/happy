@@ -47,6 +47,12 @@ class Configuration {
       this.happyHomeDir = join(homedir(), '.happy')
     }
 
+    // Ensure HAPPY_HOME_DIR is always in process.env so child processes
+    // (sessions, claude_remote_launcher, claude binary) inherit it.
+    // The orphan sweeper reads this from /proc/<pid>/environ to determine
+    // which daemon owns a process — without it, cross-daemon kills occur.
+    process.env.HAPPY_HOME_DIR = this.happyHomeDir
+
     this.logsDir = join(this.happyHomeDir, 'logs')
     this.settingsFile = join(this.happyHomeDir, 'settings.json')
     this.privateKeyFile = join(this.happyHomeDir, 'access.key')

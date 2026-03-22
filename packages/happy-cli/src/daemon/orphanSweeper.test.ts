@@ -176,7 +176,7 @@ describe('findOrphanedHappyProcesses', () => {
             ]);
         });
 
-        it('includes processes when their HAPPY_HOME_DIR is unreadable (conservative)', () => {
+        it('excludes processes when their HAPPY_HOME_DIR is unreadable (conservative — don\'t kill unknown)', () => {
             const processes: ProcessInfo[] = [
                 { pid: 2000, cmdline: 'node claude --mcp__happy__change_title session-a' },
             ];
@@ -184,9 +184,7 @@ describe('findOrphanedHappyProcesses', () => {
                 processes, new Set(), DAEMON_PID, noParent,
                 '/home/user/.happy', noHomeDir,
             );
-            expect(result).toEqual([
-                { pid: 2000, cmdline: 'node claude --mcp__happy__change_title session-a' },
-            ]);
+            expect(result).toEqual([]);
         });
 
         it('skips scope check when no homeDir provided (backward compat)', () => {

@@ -117,10 +117,12 @@ export function findOrphanedHappyProcesses(
         const isExcluded = EXCLUDED_PATTERNS.some(pattern => proc.cmdline.includes(pattern));
         if (isExcluded) return false;
 
-        // Skip processes belonging to a different daemon (different HAPPY_HOME_DIR)
+        // Skip processes belonging to a different daemon (different HAPPY_HOME_DIR).
+        // Conservative: if we can't determine the process's home dir, skip it
+        // (don't kill what we can't identify — it may belong to another daemon).
         if (homeDir) {
             const procHomeDir = getProcessHomeDir(proc.pid);
-            if (procHomeDir && procHomeDir !== homeDir) return false;
+            if (procHomeDir !== homeDir) return false;
         }
 
         // Skip child/grandchild processes of tracked sessions
