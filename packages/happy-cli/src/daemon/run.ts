@@ -175,7 +175,7 @@ export async function startDaemon(): Promise<void> {
     const pidToAwaiter = new Map<number, (session: TrackedSession) => void>();
 
     // Idle timeout configuration (ms, 0 = disabled)
-    const idleTimeoutMs = parseInt(process.env.HAPPY_DAEMON_IDLE_TIMEOUT || '1800000'); // 30 min default
+    const idleTimeoutMs = parseInt(process.env.HAPPY_DAEMON_IDLE_TIMEOUT || '0'); // disabled by default
     if (idleTimeoutMs > 0) {
       logger.debug(`[DAEMON RUN] Idle timeout enabled: ${idleTimeoutMs}ms (${Math.round(idleTimeoutMs / 60000)}min)`);
     } else {
