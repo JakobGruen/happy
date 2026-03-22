@@ -31,6 +31,9 @@ const EXCLUDED_PATTERNS = [
 /** Function type for resolving parent PID. Injectable for testing. */
 export type GetParentPidFn = (pid: number) => number | null;
 
+/** Function type for reading HAPPY_HOME_DIR from a process's environment. Injectable for testing. */
+export type GetProcessHomeDirFn = (pid: number) => string | null;
+
 /**
  * Read the parent PID of a process from /proc/<pid>/status.
  * Returns null if the process doesn't exist or can't be read.
@@ -40,6 +43,25 @@ export const getParentPidFromProc: GetParentPidFn = (pid: number): number | null
         const status = readFileSync(`/proc/${pid}/status`, 'utf-8');
         const match = status.match(/^PPid:\s*(\d+)/m);
         return match ? parseInt(match[1], 10) : null;
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * Read HAPPY_HOME_DIR from a process's environment via /proc/<pid>/environ.
+ * Returns null if the process doesn't exist, can't be read, or doesn't have the var.
+ */
+export const getProcessHomeDirFromProc: GetProcessHomeDirFn = (pid: number): string | null => {
+    try {
+        const environ = readFileSync(`/proc/${pid}/environ`, 'utf-8');
+        const entries = environ.split('\0');
+        for (const entry of entries) {
+            if (entry.startsWith('HAPPY_HOME_DIR=')) {
+                return entry.slice('HAPPY_HOME_DIR='.length);
+            }
+        }
+        return null;
     } catch {
         return null;
     }
@@ -71,13 +93,16 @@ export function isDescendantOfTracked(
  *
  * A process is considered happy-spawned if its cmdline contains at least one of
  * the HAPPY_MARKERS. Processes matching EXCLUDED_PATTERNS, the daemon PID,
- * already-tracked PIDs, or descendants of tracked PIDs are excluded.
+ * already-tracked PIDs, descendants of tracked PIDs, or processes belonging to
+ * a different HAPPY_HOME_DIR are excluded.
  */
 export function findOrphanedHappyProcesses(
     processes: ProcessInfo[],
     trackedPids: Set<number>,
     daemonPid: number,
     getParentPid: GetParentPidFn = getParentPidFromProc,
+    homeDir?: string,
+    getProcessHomeDir: GetProcessHomeDirFn = getProcessHomeDirFromProc,
 ): ProcessInfo[] {
     return processes.filter(proc => {
         // Skip daemon itself and tracked sessions
@@ -91,6 +116,12 @@ export function findOrphanedHappyProcesses(
         // Exclude daemon infrastructure commands
         const isExcluded = EXCLUDED_PATTERNS.some(pattern => proc.cmdline.includes(pattern));
         if (isExcluded) return false;
+
+        // Skip processes belonging to a different daemon (different HAPPY_HOME_DIR)
+        if (homeDir) {
+            const procHomeDir = getProcessHomeDir(proc.pid);
+            if (procHomeDir && procHomeDir !== homeDir) return false;
+        }
 
         // Skip child/grandchild processes of tracked sessions
         // (e.g. node claude_remote_launcher.cjs or the Claude binary)

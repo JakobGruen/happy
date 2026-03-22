@@ -871,7 +871,7 @@ export async function startDaemon(): Promise<void> {
           try {
               const allProcs = readAllProcessCmdlines();
               const trackedPids = new Set(pidToTrackedSession.keys());
-              const orphans = findOrphanedHappyProcesses(allProcs, trackedPids, process.pid);
+              const orphans = findOrphanedHappyProcesses(allProcs, trackedPids, process.pid, undefined, process.env.HAPPY_HOME_DIR);
               const toKill = filterOrphansReadyToKill(orphans, seenOrphanPids, Date.now());
 
               for (const orphan of toKill) {

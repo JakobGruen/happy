@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { findOrphanedHappyProcesses, filterOrphansReadyToKill, isDescendantOfTracked } from './orphanSweeper';
-import type { ProcessInfo, GetParentPidFn } from './orphanSweeper';
+import type { ProcessInfo, GetParentPidFn, GetProcessHomeDirFn } from './orphanSweeper';
 
 const DAEMON_PID = 1000;
 
@@ -134,6 +134,74 @@ describe('findOrphanedHappyProcesses', () => {
     it('returns empty for empty process list', () => {
         const result = findOrphanedHappyProcesses([], new Set(), DAEMON_PID, noParent);
         expect(result).toEqual([]);
+    });
+
+    describe('HAPPY_HOME_DIR scope awareness', () => {
+        /** Helper: create a mock getProcessHomeDir from a pid→homeDir map */
+        function mockProcessHomeDir(map: Record<number, string>): GetProcessHomeDirFn {
+            return (pid: number) => map[pid] ?? null;
+        }
+
+        const noHomeDir: GetProcessHomeDirFn = () => null;
+
+        it('excludes processes belonging to a different HAPPY_HOME_DIR', () => {
+            const processes: ProcessInfo[] = [
+                { pid: 2000, cmdline: 'node claude --mcp__happy__change_title session-a' },
+                { pid: 3000, cmdline: 'node claude --mcp__happy__change_title session-b' },
+            ];
+            const getHomeDir = mockProcessHomeDir({
+                2000: '/home/user/.happy',
+                3000: '/home/user/.happy-dev-local',
+            });
+            const result = findOrphanedHappyProcesses(
+                processes, new Set(), DAEMON_PID, noParent,
+                '/home/user/.happy', getHomeDir,
+            );
+            expect(result).toEqual([
+                { pid: 2000, cmdline: 'node claude --mcp__happy__change_title session-a' },
+            ]);
+        });
+
+        it('includes processes when their HAPPY_HOME_DIR matches', () => {
+            const processes: ProcessInfo[] = [
+                { pid: 2000, cmdline: 'node claude --mcp__happy__change_title session-a' },
+            ];
+            const getHomeDir = mockProcessHomeDir({ 2000: '/home/user/.happy' });
+            const result = findOrphanedHappyProcesses(
+                processes, new Set(), DAEMON_PID, noParent,
+                '/home/user/.happy', getHomeDir,
+            );
+            expect(result).toEqual([
+                { pid: 2000, cmdline: 'node claude --mcp__happy__change_title session-a' },
+            ]);
+        });
+
+        it('includes processes when their HAPPY_HOME_DIR is unreadable (conservative)', () => {
+            const processes: ProcessInfo[] = [
+                { pid: 2000, cmdline: 'node claude --mcp__happy__change_title session-a' },
+            ];
+            const result = findOrphanedHappyProcesses(
+                processes, new Set(), DAEMON_PID, noParent,
+                '/home/user/.happy', noHomeDir,
+            );
+            expect(result).toEqual([
+                { pid: 2000, cmdline: 'node claude --mcp__happy__change_title session-a' },
+            ]);
+        });
+
+        it('skips scope check when no homeDir provided (backward compat)', () => {
+            const processes: ProcessInfo[] = [
+                { pid: 2000, cmdline: 'node claude --mcp__happy__change_title session-a' },
+            ];
+            const getHomeDir = mockProcessHomeDir({ 2000: '/home/user/.happy-other' });
+            const result = findOrphanedHappyProcesses(
+                processes, new Set(), DAEMON_PID, noParent,
+                undefined, getHomeDir,
+            );
+            expect(result).toEqual([
+                { pid: 2000, cmdline: 'node claude --mcp__happy__change_title session-a' },
+            ]);
+        });
     });
 });
 
