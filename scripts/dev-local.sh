@@ -96,6 +96,7 @@ do_up() {
     ok "CLI built"
 
     step "Starting server (port 3005)"
+    fuser -TERM -k 3005/tcp 2>/dev/null || true
     SERVER_LOG="/tmp/happy-server-dev-$$.log"
     DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
     HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
@@ -123,6 +124,7 @@ do_up() {
     ok "Daemon started"
 
     step "Starting Expo web (port 8081)"
+    fuser -TERM -k 8081/tcp 2>/dev/null || true
     METRO_LOG="/tmp/happy-metro-dev-$$.log"
     EXPO_PUBLIC_HAPPY_SERVER_URL=http://localhost:3005 \
     EXPO_PUBLIC_DEV_AUTO_LOGIN=true \
