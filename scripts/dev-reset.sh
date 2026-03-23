@@ -164,15 +164,12 @@ fi
 if [[ $DO_SERVER -eq 1 ]] || [[ $DO_ALL -eq 1 ]] || [[ $HAD_FLAGS -eq 0 ]]; then
     step "Running database migrations"
     (cd packages/happy-server && \
-        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
-        bunx prisma migrate deploy)
+        bunx dotenv -e .env.dev -o -- prisma migrate deploy)
     ok "Migrations applied"
 
     step "Seeding dev account"
     (cd packages/happy-server && \
-        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
-        HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
-        bun run seed:dev)
+        bunx dotenv -e .env.dev -o -- bun run seed:dev)
     ok "Dev account seeded"
 fi
 
@@ -183,10 +180,8 @@ fi
 if [[ $DO_SERVER -eq 1 ]]; then
     step "Starting dev server (port 3005)"
     SERVER_LOG="/tmp/happy-server-dev-$$.log"
-    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
-    HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
-    REDIS_URL=redis://localhost:6380 \
-        nohup bash -c "$(typeset -f ws); ws happy-server dev" > "$SERVER_LOG" 2>&1 &
+    # Server's own `dev` script loads .env then .env.dev (tsx --env-file), no inline env needed
+    nohup bash -c "$(typeset -f ws); ws happy-server dev" > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     sleep 3
     if kill -0 "$SERVER_PID" 2>/dev/null; then
