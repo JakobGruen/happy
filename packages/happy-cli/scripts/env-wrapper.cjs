@@ -61,12 +61,12 @@ if (!fs.existsSync(config.homeDir)) {
 // Visual feedback
 console.log(`${config.color}${config.label}\x1b[0m Happy CLI (data: ${config.homeDir})`);
 
-// Set environment and execute command (respect existing env vars)
+// Set environment — variant config ALWAYS wins (shell may have HAPPY_HOME_DIR from .zshrc)
 const env = {
   ...process.env,
-  HAPPY_HOME_DIR: process.env.HAPPY_HOME_DIR || config.homeDir,
+  HAPPY_HOME_DIR: config.homeDir,
   HAPPY_SERVER_URL: config.serverUrl,
-  HAPPY_VARIANT: variant, // For internal validation
+  HAPPY_VARIANT: variant,
 };
 
 const binPath = path.join(__dirname, '..', 'bin', 'happy.mjs');

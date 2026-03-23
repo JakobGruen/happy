@@ -1,4 +1,16 @@
 #!/usr/bin/env bash
+# scripts/dev-reset.sh — Complete dev environment reset
+#
+# Nukes everything and rebuilds from scratch. Use when things are broken
+# or you want a guaranteed clean state.
+#
+# Usage:
+#   ./scripts/dev-reset.sh          Full reset (stop → Docker → install → build → seed → start)
+#   ./scripts/dev-reset.sh -c -d    Rebuild CLI + restart daemon only
+#   ./scripts/dev-reset.sh -s       Restart server + DB only
+#   ./scripts/dev-reset.sh -m       Reset Metro only
+
+set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT" || exit 1
 
@@ -6,33 +18,31 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
 step() { echo -e "\n${CYAN}${BOLD}> $1${NC}"; }
-ok()   { echo -e "  ${GREEN}ok: $1${NC}"; }
-fail() { echo -e "  ${RED}FAIL: $1${NC}"; }
-warn() { echo -e "  ${YELLOW}warn: $1${NC}"; }
+ok()   { echo -e "  ${GREEN}✅ $1${NC}"; }
+fail() { echo -e "  ${RED}❌ $1${NC}"; }
+warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
 
 usage() {
     echo "Usage: $0 [options]"
     echo ""
-    echo "Rebuild packages and restart services."
+    echo "Complete dev environment reset. Nukes and rebuilds from scratch."
     echo ""
     echo "Options:"
     echo "  -a, --all        Do everything (default if no options)"
     echo "  -w, --wire       Rebuild happy-wire"
     echo "  -c, --cli        Rebuild CLI (implies --wire)"
-    echo "  -s, --server     Restart dev server (port 3005)"
+    echo "  -s, --server     Reset Docker + DB + restart server"
     echo "  -d, --daemon     Restart CLI daemon (dev variant)"
-    echo "  -i, --install    Reinstall all dependencies (yarn cache clean + install)"
-    echo "  -m, --metro      Reset Metro bundler (kill + reinstall + clear cache + restart)"
+    echo "  -i, --install    Reinstall all dependencies (cache clean + install)"
+    echo "  -m, --metro      Reset Metro bundler (kill + clear cache + restart)"
     echo "  -t, --typecheck  Run app typecheck"
     echo "  -h, --help       Show this help"
     echo ""
     echo "Examples:"
-    echo "  $0               Full reset (install > wire > cli > daemon > server > metro)"
-    echo "  $0 -w -c         Rebuild wire + CLI only"
-    echo "  $0 -s            Restart server only"
-    echo "  $0 -m            Reset Metro only"
-    echo "  $0 -i            Reinstall dependencies only"
+    echo "  $0               Full reset (everything from scratch)"
     echo "  $0 -c -d         Rebuild CLI and restart daemon"
+    echo "  $0 -s            Reset Docker + DB + restart server"
+    echo "  $0 -m            Reset Metro only"
     exit 0
 }
 
@@ -84,9 +94,37 @@ fi
 
 ERRORS=0
 
-# --- Install ---
+# ============================================================
+# Phase 1: Stop everything
+# ============================================================
+
+step "Stopping running services"
+# Dev daemon
+ws happy-coder dev:daemon:stop 2>/dev/null || true
+# Dev server
+fuser -TERM -k 3005/tcp 2>/dev/null || true
+# Metro/Expo
+pkill -f "expo start" 2>/dev/null || true
+fuser -k 8081/tcp 2>/dev/null || lsof -ti:8081 | xargs kill -9 2>/dev/null || true
+ok "Services stopped"
+
+# ============================================================
+# Phase 2: Docker (Postgres + Redis)
+# ============================================================
+
+if [[ $DO_SERVER -eq 1 ]] || [[ $DO_ALL -eq 1 ]] || [[ $HAD_FLAGS -eq 0 ]]; then
+    step "Resetting Docker services (Postgres + Redis)"
+    docker compose -f packages/happy-server/docker-compose.dev.yml down -v 2>/dev/null || true
+    docker compose -f packages/happy-server/docker-compose.dev.yml up -d --wait
+    ok "Docker services healthy (fresh volumes)"
+fi
+
+# ============================================================
+# Phase 3: Install dependencies
+# ============================================================
+
 if [[ $DO_INSTALL -eq 1 ]]; then
-    step "Reinstalling dependencies ($PM_CACHE_CLEAN + $PM_INSTALL)"
+    step "Reinstalling dependencies ($PM)"
     if eval "$PM_CACHE_CLEAN" 2>&1 && eval "$PM_INSTALL" 2>&1; then
         ok "Dependencies reinstalled"
     else
@@ -94,7 +132,10 @@ if [[ $DO_INSTALL -eq 1 ]]; then
     fi
 fi
 
-# --- Wire ---
+# ============================================================
+# Phase 4: Build packages
+# ============================================================
+
 if [[ $DO_WIRE -eq 1 ]]; then
     step "Building happy-wire"
     if ws @jakobgruen/happy-wire build 2>&1; then
@@ -107,7 +148,6 @@ if [[ $DO_WIRE -eq 1 ]]; then
     fi
 fi
 
-# --- CLI ---
 if [[ $DO_CLI -eq 1 ]]; then
     step "Building happy-coder (CLI)"
     if ws happy-coder build 2>&1; then
@@ -117,36 +157,57 @@ if [[ $DO_CLI -eq 1 ]]; then
     fi
 fi
 
-# --- Daemon ---
-if [[ $DO_DAEMON -eq 1 ]]; then
-    step "Restarting CLI daemon (dev)"
-    ws happy-coder dev:daemon:stop 2>&1 || true
-    sleep 1
-    if ws happy-coder dev:daemon:start 2>&1; then
-        ok "Daemon restarted"
-    else
-        fail "Daemon failed to start"; ERRORS=$((ERRORS + 1))
-    fi
+# ============================================================
+# Phase 5: Database (migrate + seed)
+# ============================================================
+
+if [[ $DO_SERVER -eq 1 ]] || [[ $DO_ALL -eq 1 ]] || [[ $HAD_FLAGS -eq 0 ]]; then
+    step "Running database migrations"
+    (cd packages/happy-server && \
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
+        bunx prisma migrate deploy)
+    ok "Migrations applied"
+
+    step "Seeding dev account"
+    (cd packages/happy-server && \
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
+        HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
+        bun run seed:dev)
+    ok "Dev account seeded"
 fi
 
-# --- Server ---
+# ============================================================
+# Phase 6: Start services
+# ============================================================
+
 if [[ $DO_SERVER -eq 1 ]]; then
-    step "Restarting dev server (port 3005)"
+    step "Starting dev server (port 3005)"
     SERVER_LOG="/tmp/happy-server-dev-$$.log"
-    nohup bash -c "$(typeset -f ws); ws happy-server dev" > "$SERVER_LOG" 2>&1 &
+    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/handy \
+    HANDY_MASTER_SECRET=happy-dev-master-secret-not-for-production \
+    REDIS_URL=redis://localhost:6380 \
+        nohup bash -c "$(typeset -f ws); ws happy-server dev" > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     sleep 3
     if kill -0 "$SERVER_PID" 2>/dev/null; then
         ok "Server started (PID $SERVER_PID, log: $SERVER_LOG)"
-        tail -5 "$SERVER_LOG" 2>/dev/null | sed 's/^/  /'
     else
-        fail "Server failed to start"
+        fail "Server failed to start — check $SERVER_LOG"
         tail -10 "$SERVER_LOG" 2>/dev/null | sed 's/^/  /'
         ERRORS=$((ERRORS + 1))
     fi
 fi
 
-# --- Typecheck ---
+if [[ $DO_DAEMON -eq 1 ]]; then
+    step "Starting CLI daemon (dev)"
+    sleep 1
+    if DEV_AUTH_SECRET=1 ws happy-coder dev:daemon:start 2>&1; then
+        ok "Daemon started"
+    else
+        fail "Daemon failed to start"; ERRORS=$((ERRORS + 1))
+    fi
+fi
+
 if [[ $DO_TYPECHECK -eq 1 ]]; then
     step "Running app typecheck"
     if ws happy-app typecheck 2>&1; then
@@ -156,41 +217,32 @@ if [[ $DO_TYPECHECK -eq 1 ]]; then
     fi
 fi
 
-# --- Metro ---
 if [[ $DO_METRO -eq 1 ]]; then
-    step "Resetting Metro bundler"
-
-    # Kill existing Metro process
-    pkill -f "expo start" 2>/dev/null || true
-    # Use fuser (Debian/Ubuntu) with lsof fallback
-    fuser -k 8081/tcp 2>/dev/null || lsof -ti:8081 | xargs kill -9 2>/dev/null || true
-    sleep 1
-    ok "Stopped existing Metro process (if any)"
-
-    # Reinstall app deps ($PM_INSTALL already done if DO_INSTALL, but Metro reset is self-sufficient)
-    eval "$PM_INSTALL" 2>&1 || { fail "$PM_INSTALL failed"; ERRORS=$((ERRORS + 1)); }
-
-    # Start Metro with cache cleared
+    step "Starting Expo web (port 8081)"
     METRO_LOG="/tmp/happy-metro-dev-$$.log"
-    nohup bash -c "$(typeset -f ws); ws happy-app start --clear" > "$METRO_LOG" 2>&1 &
+    EXPO_PUBLIC_HAPPY_SERVER_URL=http://localhost:3005 \
+    EXPO_PUBLIC_DEV_AUTO_LOGIN=true \
+    EXPO_PUBLIC_PIPECAT_URL=http://localhost:8765 \
+    EXPO_PUBLIC_PIPECAT_AUTH_SECRET=happy-dev-pipecat-secret \
+        nohup bun run --filter happy-app web > "$METRO_LOG" 2>&1 &
     METRO_PID=$!
     sleep 3
     if kill -0 "$METRO_PID" 2>/dev/null; then
-        ok "Metro started (PID $METRO_PID, log: $METRO_LOG)"
-        echo "  To keep it alive: scripts/metro-watchdog.sh"
-        echo "  For logs: tail -f $METRO_LOG"
-        tail -5 "$METRO_LOG" 2>/dev/null | sed 's/^/  /'
+        ok "Expo web started (PID $METRO_PID, log: $METRO_LOG)"
     else
-        fail "Metro failed to start"
+        fail "Expo web failed to start — check $METRO_LOG"
         tail -10 "$METRO_LOG" 2>/dev/null | sed 's/^/  /'
         ERRORS=$((ERRORS + 1))
     fi
 fi
 
-# --- Summary ---
+# ============================================================
+# Summary
+# ============================================================
+
 echo ""
 if [[ $ERRORS -eq 0 ]]; then
-    echo -e "${GREEN}${BOLD}All done!${NC}"
+    echo -e "${GREEN}${BOLD}🚀 Dev environment reset complete!${NC}"
 else
     echo -e "${RED}${BOLD}Completed with $ERRORS error(s)${NC}"
     exit 1
