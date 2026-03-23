@@ -25,8 +25,8 @@ warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
 do_down() {
     step "Stopping all dev services"
 
-    # Stop dev daemon only (scoped by HAPPY_HOME_DIR)
-    HAPPY_HOME_DIR=~/.happy-dev-local bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
+    # Stop dev daemon (env-wrapper 'dev' variant targets ~/.happy-dev)
+    bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
     ok "Daemon stopped"
 
     # Kill server
@@ -113,13 +113,11 @@ do_up() {
     fi
 
     step "Starting CLI daemon"
-    # Stop existing dev daemon if running (scoped by HAPPY_HOME_DIR)
-    HAPPY_HOME_DIR=~/.happy-dev-local bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
+    # Stop existing dev daemon if running (env-wrapper 'dev' variant targets ~/.happy-dev)
+    bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
     sleep 1
-    # Start daemon with dev auth + local server
+    # Start daemon with dev auth (env-wrapper sets ~/.happy-dev + localhost:3005)
     DEV_AUTH_SECRET=1 \
-    HAPPY_SERVER_URL=http://localhost:3005 \
-    HAPPY_HOME_DIR=~/.happy-dev-local \
         bun run --filter happy-coder dev:daemon:start
     ok "Daemon started"
 
@@ -128,6 +126,8 @@ do_up() {
     METRO_LOG="/tmp/happy-metro-dev-$$.log"
     EXPO_PUBLIC_HAPPY_SERVER_URL=http://localhost:3005 \
     EXPO_PUBLIC_DEV_AUTO_LOGIN=true \
+    EXPO_PUBLIC_PIPECAT_URL=http://localhost:8765 \
+    EXPO_PUBLIC_PIPECAT_AUTH_SECRET=happy-dev-pipecat-secret \
         nohup bun run --filter happy-app web > "$METRO_LOG" 2>&1 &
     METRO_PID=$!
     sleep 3
@@ -163,11 +163,9 @@ do_restart_cli() {
     bun run --filter happy-coder build
     ok "Wire + CLI built"
 
-    HAPPY_HOME_DIR=~/.happy-dev-local bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
+    bun run --filter happy-coder dev:daemon:stop 2>/dev/null || true
     sleep 1
     DEV_AUTH_SECRET=1 \
-    HAPPY_SERVER_URL=http://localhost:3005 \
-    HAPPY_HOME_DIR=~/.happy-dev-local \
         bun run --filter happy-coder dev:daemon:start
     ok "Daemon restarted"
 }
@@ -200,6 +198,8 @@ do_restart_app() {
     METRO_LOG="/tmp/happy-metro-dev-$$.log"
     EXPO_PUBLIC_HAPPY_SERVER_URL=http://localhost:3005 \
     EXPO_PUBLIC_DEV_AUTO_LOGIN=true \
+    EXPO_PUBLIC_PIPECAT_URL=http://localhost:8765 \
+    EXPO_PUBLIC_PIPECAT_AUTH_SECRET=happy-dev-pipecat-secret \
         nohup bun run --filter happy-app web > "$METRO_LOG" 2>&1 &
     METRO_PID=$!
     sleep 3

@@ -151,7 +151,7 @@ describe('findOrphanedHappyProcesses', () => {
             ];
             const getHomeDir = mockProcessHomeDir({
                 2000: '/home/user/.happy',
-                3000: '/home/user/.happy-dev-local',
+                3000: '/home/user/.happy-dev',
             });
             const result = findOrphanedHappyProcesses(
                 processes, new Set(), DAEMON_PID, noParent,

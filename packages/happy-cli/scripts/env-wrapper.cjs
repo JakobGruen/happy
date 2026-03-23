@@ -30,7 +30,7 @@ const VARIANTS = {
     homeDir: path.join(os.homedir(), '.happy-dev'),
     color: '\x1b[33m', // Yellow
     label: '🔧 DEV',
-    serverUrl: process.env.HAPPY_SERVER_URL || 'https://happy-server-dev.green-wald.de'
+    serverUrl: process.env.HAPPY_SERVER_URL || 'http://localhost:3005'
   }
 };
 

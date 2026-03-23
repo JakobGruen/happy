@@ -11,7 +11,7 @@ const DEFAULT_SERVER_URL = 'https://happy-server.green-wald.de';
 // are baked into the bundle at build time (pointing to localhost), so we need
 // runtime detection to route API calls to the correct server.
 const EXTERNAL_SERVER_MAP: Record<string, string> = {
-    'happy-dev.green-wald.de': 'https://happy-server-dev.green-wald.de',
+    // No public dev server — all dev is local (localhost:3005)
 };
 
 export function getServerUrl(): string {
