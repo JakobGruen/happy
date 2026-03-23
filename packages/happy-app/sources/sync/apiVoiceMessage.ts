@@ -26,10 +26,13 @@ export async function sendVoiceMessage(
 
     let voiceMessageUrl: string;
 
-    if (directUrl) {
+    const envUrl = process.env.EXPO_PUBLIC_PIPECAT_URL || '';
+    if (directUrl || envUrl) {
         // Direct mode — same pattern as RealtimeSession.ts
-        const baseUrl = directUrl.replace(/\/+$/, '');
-        const secret = storage.getState().localSettings.pipecatAuthSecret;
+        const baseUrl = (directUrl || envUrl).replace(/\/+$/, '');
+        const secret = storage.getState().localSettings.pipecatAuthSecret
+            || process.env.EXPO_PUBLIC_PIPECAT_AUTH_SECRET
+            || '';
         voiceMessageUrl = `${baseUrl}/api/voice-message?session_id=${encodeURIComponent(context.sessionId)}`;
         if (secret) {
             voiceMessageUrl += `&secret=${encodeURIComponent(secret)}`;

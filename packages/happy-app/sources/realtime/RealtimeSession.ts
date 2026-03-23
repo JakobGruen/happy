@@ -26,11 +26,16 @@ export async function startRealtimeSession(sessionId: string, initialContext?: s
 
     try {
         // Direct URL from local settings bypasses happy-server (useful for local dev / self-hosted)
-        const directUrl = storage.getState().localSettings.pipecatUrl;
+        // EXPO_PUBLIC_PIPECAT_URL / EXPO_PUBLIC_PIPECAT_AUTH_SECRET are set automatically in dev (bun dev)
+        const directUrl = storage.getState().localSettings.pipecatUrl
+            || process.env.EXPO_PUBLIC_PIPECAT_URL
+            || '';
         let offerUrl: string;
 
         if (directUrl) {
-            const secret = storage.getState().localSettings.pipecatAuthSecret;
+            const secret = storage.getState().localSettings.pipecatAuthSecret
+                || process.env.EXPO_PUBLIC_PIPECAT_AUTH_SECRET
+                || '';
             const baseUrl = directUrl.replace(/\/+$/, '');
             offerUrl = `${baseUrl}/api/room?session_id=${encodeURIComponent(sessionId)}`;
             if (secret) {
