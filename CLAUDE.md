@@ -403,3 +403,15 @@ Each package has its own `CLAUDE.md` with package-specific conventions, patterns
 - `docs/TOOL_MODAL_API.md` — Tool modal component API (ToolModal, ToolModalTabs, VerticalParameterStack)
 - `docs/TOOL_MODAL_MIGRATION.md` — Migration guide for tool display redesign
 - `docs/TOOL_MODAL_PATTERNS.md` — UI patterns for tool rendering (INPUT/OUTPUT tabs, content preview)
+
+### Internal implementation notes (promoted from memory)
+- `docs/internal/daemon-and-session-lifecycle.md` — Daemon PID tracking, orphan sweeper, idle/memory stats, archive cascade, and same-session-ID reactivation
+- `docs/internal/cli-message-flow.md` — User-message echo, metadata sync (CC as source of truth), eager session init, agent single-bubble dedup, CLI hook injection
+- `docs/internal/image-attachments-multimodal.md` — Inline base64 image pipeline, wire schema, web encryption bypass, fullscreen viewer
+- `docs/internal/push-notifications.md` — Expo push flow, in-app banners, iOS action buttons, web Service Worker notifications, tap navigation
+- `docs/internal/app-ui-patterns.md` — Badges, tool/permission modal (split pop-out), AskUserQuestion preview, swipeable rows, mobile-web gesture/scroll gotchas
+- `docs/internal/voice-architecture.md` — Pipecat-only voice stack, pipeline, TURN, auth layers
+
+### Dev & deployment guides (promoted from memory)
+- `docs/guides/local-dev-and-testing.md` — `bun dev` auto-login, `dev:reset` flags, server URLs/variants, testing notes
+- `docs/guides/webapp-deployment.md` — Dockerfile.webapp build, Bun/Expo export gotcha, Coolify deploy, blank-screen init fix
